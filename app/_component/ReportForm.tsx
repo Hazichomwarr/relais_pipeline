@@ -31,8 +31,7 @@ export type Report = {
   notes: string;
   platform: string;
 
-  date?: string;
-  time?: string;
+  created_at?: string;
 };
 
 const initialState: Report = {
@@ -202,7 +201,7 @@ export default function Report() {
               required
               value={data.platform}
               onChange={(e) =>
-                setData((prev) => ({ ...prev, type: e.target.value }))
+                setData((prev) => ({ ...prev, platform: e.target.value }))
               }
             >
               <option value="">Sélectionnez une option</option>
@@ -226,13 +225,16 @@ export default function Report() {
             </label>
 
             <input
-              type="text"
+              type="tel"
               placeholder="Ex: 70 12 34 56 / WhatsApp / Facebook"
               className="h-16 w-full rounded-2xl border border-slate-200 px-5 outline-none transition focus:border-[#0f2557] focus:ring-4 focus:ring-blue-100"
               required
               value={data.contact}
               onChange={(e) =>
-                setData((prev) => ({ ...prev, contact: e.target.value }))
+                setData((prev) => ({
+                  ...prev,
+                  contact: String(e.target.value),
+                }))
               }
             />
             {error.contact && (
@@ -253,7 +255,7 @@ export default function Report() {
               required
               value={data.interest}
               onChange={(e) =>
-                setData((prev) => ({ ...prev, intrest: e.target.value }))
+                setData((prev) => ({ ...prev, interest: e.target.value }))
               }
             >
               <option value="">Sélectionnez le niveau d’intérêt</option>
@@ -277,7 +279,7 @@ export default function Report() {
 
             <textarea
               rows={5}
-              placeholder="Informations complémentaires, remarques, rendez-vous prévu..."
+              placeholder="Qu'est-ce-que le Business a dit ou veut? qu'est-ce-que vous en pensez?..."
               className="w-full rounded-2xl border border-slate-200 px-5 py-4 outline-none transition focus:border-[#0f2557] focus:ring-4 focus:ring-blue-100"
               value={data.notes}
               onChange={(e) =>
@@ -315,11 +317,11 @@ export default function Report() {
           {/* SUBMIT */}
           <button
             type="submit"
-            className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-[#0f2557] text-xl font-semibold text-white transition hover:opacity-95 active:scale-[0.99]"
+            className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-[#0f2557] text-xl font-semibold text-white transition cursor-pointer hover:opacity-95 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
             disabled={loading}
           >
             <Send className="h-6 w-6" />
-            {loading ? "Envoi..." : "Soumettre le rapport"}
+            {loading ? "Envoi en cours..." : "Soumettre le rapport"}
           </button>
 
           {/* FOOTER */}

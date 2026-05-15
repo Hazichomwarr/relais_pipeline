@@ -6,6 +6,7 @@ import {
   Search,
 } from "lucide-react";
 import { Report } from "../ReportForm";
+import { report } from "process";
 
 export default function DashboardTable({ reports }: { reports: Report[] }) {
   return (
@@ -59,55 +60,67 @@ export default function DashboardTable({ reports }: { reports: Report[] }) {
           </thead>
 
           <tbody>
-            {reports.map((report, index) => (
-              <tr key={index} className="rounded-2xl bg-[#fafbff] shadow-sm">
-                <td className="rounded-l-2xl px-4 py-5">
-                  <div>
-                    <p className="font-medium">{report.date}</p>
-                    <p className="text-sm text-slate-500">{report.time}</p>
-                  </div>
-                </td>
+            {reports.map((report, index) => {
+              const date = new Date(report.created_at!);
+              const formattedDate = date.toLocaleDateString("fr-FR");
+              const formattedTime = date.toLocaleTimeString("fr-FR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return (
+                <tr key={index} className="rounded-2xl bg-[#fafbff] shadow-sm">
+                  <td className="rounded-l-2xl px-4 py-5">
+                    <div>
+                      <p className="font-medium">{formattedDate}</p>
+                      <p className="text-sm text-slate-500">{formattedTime}</p>
+                    </div>
+                  </td>
 
-                <td className="px-4 py-5 font-semibold">{report.entreprise}</td>
+                  <td className="px-4 py-5 font-semibold">
+                    {report.entreprise}
+                  </td>
 
-                <td className="px-4 py-5">
-                  <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
-                    {report.type}
-                  </span>
-                </td>
+                  <td className="px-4 py-5">
+                    <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-700">
+                      {report.type}
+                    </span>
+                  </td>
 
-                <td className="px-4 py-5">
-                  <div>
-                    <p className="font-medium">{report.contact}</p>
-                    <p className="text-sm text-slate-500">{report.platform}</p>
-                  </div>
-                </td>
+                  <td className="px-4 py-5">
+                    <div>
+                      <p className="font-medium">{report.contact}</p>
+                      <p className="text-sm text-slate-500">
+                        {report.platform}
+                      </p>
+                    </div>
+                  </td>
 
-                <td className="px-4 py-5">{report.agent}</td>
+                  <td className="px-4 py-5">{report.agent}</td>
 
-                <td className="px-4 py-5">
-                  <span
-                    className={`rounded-full border px-3 py-1 text-sm font-medium ${getInterestStyles(
-                      report.interest,
-                    )}`}
-                  >
-                    {report.interest}
-                  </span>
-                </td>
+                  <td className="px-4 py-5">
+                    <span
+                      className={`rounded-full border px-3 py-1 text-sm font-medium ${getInterestStyles(
+                        report.interest,
+                      )}`}
+                    >
+                      {report.interest}
+                    </span>
+                  </td>
 
-                <td className="max-w-65 px-4 py-5 text-sm text-slate-600">
-                  {report.notes}
-                </td>
+                  <td className="max-w-65 px-4 py-5 text-sm text-slate-600">
+                    {report.notes}
+                  </td>
 
-                <td className="rounded-r-2xl px-4 py-5">
-                  <div className="flex justify-center">
-                    <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
-                      <Eye className="h-5 w-5 text-slate-600" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+                  <td className="rounded-r-2xl px-4 py-5">
+                    <div className="flex justify-center">
+                      <button className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50">
+                        <Eye className="h-5 w-5 text-slate-600" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
