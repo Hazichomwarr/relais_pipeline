@@ -6,7 +6,6 @@ import {
   Search,
 } from "lucide-react";
 import { Report } from "../ReportForm";
-import { report } from "process";
 
 export default function DashboardTable({ reports }: { reports: Report[] }) {
   return (

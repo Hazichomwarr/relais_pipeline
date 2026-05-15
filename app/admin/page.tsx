@@ -1,70 +1,23 @@
 // app/admin/adminPage.tsx
 
 import {
-  Calendar,
   Utensils,
   Dumbbell,
   Scissors,
   Smartphone,
   Gem,
   MoreHorizontal,
-  ChevronDown,
   LucideIcon,
 } from "lucide-react";
 
-import { Report } from "../_component/ReportForm";
 import BusinessType from "../_component/dashboard/BusinessType";
 import Sidebar from "../_component/dashboard/Sidebar";
 import DashboardTable from "../_component/dashboard/DashboardTable";
 import KpiCards from "../_component/dashboard/KpiCards";
 import { getReports } from "@/lib/getReports";
+import ReportDateFilter from "../_component/dashboard/ReportDateFilter";
 
-// const reports: Report[] = [
-//   {
-//     date: "26 mai 2024",
-//     time: "10:45",
-//     entreprise: "Restaurant Teranga",
-//     type: "Restaurant",
-//     contact: "70 12 34 56",
-//     platform: "WhatsApp",
-//     agent: "agent Ouagadougou",
-//     interest: "Intéressé",
-//     notes: "Le patron veut voir des exemples de sites.",
-//   },
-//   {
-//     date: "26 mai 2024",
-//     time: "09:30",
-//     entreprise: "Power Gym",
-//     type: "Salle de sport",
-//     contact: "78 90 12 34",
-//     platform: "Appel",
-//     agent: "agent Ouagadougou",
-//     interest: "Veut plus d’informations",
-//     notes: "Prend contact pour plus d’éclairage.",
-//   },
-//   {
-//     date: "25 mai 2024",
-//     time: "16:20",
-//     entreprise: "Mèches d'Or",
-//     type: "Salon de coiffure",
-//     contact: "75 43 21 00",
-//     platform: "Instagram",
-//     agent: "Awa Traoré",
-//     interest: "Peut-être",
-//     notes: "Hésite encore sur le prix.",
-//   },
-//   {
-//     date: "25 mai 2024",
-//     time: "11:15",
-//     entreprise: "Le Saveur Ivoirienne",
-//     type: "Restaurant",
-//     contact: "77 65 43 21",
-//     platform: "WhatsApp",
-//     agent: "Awa Traoré",
-//     interest: "Intéressé",
-//     notes: "Va vous contacter prochainement.",
-//   },
-// ];
+type SearchParams = Promise<{ date?: string }>;
 
 export type BusinessStatType = {
   label: string;
@@ -127,8 +80,14 @@ const KPI_CARDS: KpiCard[] = [
   { label: "Intéressés", total: 17, indicator: "29% du total" },
 ];
 
-export default async function AdminPage() {
-  const reports = await getReports();
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { date } = await searchParams;
+
+  const reports = date ? await getReports(date) : await getReports();
   return (
     <section className="min-h-screen bg-[#f5f7fb] text-slate-800">
       <div className="flex">
@@ -149,11 +108,8 @@ export default async function AdminPage() {
               </p>
             </div>
 
-            <button className="flex h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 text-lg font-medium shadow-sm">
-              <Calendar className="h-5 w-5 text-slate-500" />
-              20 mai 2024 - 26 mai 2024
-              <ChevronDown className="h-5 w-5 text-slate-400" />
-            </button>
+            {/* Filter reports per date */}
+            <ReportDateFilter />
           </div>
 
           {/* KPI CARDS */}
