@@ -177,13 +177,15 @@ export default function Report() {
               }
             >
               <option value="">Sélectionnez le type de business</option>
-              <option>Restaurant</option>
-              <option>Salle de sport</option>
-              <option>Salon de coiffure</option>
-              <option>Boutique tech</option>
-              <option>Bijouterie</option>
-              <option>Barbershop</option>
-              <option>Autre</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="gym">Salle de sport</option>
+              <option value="salon">Salon de coiffure</option>
+              <option value="tech-shop">Boutique tech</option>
+              <option value="store">Alimentations</option>
+              <option value="grocery-store">Bureau</option>
+              <option value="clinic">hoptial/Clinique</option>
+              <option value="barbershop">Barbershop</option>
+              <option value="autres">Autre</option>
             </select>
             {error.type && <p className="text-sm text-red-600">{error.type}</p>}
           </div>

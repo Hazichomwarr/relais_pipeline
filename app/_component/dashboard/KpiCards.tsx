@@ -1,10 +1,18 @@
-import { KpiCard } from "@/app/admin/page";
 import { FileText } from "lucide-react";
 
-export default function KpiCards({ kpiCards }: { kpiCards: KpiCard[] }) {
+export type KpiCard = { label: string; total?: number; indicator?: string };
+
+const KPI_CARDS: KpiCard[] = [
+  { label: "Total Rapports", total: 58, indicator: "+12 ce mois" },
+  { label: "Entreprises uniques", total: 23, indicator: "+5 ce mois" },
+  { label: "Commerciaux", total: 3, indicator: "Actif" },
+  { label: "Intéressés", total: 17, indicator: "29% du total" },
+];
+
+export default function KpiCards() {
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-      {kpiCards.map((k, idx) => (
+      {KPI_CARDS.map((k, idx) => (
         <div
           key={idx}
           className="rounded-3xl border border-blue-200 bg-white p-6"

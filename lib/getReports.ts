@@ -22,3 +22,17 @@ export async function getReports(date?: string) {
 
   return data;
 }
+
+export async function getBussiness(type: string) {
+  const { data, error } = await supabase
+    .from("reports")
+    .select("*")
+    .eq("type", type);
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return data;
+}
