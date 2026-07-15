@@ -1,106 +1,72 @@
-import { LucideIcon } from "lucide-react";
+import type { ProspectListItem } from "@/src/services/prospect.service";
 import {
-  Dumbbell,
-  MoreHorizontal,
-  Scissors,
-  Smartphone,
-  Utensils,
+  Building2,
+  GraduationCap,
+  PiggyBank,
+  Store,
+  type LucideIcon,
 } from "lucide-react";
-import { Report } from "../propects/prospect-form-input";
 
-export type Category =
-  | "restaurant"
-  | "gym"
-  | "salon"
-  | "tech-shop"
-  | "grocery-store"
-  | "clinic"
-  | "barbershop"
-  | "autres";
+type BusinessStatsProps = {
+  prospects: ProspectListItem[];
+};
 
-export type BusinessStatType = {
-  slug: Category;
+type ProductStatConfig = {
+  product: ProspectListItem["product"];
   label: string;
-  value: number;
-  percent: string;
   icon: LucideIcon;
   color: string;
 };
 
-const businessStats: BusinessStatType[] = [
+const productStats: ProductStatConfig[] = [
   {
-    slug: "restaurant",
-    label: "Restaurant",
-    value: 20,
-    percent: "34%",
-    icon: Utensils,
+    product: "KARMDA",
+    label: "Écoles",
+    icon: GraduationCap,
     color: "bg-blue-100 text-blue-600",
   },
   {
-    slug: "gym",
-    label: "Salle de sport",
-    value: 12,
-    percent: "21%",
-    icon: Dumbbell,
-    color: "bg-green-100 text-green-600",
+    product: "LOKARI",
+    label: "Immobilier",
+    icon: Building2,
+    color: "bg-emerald-100 text-emerald-600",
   },
   {
-    slug: "salon",
-    label: "Salon de coiffure",
-    value: 9,
-    percent: "16%",
-    icon: Scissors,
+    product: "NIA",
+    label: "Groupes d’épargne",
+    icon: PiggyBank,
     color: "bg-violet-100 text-violet-600",
   },
   {
-    slug: "tech-shop",
-    label: "Boutique tech",
-    value: 6,
-    percent: "10%",
-    icon: Smartphone,
-    color: "bg-indigo-100 text-indigo-600",
-  },
-
-  {
-    slug: "barbershop",
-    label: "Barbershop",
-    value: 2,
-    percent: "3%",
-    icon: Scissors,
+    product: "DIGITAL_SERVICES",
+    label: "Services digitaux",
+    icon: Store,
     color: "bg-amber-100 text-amber-600",
-  },
-  // {slug: "",
-  //   label: "Bijouterie",
-  //   value: 4,
-  //   percent: "7%",
-  //   icon: Gem,
-  //   color: "bg-amber-100 text-amber-600",
-  // },
-  {
-    slug: "autres",
-    label: "Autres",
-    value: 7,
-    percent: "12%",
-    icon: MoreHorizontal,
-    color: "bg-slate-100 text-slate-600",
   },
 ];
 
-export default function BusinessStats({ reports }: { reports: Report[] }) {
+export default function BusinessStats({ prospects }: BusinessStatsProps) {
+  const total = prospects.length;
+
   return (
     <div className="mt-8 rounded-4xl border border-slate-200 bg-white p-6">
       <h2 className="mb-6 text-2xl font-bold">
-        Répartition par type de business
+        Répartition par produit RELAIS
       </h2>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        {businessStats.map((item) => {
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {productStats.map((item) => {
           const Icon = item.icon;
-          const count = reports.filter((r) => r.type === item.slug).length;
+
+          const count = prospects.filter(
+            (prospect) => prospect.product === item.product,
+          ).length;
+
+          const percent = total === 0 ? 0 : Math.round((count / total) * 100);
 
           return (
             <div
-              key={item.slug}
+              key={item.product}
               className="rounded-2xl border border-slate-200 p-4"
             >
               <div className="flex items-center gap-3">
@@ -115,10 +81,7 @@ export default function BusinessStats({ reports }: { reports: Report[] }) {
 
                   <div className="mt-1 flex items-center gap-3">
                     <span className="text-3xl font-bold">{count}</span>
-
-                    <span className="text-sm text-slate-500">
-                      {item.percent}
-                    </span>
+                    <span className="text-sm text-slate-500">{percent}%</span>
                   </div>
                 </div>
               </div>

@@ -1,34 +1,48 @@
-// app/admin/adminPage.tsx
+// app/admin/page.tsx
 
-import { getReports } from "@/lib/getReports";
-import Sidebar from "../_component/dashboard/Sidebar";
-import DashboardTable from "../_component/dashboard/DashboardTable";
-import KpiCards from "../_component/dashboard/KpiCards";
-import ReportDateFilter from "../_component/dashboard/ReportDateFilter";
-import BusinessStats from "../_component/dashboard/BusinessStats";
+import BusinessStats from "@/component/dashboard/BusinessStats";
+import DashboardTable from "@/component/dashboard/DashboardTable";
+import KpiCards from "@/component/dashboard/KpiCards";
+import ReportDateFilter from "@/component/dashboard/ReportDateFilter";
+import Sidebar from "@/component/dashboard/Sidebar";
+import { getProspects } from "@/src/services/prospect.service";
+import type {
+  InterestLevel,
+  ProspectStatus,
+  RelaisProduct,
+} from "@prisma/client";
 
-type SearchParams = Promise<{ date?: string }>;
+type AdminSearchParams = Promise<{
+  search?: string;
+  product?: string;
+  interest?: string;
+  status?: string;
+  agent?: string;
+  date?: string;
+}>;
 
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: SearchParams;
+  searchParams: AdminSearchParams;
 }) {
-  const { date } = await searchParams;
+  const params = await searchParams;
 
-  const reports = date ? await getReports(date) : await getReports();
-
-  console.log("reports:", reports);
+  const prospects = await getProspects({
+    search: params.search,
+    product: params.product as RelaisProduct | undefined,
+    interest: params.interest as InterestLevel | undefined,
+    status: params.status as ProspectStatus | undefined,
+    agent: params.agent,
+    date: params.date,
+  });
 
   return (
     <section className="min-h-screen bg-[#f5f7fb] text-slate-800">
       <div className="flex">
-        {/* SIDEBAR */}
         <Sidebar />
 
-        {/* CONTENT */}
         <div className="flex-1 px-6 py-8 lg:px-10">
-          {/* TOP BAR */}
           <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-5xl font-bold tracking-tight text-[#0f2557]">
@@ -36,22 +50,18 @@ export default async function AdminPage({
               </h1>
 
               <p className="mt-2 text-lg text-slate-500">
-                Vue d’ensemble de vos rapports de prospection
+                Vue d’ensemble de la prospection RELAIS
               </p>
             </div>
 
-            {/* Filter reports per date */}
             <ReportDateFilter />
           </div>
 
-          {/* KPI CARDS */}
-          <KpiCards />
+          <KpiCards prospects={prospects} />
 
-          {/* BUSINESS TYPE STATS */}
-          <BusinessStats reports={reports} />
+          <BusinessStats prospects={prospects} />
 
-          {/* TABLE div */}
-          <DashboardTable reports={reports} />
+          <DashboardTable prospects={prospects} />
         </div>
       </div>
     </section>

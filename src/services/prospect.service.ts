@@ -1,7 +1,9 @@
 import "server-only";
 
 import { prisma } from "@/src/lib/prisma";
+import { Prisma } from "@prisma/client";
 import type { ValidatedProspectInput } from "@/src/lib/validations/prospect.schema";
+import { ProspectFilters } from "../types/propect.-filters";
 
 export type CreateProspectResult =
   | {
@@ -39,6 +41,75 @@ export async function createProspect(
     };
   }
 }
+
+export async function getProspects(filters: ProspectFilters = {}) {
+  const where: Prisma.ProspectWhereInput = {};
+
+  if (filters.product) {
+    where.product = filters.product;
+  }
+
+  if (filters.interest) {
+    where.interest = filters.interest;
+  }
+
+  if (filters.status) {
+    where.status = filters.status;
+  }
+
+  if (filters.agent) {
+    where.agentName = filters.agent;
+  }
+
+  if (filters.search) {
+    where.OR = [
+      {
+        name: {
+          contains: filters.search,
+          mode: "insensitive",
+        },
+      },
+      {
+        contactName: {
+          contains: filters.search,
+          mode: "insensitive",
+        },
+      },
+      {
+        phone: {
+          contains: filters.search,
+        },
+      },
+      {
+        location: {
+          contains: filters.search,
+          mode: "insensitive",
+        },
+      },
+    ];
+  }
+
+  if (filters.date) {
+    const start = new Date(`${filters.date}T00:00:00`);
+    const end = new Date(start);
+
+    end.setDate(end.getDate() + 1);
+
+    where.createdAt = {
+      gte: start,
+      lt: end,
+    };
+  }
+
+  return prisma.prospect.findMany({
+    where,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+export type ProspectListItem = Awaited<ReturnType<typeof getProspects>>[number];
 
 function buildProspectData(input: ValidatedProspectInput) {
   const sharedData = {

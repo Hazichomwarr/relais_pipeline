@@ -144,6 +144,7 @@ export default function ProspectForm() {
               width={90}
               height={60}
               priority
+              loading="eager"
               className="h-auto w-auto object-contain"
             />
           </div>
