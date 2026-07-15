@@ -5,7 +5,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
-import { Report } from "../ReportForm";
+import { Report } from "../propects/prospect-form-input";
 
 export default function DashboardTable({ reports }: { reports: Report[] }) {
   return (

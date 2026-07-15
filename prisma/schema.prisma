@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RelaisProduct {
+  KARMDA
+  LOKARI
+  NIA
+  DIGITAL_SERVICES
+}
+
+enum InterestLevel {
+  NOT_INTERESTED
+  MAYBE
+  NEEDS_INFORMATION
+  INTERESTED
+  READY_TO_DISCUSS
+}
+
+enum FollowUpAction {
+  CALL_BACK
+  VISIT_AGAIN
+  SEND_DEMO
+  SCHEDULE_MEETING
+  NO_ACTION
+}
+
+enum ProspectStatus {
+  NEW
+  TO_FOLLOW_UP
+  CONTACTED
+  QUALIFIED
+  PROPOSAL_SENT
+  WON
+  LOST
+}
+
+enum OnlinePresence {
+  NONE
+  WHATSAPP
+  SOCIAL_MEDIA
+  WEBSITE
+  MULTIPLE
+}
+
+model Prospect {
+  id String @id @default(cuid())
+
+  product RelaisProduct
+
+  name        String
+  prospectType String
+  contactName String?
+  phone       String
+  location    String?
+
+  interest InterestLevel
+  status   ProspectStatus @default(NEW)
+
+  nextAction   FollowUpAction?
+  followUpDate DateTime?
+
+  notes String
+
+  onlinePresence OnlinePresence?
+
+  agentName String
+
+  // KARMDA
+  schoolType          String?
+  estimatedStudentCount Int?
+  currentSchoolSystem String?
+  contactRole         String?
+
+  // LOKARI
+  propertyOwnerType     String?
+  estimatedPropertyCount Int?
+  propertyCountries     String?
+  currentPropertySystem String?
+
+  // NIA
+  savingsGroupType      String?
+  estimatedMemberCount  Int?
+  contributionFrequency String?
+  currentSavingsSystem  String?
+
+  // DIGITAL SERVICES
+  businessCategory String?
+  requestedService String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([product])
+  @@index([interest])
+  @@index([status])
+  @@index([agentName])
+  @@index([createdAt])
+  @@index([followUpDate])
+}

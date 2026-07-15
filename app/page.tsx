@@ -1,10 +1,5 @@
-import ReportForm from "./_component/ReportForm";
+import ProspectForm from "@/component/propects/prospect-form-input";
 
 export default function Home() {
-  return (
-    <main>
-      {/* <div className="absolute inset-0 bg-black/60 z-10" /> */}
-      <ReportForm />
-    </main>
-  );
+  return <ProspectForm />;
 }

@@ -6,7 +6,7 @@ import {
   Smartphone,
   Utensils,
 } from "lucide-react";
-import { Report } from "../ReportForm";
+import { Report } from "../propects/prospect-form-input";
 
 export type Category =
   | "restaurant"
