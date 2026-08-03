@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 
+import { authorizeAction } from "@/src/actions/authorize-action";
 import { prospectActivitySchema } from "@/src/lib/validations/prospect-activity.schema";
 import { createProspectActivity } from "@/src/services/prospect-activity.service";
+import { requireRole } from "@/src/services/authorization.service";
 
 export type CreateProspectActivityActionResult =
   | {
@@ -19,6 +21,14 @@ export type CreateProspectActivityActionResult =
 export async function createProspectActivityAction(
   values: unknown,
 ): Promise<CreateProspectActivityActionResult> {
+  const authorization = await authorizeAction(() =>
+    requireRole("ADMIN", "MANAGER"),
+  );
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = prospectActivitySchema.safeParse(values);
 
   if (!parsed.success) {

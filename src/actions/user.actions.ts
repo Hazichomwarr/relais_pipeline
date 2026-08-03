@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { authorizeAction } from "@/src/actions/authorize-action";
 import {
   deactivateUserSchema,
   userSchema,
@@ -12,6 +13,7 @@ import {
   deactivateUser,
   updateUser,
 } from "@/src/services/user.service";
+import { requireRole } from "@/src/services/authorization.service";
 
 export type UserActionResult =
   | { success: true; userId: string }
@@ -24,6 +26,14 @@ export type UserActionResult =
 export async function createUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
+  const authorization = await authorizeAction(() =>
+    requireRole("ADMIN", "MANAGER"),
+  );
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = userSchema.safeParse(values);
 
   if (!parsed.success) {
@@ -37,6 +47,14 @@ export async function createUserAction(
 export async function updateUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
+  const authorization = await authorizeAction(() =>
+    requireRole("ADMIN", "MANAGER"),
+  );
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = userUpdateSchema.safeParse(values);
 
   if (!parsed.success) {
@@ -50,6 +68,14 @@ export async function updateUserAction(
 export async function deactivateUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
+  const authorization = await authorizeAction(() =>
+    requireRole("ADMIN", "MANAGER"),
+  );
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = deactivateUserSchema.safeParse(values);
 
   if (!parsed.success) {

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { authorizeAction } from "@/src/actions/authorize-action";
 import {
   prospectFollowUpSchema,
   prospectSchema,
@@ -10,6 +11,7 @@ import {
   createProspect,
   updateProspectFollowUp,
 } from "@/src/services/prospect.service";
+import { requireRole } from "@/src/services/authorization.service";
 
 export type CreateProspectActionResult =
   | {
@@ -22,6 +24,10 @@ export type CreateProspectActionResult =
       fieldErrors?: Record<string, string[] | undefined>;
     };
 
+/**
+ * Intentionally unauthenticated: this is the public field-rep prospect
+ * submission form served from "/" (see Ticket 13D's public-route rule).
+ */
 export async function createProspectAction(
   values: unknown,
 ): Promise<CreateProspectActionResult> {
@@ -63,6 +69,14 @@ export type UpdateProspectFollowUpActionResult =
 export async function updateProspectFollowUpAction(
   values: unknown,
 ): Promise<UpdateProspectFollowUpActionResult> {
+  const authorization = await authorizeAction(() =>
+    requireRole("ADMIN", "MANAGER"),
+  );
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = prospectFollowUpSchema.safeParse(values);
 
   if (!parsed.success) {

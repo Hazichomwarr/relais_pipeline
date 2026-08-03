@@ -81,8 +81,11 @@ export default function Sidebar({
       </nav>
 
       {/* USER */}
-      <div className="mt-auto rounded-3xl border border-slate-200 bg-white p-4">
-        <div className="flex items-center justify-between">
+      <form action="/logout" method="POST" className="mt-auto">
+        <button
+          type="submit"
+          className="flex w-full items-center justify-between rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:bg-slate-50"
+        >
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1e3a8a] text-lg font-bold text-white">
               AD
@@ -90,13 +93,13 @@ export default function Sidebar({
 
             <div>
               <p className="font-semibold">Admin</p>
-              <p className="text-sm text-slate-500">Administrateur</p>
+              <p className="text-sm text-slate-500">Se déconnecter</p>
             </div>
           </div>
 
           <ChevronDown className="h-5 w-5 text-slate-400" />
-        </div>
-      </div>
+        </button>
+      </form>
     </aside>
   );
 }

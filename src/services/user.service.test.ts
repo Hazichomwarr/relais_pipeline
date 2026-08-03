@@ -166,6 +166,7 @@ function makeUser(
     lastName: "Ouédraogo",
     email: "aminata@example.com",
     phone: "70 12 34 56",
+    passwordHash: null,
     role: "COMMERCIAL",
     active: true,
     createdAt: new Date("2026-08-03T12:00:00.000Z"),

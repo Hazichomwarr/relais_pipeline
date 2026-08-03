@@ -78,6 +78,8 @@ model User {
   email String?
   phone String?
 
+  passwordHash String?
+
   role UserRole
 
   active Boolean @default(true)

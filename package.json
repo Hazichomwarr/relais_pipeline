@@ -7,7 +7,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test prisma/prospect-user-assignment.migration.test.ts src/lib/validations/prospect-activity.schema.test.ts src/lib/validations/prospect-assignment.schema.test.ts src/lib/validations/user.schema.test.ts src/lib/validations/commercial-dashboard.schema.test.ts src/lib/prospect-ownership.test.ts src/lib/follow-up-presentation.test.ts src/lib/follow-up-search-params.test.ts src/lib/commercial-dashboard-presentation.test.ts src/services/prospect-activity.service.test.ts src/services/prospect-creation.service.test.ts src/services/prospect-owner-reconciliation.test.ts src/services/prospect-read.service.test.ts src/services/user.service.test.ts src/services/follow-up.service.test.ts src/services/commercial-access.service.test.ts src/services/commercial-prospect.service.test.ts src/services/commercial-performance.service.test.ts src/services/commercial-dashboard.service.test.ts component/propects/prospect-activity-timeline.test.tsx component/users/user-table.test.tsx component/follow-ups/FollowUpQueueTable.test.tsx",
+    "test": "tsx --test prisma/prospect-user-assignment.migration.test.ts prisma/add-user-password-hash.migration.test.ts src/lib/validations/prospect-activity.schema.test.ts src/lib/validations/prospect-assignment.schema.test.ts src/lib/validations/user.schema.test.ts src/lib/validations/commercial-dashboard.schema.test.ts src/lib/validations/auth.schema.test.ts src/lib/prospect-ownership.test.ts src/lib/follow-up-presentation.test.ts src/lib/follow-up-search-params.test.ts src/lib/commercial-dashboard-presentation.test.ts src/services/prospect-activity.service.test.ts src/services/prospect-creation.service.test.ts src/services/prospect-owner-reconciliation.test.ts src/services/prospect-read.service.test.ts src/services/user.service.test.ts src/services/follow-up.service.test.ts src/services/commercial-access.service.test.ts src/services/commercial-prospect.service.test.ts src/services/commercial-performance.service.test.ts src/services/commercial-dashboard.service.test.ts src/services/auth-credentials.service.test.ts src/services/authorization.service.test.ts src/actions/authorize-action.test.ts src/actions/authorization-order.test.ts component/propects/prospect-activity-timeline.test.tsx component/users/user-table.test.tsx component/follow-ups/FollowUpQueueTable.test.tsx",
     "crm:report-owners": "tsx scripts/report-unreconciled-prospect-owners.ts",
     "crm:reconcile-owners": "tsx scripts/reconcile-prospect-owners.ts"
   },
@@ -16,9 +16,11 @@
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@supabase/supabase-js": "^2.105.4",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.14.0",
     "next": "16.2.6",
+    "next-auth": "5.0.0-beta.32",
     "pg": "^8.22.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
