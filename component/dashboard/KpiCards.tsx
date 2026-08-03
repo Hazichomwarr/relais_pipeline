@@ -1,9 +1,11 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
-import { FileText, Flame, Trophy, Users, type LucideIcon } from "lucide-react";
+import { Flame, PhoneCall, Trophy, Users, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 
 type KpiCardsProps = {
   prospects: ProspectListItem[];
+  followUpCount: number;
 };
 
 type KpiCard = {
@@ -11,9 +13,10 @@ type KpiCard = {
   total: number;
   indicator: string;
   icon: LucideIcon;
+  href?: string;
 };
 
-export default function KpiCards({ prospects }: KpiCardsProps) {
+export default function KpiCards({ prospects, followUpCount }: KpiCardsProps) {
   const uniqueAgents = new Set(
     prospects.map((prospect) => getAssignedUserName(prospect)),
   ).size;
@@ -31,10 +34,11 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
 
   const cards: KpiCard[] = [
     {
-      label: "Total prospects",
-      total: prospects.length,
-      indicator: "Dans la sélection actuelle",
-      icon: FileText,
+      label: "Prospects à rappeler",
+      total: followUpCount,
+      indicator: "Voir la file de suivi",
+      icon: PhoneCall,
+      href: "/admin/follow-ups",
     },
     {
       label: "Commerciaux",
@@ -61,10 +65,10 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
       {cards.map((card) => {
         const Icon = card.icon;
 
-        return (
+        const content = (
           <div
             key={card.label}
-            className="rounded-3xl border border-blue-200 bg-white p-6"
+            className="h-full rounded-3xl border border-blue-200 bg-white p-6 transition hover:border-blue-300"
           >
             <div className="flex items-center gap-4">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
@@ -80,6 +84,14 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
               </div>
             </div>
           </div>
+        );
+
+        return card.href ? (
+          <Link key={card.label} href={card.href}>
+            {content}
+          </Link>
+        ) : (
+          content
         );
       })}
     </div>

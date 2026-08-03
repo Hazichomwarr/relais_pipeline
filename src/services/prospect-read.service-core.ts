@@ -2,6 +2,18 @@ import type { Prisma } from "@prisma/client";
 
 import type { ProspectFilters } from "@/src/types/propect.-filters";
 
+export const prospectListOrderBy = [
+  { createdAt: "desc" },
+] satisfies Prisma.ProspectOrderByWithRelationInput[];
+
+export const assignedUserListSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  role: true,
+  active: true,
+} satisfies Prisma.UserSelect;
+
 export function buildProspectWhere(
   filters: ProspectFilters = {},
 ): Prisma.ProspectWhereInput {

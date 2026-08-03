@@ -1,5 +1,6 @@
 import {
   ChevronDown,
+  ClipboardCheck,
   FileText,
   LayoutDashboard,
   Settings,
@@ -11,7 +12,7 @@ import Link from "next/link";
 export default function Sidebar({
   activeItem = "dashboard",
 }: {
-  activeItem?: "dashboard" | "users";
+  activeItem?: "dashboard" | "followUps" | "users";
 }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
@@ -42,6 +43,18 @@ export default function Sidebar({
         >
           <LayoutDashboard className="h-5 w-5" />
           Tableau de bord
+        </Link>
+
+        <Link
+          href="/admin/follow-ups"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "followUps"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <ClipboardCheck className="h-5 w-5" />
+          Suivis
         </Link>
 
         <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">

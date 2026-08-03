@@ -6,6 +6,7 @@ import KpiCards from "@/component/dashboard/KpiCards";
 import ReportDateFilter from "@/component/dashboard/ReportDateFilter";
 import Sidebar from "@/component/dashboard/Sidebar";
 import { getProspects } from "@/src/services/prospect.service";
+import { getFollowUpQueue } from "@/src/services/follow-up.service";
 import { listDashboardUserOptions } from "@/src/services/user.service";
 import type {
   InterestLevel,
@@ -29,7 +30,7 @@ export default async function AdminPage({
 }) {
   const params = await searchParams;
 
-  const [prospects, filterUsers] = await Promise.all([
+  const [prospects, filterUsers, followUps] = await Promise.all([
     getProspects({
       search: params.search,
       product: params.product as RelaisProduct | undefined,
@@ -39,6 +40,7 @@ export default async function AdminPage({
       date: params.date,
     }),
     listDashboardUserOptions(),
+    getFollowUpQueue(),
   ]);
 
   return (
@@ -61,7 +63,7 @@ export default async function AdminPage({
             <ReportDateFilter />
           </div>
 
-          <KpiCards prospects={prospects} />
+          <KpiCards prospects={prospects} followUpCount={followUps.length} />
 
           <BusinessStats prospects={prospects} />
 

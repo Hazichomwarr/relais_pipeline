@@ -7,7 +7,11 @@ import type {
   ValidatedProspectInput,
 } from "@/src/lib/validations/prospect.schema";
 import { createProspectCore } from "@/src/services/prospect-creation.service-core";
-import { buildProspectWhere } from "@/src/services/prospect-read.service-core";
+import {
+  assignedUserListSelect,
+  buildProspectWhere,
+  prospectListOrderBy,
+} from "@/src/services/prospect-read.service-core";
 import { ProspectFilters } from "../types/propect.-filters";
 
 export type CreateProspectResult =
@@ -53,18 +57,10 @@ export async function getProspects(filters: ProspectFilters = {}) {
     where: buildProspectWhere(filters),
     include: {
       assignedUser: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          active: true,
-        },
+        select: assignedUserListSelect,
       },
     },
-    orderBy: {
-      createdAt: "desc",
-    },
+    orderBy: prospectListOrderBy,
   });
 }
 
@@ -77,13 +73,7 @@ export async function getProspectById(prospectId: string) {
     },
     include: {
       assignedUser: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          active: true,
-        },
+        select: assignedUserListSelect,
       },
     },
   });
