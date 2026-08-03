@@ -6,6 +6,7 @@ import KpiCards from "@/component/dashboard/KpiCards";
 import ReportDateFilter from "@/component/dashboard/ReportDateFilter";
 import Sidebar from "@/component/dashboard/Sidebar";
 import { getProspects } from "@/src/services/prospect.service";
+import { listDashboardUserOptions } from "@/src/services/user.service";
 import type {
   InterestLevel,
   ProspectStatus,
@@ -17,7 +18,7 @@ type AdminSearchParams = Promise<{
   product?: string;
   interest?: string;
   status?: string;
-  agent?: string;
+  userId?: string;
   date?: string;
 }>;
 
@@ -28,14 +29,17 @@ export default async function AdminPage({
 }) {
   const params = await searchParams;
 
-  const prospects = await getProspects({
-    search: params.search,
-    product: params.product as RelaisProduct | undefined,
-    interest: params.interest as InterestLevel | undefined,
-    status: params.status as ProspectStatus | undefined,
-    agent: params.agent,
-    date: params.date,
-  });
+  const [prospects, filterUsers] = await Promise.all([
+    getProspects({
+      search: params.search,
+      product: params.product as RelaisProduct | undefined,
+      interest: params.interest as InterestLevel | undefined,
+      status: params.status as ProspectStatus | undefined,
+      userId: params.userId,
+      date: params.date,
+    }),
+    listDashboardUserOptions(),
+  ]);
 
   return (
     <section className="min-h-screen bg-[#f5f7fb] text-slate-800">
@@ -61,7 +65,7 @@ export default async function AdminPage({
 
           <BusinessStats prospects={prospects} />
 
-          <DashboardTable prospects={prospects} />
+          <DashboardTable prospects={prospects} filterUsers={filterUsers} />
         </div>
       </div>
     </section>

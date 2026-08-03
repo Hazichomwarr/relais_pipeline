@@ -18,6 +18,7 @@ import { KarmdaFields } from "./KarmdaFields";
 import { LokariFields } from "./LokariFields";
 import { NiaFields } from "./NiaFields";
 import { SharedProspectFields } from "./shared-fields";
+import type { AssignableUserOption } from "./shared-fields";
 
 const defaultValues: ProspectFormInput = {
   product: "",
@@ -32,7 +33,7 @@ const defaultValues: ProspectFormInput = {
   nextAction: undefined,
   followUpDate: "",
   notes: "",
-  agentName: "",
+  assignedUserId: "",
 
   schoolType: "",
   estimatedStudentCount: undefined,
@@ -53,7 +54,11 @@ const defaultValues: ProspectFormInput = {
   requestedService: "",
 };
 
-export default function ProspectForm() {
+export default function ProspectForm({
+  assignableUsers,
+}: {
+  assignableUsers: AssignableUserOption[];
+}) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -164,7 +169,11 @@ export default function ProspectForm() {
           noValidate
           className="space-y-8 px-6 py-9 md:px-10"
         >
-          <SharedProspectFields register={register} errors={errors} />
+          <SharedProspectFields
+            register={register}
+            errors={errors}
+            assignableUsers={assignableUsers}
+          />
 
           {selectedProduct === "KARMDA" && (
             <KarmdaFields register={register} errors={errors} />

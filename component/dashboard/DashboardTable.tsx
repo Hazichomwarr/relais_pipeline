@@ -1,51 +1,23 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Eye,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+import { getAssignedUserName } from "@/src/lib/prospect-ownership";
+import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import Link from "next/link";
+import DashboardFilters, {
+  type DashboardUserFilterOption,
+} from "./DashboardFilters";
 
 type DashboardTableProps = {
   prospects: ProspectListItem[];
+  filterUsers: DashboardUserFilterOption[];
 };
 
-export default function DashboardTable({ prospects }: DashboardTableProps) {
+export default function DashboardTable({
+  prospects,
+  filterUsers,
+}: DashboardTableProps) {
   return (
     <div className="mt-8 rounded-4xl border border-slate-200 bg-white p-6">
-      <div className="mb-8 flex flex-col gap-4 xl:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-
-          <input
-            type="text"
-            placeholder="Rechercher un prospect, un contact..."
-            className="h-14 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 outline-none focus:border-[#0f2557]"
-          />
-        </div>
-
-        <select className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none">
-          <option value="">Tous les commerciaux</option>
-        </select>
-
-        <select className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none">
-          <option value="">Tous les niveaux d’intérêt</option>
-        </select>
-
-        <select className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none">
-          <option value="">Tous les produits</option>
-        </select>
-
-        <button
-          type="button"
-          className="flex h-14 items-center gap-2 rounded-2xl border border-slate-200 px-5 font-medium text-slate-600"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Réinitialiser
-        </button>
-      </div>
+      <DashboardFilters users={filterUsers} />
 
       <div className="overflow-x-auto">
         <table className="w-full min-w-300 border-separate border-spacing-y-3">
@@ -106,7 +78,9 @@ export default function DashboardTable({ prospects }: DashboardTableProps) {
                     <p className="text-sm text-slate-500">{prospect.phone}</p>
                   </td>
 
-                  <td className="px-4 py-5">{prospect.agentName}</td>
+                  <td className="px-4 py-5">
+                    {getAssignedUserName(prospect)}
+                  </td>
 
                   <td className="px-4 py-5">
                     <span

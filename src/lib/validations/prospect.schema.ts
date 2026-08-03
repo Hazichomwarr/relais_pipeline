@@ -124,10 +124,10 @@ export const prospectSchema = z
       .min(10, "Ajoutez au moins quelques détails sur la visite.")
       .max(2000, "Les notes sont trop longues."),
 
-    agentName: z
+    assignedUserId: z
       .string()
       .trim()
-      .min(2, "Le nom du commercial est requis.")
+      .min(1, "Sélectionnez le commercial assigné.")
       .max(100),
 
     // KARMDA

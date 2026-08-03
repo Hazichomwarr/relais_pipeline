@@ -7,7 +7,9 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test src/lib/validations/prospect-activity.schema.test.ts src/services/prospect-activity.service.test.ts component/propects/prospect-activity-timeline.test.tsx"
+    "test": "tsx --test prisma/prospect-user-assignment.migration.test.ts src/lib/validations/prospect-activity.schema.test.ts src/lib/validations/prospect-assignment.schema.test.ts src/lib/validations/user.schema.test.ts src/lib/prospect-ownership.test.ts src/services/prospect-activity.service.test.ts src/services/prospect-creation.service.test.ts src/services/prospect-owner-reconciliation.test.ts src/services/prospect-read.service.test.ts src/services/user.service.test.ts component/propects/prospect-activity-timeline.test.tsx component/users/user-table.test.tsx",
+    "crm:report-owners": "tsx scripts/report-unreconciled-prospect-owners.ts",
+    "crm:reconcile-owners": "tsx scripts/reconcile-prospect-owners.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

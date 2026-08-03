@@ -6,8 +6,13 @@ import {
   Users,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 
-export default function Sidebar() {
+export default function Sidebar({
+  activeItem = "dashboard",
+}: {
+  activeItem?: "dashboard" | "users";
+}) {
   return (
     <aside className="sticky top-0 hidden h-screen w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
       {/* LOGO */}
@@ -27,20 +32,34 @@ export default function Sidebar() {
 
       {/* NAV */}
       <nav className="space-y-2">
-        <button className="flex w-full items-center gap-3 rounded-2xl bg-blue-50 px-4 py-4 font-medium text-blue-600">
+        <Link
+          href="/admin"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "dashboard"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
           <LayoutDashboard className="h-5 w-5" />
           Tableau de bord
-        </button>
+        </Link>
 
         <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">
           <FileText className="h-5 w-5" />
           Rapports
         </button>
 
-        <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">
+        <Link
+          href="/admin/users"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "users"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
           <Users className="h-5 w-5" />
-          Commerciaux
-        </button>
+          Utilisateurs
+        </Link>
 
         <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">
           <Settings className="h-5 w-5" />

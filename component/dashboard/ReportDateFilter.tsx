@@ -3,6 +3,7 @@
 import { Calendar, ChevronDown } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useRef } from "react";
+import { buildAdminUrl } from "@/src/lib/admin-search-params";
 
 export default function ReportDateFilter() {
   const router = useRouter();
@@ -15,8 +16,7 @@ export default function ReportDateFilter() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-
-    router.push(`/admin?date=${value}`);
+    router.push(buildAdminUrl(searchParams.toString(), "date", value));
   };
 
   const openPicker = () => {

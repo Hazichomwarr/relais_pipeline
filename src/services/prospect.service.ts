@@ -6,6 +6,8 @@ import type {
   ValidatedProspectFollowUpInput,
   ValidatedProspectInput,
 } from "@/src/lib/validations/prospect.schema";
+import { createProspectCore } from "@/src/services/prospect-creation.service-core";
+import { buildProspectWhere } from "@/src/services/prospect-read.service-core";
 import { ProspectFilters } from "../types/propect.-filters";
 
 export type CreateProspectResult =
@@ -15,97 +17,51 @@ export type CreateProspectResult =
     }
   | {
       success: false;
-      code: "CREATE_FAILED";
+      code:
+        | "ASSIGNED_USER_NOT_FOUND"
+        | "ASSIGNED_USER_INACTIVE"
+        | "ASSIGNED_USER_NOT_COMMERCIAL"
+        | "CREATE_FAILED";
       message: string;
     };
 
 export async function createProspect(
   input: ValidatedProspectInput,
 ): Promise<CreateProspectResult> {
-  try {
-    const prospect = await prisma.prospect.create({
-      data: buildProspectData(input),
-      select: {
-        id: true,
-      },
-    });
-
-    return {
-      success: true,
-      prospectId: prospect.id,
-    };
-  } catch (error) {
-    console.error("Unable to create prospect:", error);
-
-    return {
-      success: false,
-      code: "CREATE_FAILED",
-      message: "Le rapport n’a pas pu être enregistré. Veuillez réessayer.",
-    };
-  }
+  return createProspectCore(input, {
+    findAssignedUser: (assignedUserId) =>
+      prisma.user.findUnique({
+        where: { id: assignedUserId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          active: true,
+        },
+      }),
+    create: (values, agentNameSnapshot) =>
+      prisma.prospect.create({
+        data: buildProspectData(values, agentNameSnapshot),
+        select: { id: true },
+      }),
+  });
 }
 
 export async function getProspects(filters: ProspectFilters = {}) {
-  const where: Prisma.ProspectWhereInput = {};
-
-  if (filters.product) {
-    where.product = filters.product;
-  }
-
-  if (filters.interest) {
-    where.interest = filters.interest;
-  }
-
-  if (filters.status) {
-    where.status = filters.status;
-  }
-
-  if (filters.agent) {
-    where.agentName = filters.agent;
-  }
-
-  if (filters.search) {
-    where.OR = [
-      {
-        name: {
-          contains: filters.search,
-          mode: "insensitive",
-        },
-      },
-      {
-        contactName: {
-          contains: filters.search,
-          mode: "insensitive",
-        },
-      },
-      {
-        phone: {
-          contains: filters.search,
-        },
-      },
-      {
-        location: {
-          contains: filters.search,
-          mode: "insensitive",
-        },
-      },
-    ];
-  }
-
-  if (filters.date) {
-    const start = new Date(`${filters.date}T00:00:00`);
-    const end = new Date(start);
-
-    end.setDate(end.getDate() + 1);
-
-    where.createdAt = {
-      gte: start,
-      lt: end,
-    };
-  }
-
   return prisma.prospect.findMany({
-    where,
+    where: buildProspectWhere(filters),
+    include: {
+      assignedUser: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          active: true,
+        },
+      },
+    },
     orderBy: {
       createdAt: "desc",
     },
@@ -118,6 +74,17 @@ export async function getProspectById(prospectId: string) {
   return prisma.prospect.findUnique({
     where: {
       id: prospectId,
+    },
+    include: {
+      assignedUser: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          active: true,
+        },
+      },
     },
   });
 }
@@ -175,7 +142,10 @@ export async function updateProspectFollowUp(
   }
 }
 
-function buildProspectData(input: ValidatedProspectInput) {
+function buildProspectData(
+  input: ValidatedProspectInput,
+  agentNameSnapshot: string,
+) {
   const sharedData = {
     product: input.product,
     name: input.name,
@@ -189,7 +159,8 @@ function buildProspectData(input: ValidatedProspectInput) {
     nextAction: input.nextAction,
     followUpDate: input.followUpDate,
     notes: input.notes,
-    agentName: input.agentName,
+    assignedUserId: input.assignedUserId,
+    agentName: agentNameSnapshot,
   };
 
   switch (input.product) {

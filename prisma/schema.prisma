@@ -63,6 +63,34 @@ enum ProspectActivityType {
   INTERNAL_NOTE
 }
 
+enum UserRole {
+  ADMIN
+  COMMERCIAL
+  MANAGER
+}
+
+model User {
+  id String @id @default(cuid())
+
+  firstName String
+  lastName  String
+
+  email String?
+  phone String?
+
+  role UserRole
+
+  active Boolean @default(true)
+
+  assignedProspects Prospect[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([active])
+}
+
 model Prospect {
   id String @id @default(cuid())
 
@@ -85,6 +113,9 @@ model Prospect {
   onlinePresence OnlinePresence?
 
   agentName String
+
+  assignedUserId String?
+  assignedUser   User?   @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
 
   // KARMDA
   schoolType            String?
@@ -117,6 +148,7 @@ model Prospect {
   @@index([interest])
   @@index([status])
   @@index([agentName])
+  @@index([assignedUserId])
   @@index([createdAt])
   @@index([followUpDate])
 }

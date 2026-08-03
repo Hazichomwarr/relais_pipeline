@@ -13,6 +13,15 @@ import { FormError } from "./form-error";
 type SharedProspectFieldsProps = {
   register: UseFormRegister<ProspectFormInput>;
   errors: Record<string, { message?: string } | undefined>;
+  assignableUsers: AssignableUserOption[];
+};
+
+export type AssignableUserOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
 };
 
 const inputClassName =
@@ -23,6 +32,7 @@ const selectClassName = `${inputClassName} text-slate-600`;
 export function SharedProspectFields({
   register,
   errors,
+  assignableUsers,
 }: SharedProspectFieldsProps) {
   return (
     <div className="space-y-7">
@@ -264,21 +274,34 @@ export function SharedProspectFields({
 
       <div>
         <label
-          htmlFor="agentName"
+          htmlFor="assignedUserId"
           className="mb-2 block font-semibold text-slate-800"
         >
-          Nom du commercial
+          Commercial assigné
         </label>
 
-        <input
-          id="agentName"
-          type="text"
-          placeholder="Votre nom"
-          className={inputClassName}
-          {...register("agentName")}
-        />
+        <select
+          id="assignedUserId"
+          className={selectClassName}
+          {...register("assignedUserId")}
+        >
+          <option value="">Sélectionnez un commercial</option>
+          {assignableUsers.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.firstName} {user.lastName}
+              {user.phone ? ` — ${user.phone}` : user.email ? ` — ${user.email}` : ""}
+            </option>
+          ))}
+        </select>
 
-        <FormError message={errors.agentName?.message} />
+        {assignableUsers.length === 0 && (
+          <p className="mt-2 text-sm text-amber-700">
+            Aucun commercial actif n’est disponible. Créez ou activez un
+            utilisateur avec le rôle Commercial dans l’administration.
+          </p>
+        )}
+
+        <FormError message={errors.assignedUserId?.message} />
       </div>
     </div>
   );

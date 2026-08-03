@@ -1,4 +1,5 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
+import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 import { FileText, Flame, Trophy, Users, type LucideIcon } from "lucide-react";
 
 type KpiCardsProps = {
@@ -13,8 +14,9 @@ type KpiCard = {
 };
 
 export default function KpiCards({ prospects }: KpiCardsProps) {
-  const uniqueAgents = new Set(prospects.map((prospect) => prospect.agentName))
-    .size;
+  const uniqueAgents = new Set(
+    prospects.map((prospect) => getAssignedUserName(prospect)),
+  ).size;
 
   const interested = prospects.filter((prospect) =>
     ["INTERESTED", "READY_TO_DISCUSS"].includes(prospect.interest),

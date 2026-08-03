@@ -9,6 +9,6 @@ export type ProspectFilters = {
   product?: RelaisProduct;
   interest?: InterestLevel;
   status?: ProspectStatus;
-  agent?: string;
+  userId?: string;
   date?: string;
 };

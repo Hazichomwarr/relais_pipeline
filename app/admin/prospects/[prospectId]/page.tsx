@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
@@ -80,9 +81,9 @@ export default async function ProspectDetailPage({
                 </div>
 
                 <div className="rounded-2xl bg-white/10 px-5 py-4 text-sm backdrop-blur-sm">
-                  <p className="text-blue-100">Commercial responsable</p>
+                  <p className="text-blue-100">Commercial assigné</p>
                   <p className="mt-1 font-semibold text-white">
-                    {prospect.agentName}
+                    {getAssignedUserName(prospect)}
                   </p>
                 </div>
               </div>
@@ -116,7 +117,10 @@ export default async function ProspectDetailPage({
                       label="Présence en ligne"
                       value={getOnlinePresenceLabel(prospect.onlinePresence)}
                     />
-                    <InfoField label="Commercial" value={prospect.agentName} />
+                    <InfoField
+                      label="Commercial assigné"
+                      value={getAssignedUserName(prospect)}
+                    />
                   </div>
                 </DetailSection>
 
@@ -179,7 +183,7 @@ export default async function ProspectDetailPage({
             <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
               <ProspectActivityForm
                 prospectId={prospect.id}
-                initialAgentName={prospect.agentName}
+                initialAgentName={getAssignedUserName(prospect)}
               />
               <ProspectActivityTimeline
                 activities={
