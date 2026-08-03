@@ -11,3 +11,15 @@ export function buildCommercialProspectWhere(
 ): Prisma.ProspectWhereInput {
   return buildProspectWhere({ ...filters, userId });
 }
+
+/**
+ * Scopes a single-prospect lookup to its owner so a foreign or unknown
+ * prospectId resolves to null from the query itself, never from a
+ * post-fetch ownership check.
+ */
+export function buildCommercialProspectByIdWhere(
+  prospectId: string,
+  commercialId: string,
+): Prisma.ProspectWhereInput {
+  return { id: prospectId, assignedUserId: commercialId };
+}
