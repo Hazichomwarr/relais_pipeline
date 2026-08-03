@@ -6,6 +6,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
+import Link from "next/link";
 
 type DashboardTableProps = {
   prospects: ProspectListItem[];
@@ -127,13 +128,13 @@ export default function DashboardTable({ prospects }: DashboardTableProps) {
 
                   <td className="rounded-r-2xl px-4 py-5">
                     <div className="flex justify-center">
-                      <button
-                        type="button"
+                      <Link
+                        href={`/admin/prospects/${prospect.id}`}
                         aria-label={`Voir ${prospect.name}`}
                         className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50"
                       >
                         <Eye className="h-5 w-5 text-slate-600" />
-                      </button>
+                      </Link>
                     </div>
                   </td>
                 </tr>

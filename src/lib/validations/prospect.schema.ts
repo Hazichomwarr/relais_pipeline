@@ -188,3 +188,50 @@ export const prospectSchema = z
 
 export type ProspectFormInput = z.input<typeof prospectSchema>;
 export type ValidatedProspectInput = z.output<typeof prospectSchema>;
+
+export const prospectFollowUpSchema = z.object({
+  prospectId: z
+    .string()
+    .trim()
+    .min(1, "Le prospect est requis.")
+    .max(100, "L’identifiant du prospect est invalide."),
+  interest: z.enum(interestLevels, {
+    error: "Sélectionnez un niveau d’intérêt valide.",
+  }),
+  status: z.enum(prospectStatuses, {
+    error: "Sélectionnez un statut valide.",
+  }),
+  nextAction: z.preprocess(
+    (value) => (value === "" || value === undefined ? null : value),
+    z.enum(followUpActions, {
+      error: "Sélectionnez une prochaine action valide.",
+    }).nullable(),
+  ),
+  followUpDate: z.preprocess(
+    (value) => {
+      if (value === "" || value === null || value === undefined) {
+        return null;
+      }
+
+      if (value instanceof Date) {
+        return value;
+      }
+
+      if (typeof value === "string") {
+        return new Date(`${value}T12:00:00`);
+      }
+
+      return value;
+    },
+    z
+      .date({
+        error: "Sélectionnez une date de suivi valide.",
+      })
+      .nullable(),
+  ),
+});
+
+export type ProspectFollowUpInput = z.input<typeof prospectFollowUpSchema>;
+export type ValidatedProspectFollowUpInput = z.output<
+  typeof prospectFollowUpSchema
+>;

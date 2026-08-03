@@ -2,7 +2,10 @@ import "server-only";
 
 import { prisma } from "@/src/lib/prisma";
 import { Prisma } from "@prisma/client";
-import type { ValidatedProspectInput } from "@/src/lib/validations/prospect.schema";
+import type {
+  ValidatedProspectFollowUpInput,
+  ValidatedProspectInput,
+} from "@/src/lib/validations/prospect.schema";
 import { ProspectFilters } from "../types/propect.-filters";
 
 export type CreateProspectResult =
@@ -110,6 +113,67 @@ export async function getProspects(filters: ProspectFilters = {}) {
 }
 
 export type ProspectListItem = Awaited<ReturnType<typeof getProspects>>[number];
+
+export async function getProspectById(prospectId: string) {
+  return prisma.prospect.findUnique({
+    where: {
+      id: prospectId,
+    },
+  });
+}
+
+export type ProspectDetail = NonNullable<
+  Awaited<ReturnType<typeof getProspectById>>
+>;
+
+export type UpdateProspectFollowUpResult =
+  | {
+      success: true;
+    }
+  | {
+      success: false;
+      code: "NOT_FOUND" | "UPDATE_FAILED";
+      message: string;
+    };
+
+export async function updateProspectFollowUp(
+  input: ValidatedProspectFollowUpInput,
+): Promise<UpdateProspectFollowUpResult> {
+  try {
+    await prisma.prospect.update({
+      where: {
+        id: input.prospectId,
+      },
+      data: {
+        interest: input.interest,
+        status: input.status,
+        nextAction: input.nextAction,
+        followUpDate: input.followUpDate,
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return {
+        success: false,
+        code: "NOT_FOUND",
+        message: "Ce prospect n’existe plus.",
+      };
+    }
+
+    console.error("Unable to update prospect follow-up:", error);
+
+    return {
+      success: false,
+      code: "UPDATE_FAILED",
+      message: "Le suivi n’a pas pu être mis à jour. Veuillez réessayer.",
+    };
+  }
+}
 
 function buildProspectData(input: ValidatedProspectInput) {
   const sharedData = {

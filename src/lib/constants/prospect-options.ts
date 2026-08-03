@@ -85,3 +85,34 @@ export const followUpActionOptions = [
     label: "Aucune action",
   },
 ] as const;
+
+export const prospectStatusOptions = [
+  {
+    value: "NEW",
+    label: "Nouveau",
+  },
+  {
+    value: "TO_FOLLOW_UP",
+    label: "À suivre",
+  },
+  {
+    value: "CONTACTED",
+    label: "Contacté",
+  },
+  {
+    value: "QUALIFIED",
+    label: "Qualifié",
+  },
+  {
+    value: "PROPOSAL_SENT",
+    label: "Proposition envoyée",
+  },
+  {
+    value: "WON",
+    label: "Gagné",
+  },
+  {
+    value: "LOST",
+    label: "Perdu",
+  },
+] as const;
