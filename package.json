@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "tsx --test src/lib/validations/prospect-activity.schema.test.ts src/services/prospect-activity.service.test.ts component/propects/prospect-activity-timeline.test.tsx"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

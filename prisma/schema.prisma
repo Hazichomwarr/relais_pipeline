@@ -52,16 +52,27 @@ enum OnlinePresence {
   MULTIPLE
 }
 
+enum ProspectActivityType {
+  FIELD_VISIT
+  PHONE_CALL
+  WHATSAPP
+  MEETING
+  DEMO
+  DOCUMENT_SENT
+  FOLLOW_UP
+  INTERNAL_NOTE
+}
+
 model Prospect {
   id String @id @default(cuid())
 
   product RelaisProduct
 
-  name        String
+  name         String
   prospectType String
-  contactName String?
-  phone       String
-  location    String?
+  contactName  String?
+  phone        String
+  location     String?
 
   interest InterestLevel
   status   ProspectStatus @default(NEW)
@@ -76,16 +87,16 @@ model Prospect {
   agentName String
 
   // KARMDA
-  schoolType          String?
+  schoolType            String?
   estimatedStudentCount Int?
-  currentSchoolSystem String?
-  contactRole         String?
+  currentSchoolSystem   String?
+  contactRole           String?
 
   // LOKARI
-  propertyOwnerType     String?
+  propertyOwnerType      String?
   estimatedPropertyCount Int?
-  propertyCountries     String?
-  currentPropertySystem String?
+  propertyCountries      String?
+  currentPropertySystem  String?
 
   // NIA
   savingsGroupType      String?
@@ -100,10 +111,34 @@ model Prospect {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  activities ProspectActivity[]
+
   @@index([product])
   @@index([interest])
   @@index([status])
   @@index([agentName])
   @@index([createdAt])
   @@index([followUpDate])
+}
+
+model ProspectActivity {
+  id String @id @default(cuid())
+
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  type ProspectActivityType
+
+  summary String
+  details String?
+
+  occurredAt DateTime
+
+  agentName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([prospectId])
+  @@index([prospectId, occurredAt])
+  @@index([type])
 }

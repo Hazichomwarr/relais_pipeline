@@ -11,8 +11,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
+import ProspectActivityForm from "@/component/propects/prospect-activity-form";
+import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
 import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
 import Sidebar from "@/component/dashboard/Sidebar";
+import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import {
   getProspectById,
   type ProspectDetail,
@@ -31,6 +34,12 @@ export default async function ProspectDetailPage({
   const prospect = await getProspectById(prospectId);
 
   if (!prospect) {
+    notFound();
+  }
+
+  const activitiesResult = await getProspectActivities(prospect.id);
+
+  if (!activitiesResult.success && activitiesResult.code === "NOT_FOUND") {
     notFound();
   }
 
@@ -113,7 +122,7 @@ export default async function ProspectDetailPage({
 
                 <ProductDetailSection prospect={prospect} />
 
-                <DetailSection title="Observation terrain originale">
+                <DetailSection title="Observation initiale du terrain">
                   <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">
                     {prospect.notes}
                   </p>
@@ -165,6 +174,23 @@ export default async function ProspectDetailPage({
                   }}
                 />
               </aside>
+            </div>
+
+            <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
+              <ProspectActivityForm
+                prospectId={prospect.id}
+                initialAgentName={prospect.agentName}
+              />
+              <ProspectActivityTimeline
+                activities={
+                  activitiesResult.success ? activitiesResult.activities : []
+                }
+                errorMessage={
+                  activitiesResult.success
+                    ? undefined
+                    : activitiesResult.message
+                }
+              />
             </div>
           </div>
         </main>
