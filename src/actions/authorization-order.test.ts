@@ -42,6 +42,16 @@ const gatedActions = [
     functionName: "changePasswordAction",
     serviceCall: "changePassword(",
   },
+  {
+    file: "src/actions/commercial-prospect.actions.ts",
+    functionName: "updateCommercialProspectFollowUpAction",
+    serviceCall: "updateCommercialProspect(",
+  },
+  {
+    file: "src/actions/commercial-prospect.actions.ts",
+    functionName: "createCommercialActivityAction",
+    serviceCall: "createCommercialActivity(",
+  },
 ];
 
 for (const action of gatedActions) {
@@ -83,6 +93,21 @@ test("createProspectAction stays intentionally public (the field-rep submission 
 
   assert.doesNotMatch(functionBody, /authorizeAction\(/);
 });
+
+for (const functionName of [
+  "updateCommercialProspectFollowUpAction",
+  "createCommercialActivityAction",
+]) {
+  test(`${functionName} authorizes via requireCommercial, not the admin role set`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/commercial-prospect.actions.ts",
+      functionName,
+    );
+
+    assert.match(functionBody, /authorizeAction\(requireCommercial\)/);
+    assert.doesNotMatch(functionBody, /requireRole\(/);
+  });
+}
 
 test("loginAction stays intentionally public (it's the entry point that establishes identity)", () => {
   const functionBody = extractFunctionBody(

@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { updateProspectFollowUpAction } from "@/src/actions/prospect.actions";
+import {
+  updateProspectFollowUpAction,
+  type UpdateProspectFollowUpActionResult,
+} from "@/src/actions/prospect.actions";
 import {
   followUpActionOptions,
   interestOptions,
@@ -26,6 +29,8 @@ type ProspectFollowUpFormProps = {
     nextAction: ValidatedProspectFollowUpInput["nextAction"];
     followUpDate: string;
   };
+  /** Defaults to the admin action; the commercial detail page passes its own ownership-scoped action. */
+  action?: (values: unknown) => Promise<UpdateProspectFollowUpActionResult>;
 };
 
 const fieldClassName =
@@ -34,6 +39,7 @@ const fieldClassName =
 export default function ProspectFollowUpForm({
   prospectId,
   initialValues,
+  action = updateProspectFollowUpAction,
 }: ProspectFollowUpFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -63,7 +69,7 @@ export default function ProspectFollowUpForm({
   async function onSubmit(values: ValidatedProspectFollowUpInput) {
     setFeedback(null);
 
-    const result = await updateProspectFollowUpAction(values);
+    const result = await action(values);
 
     if (!result.success) {
       if (result.fieldErrors) {

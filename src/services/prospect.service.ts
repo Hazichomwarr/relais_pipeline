@@ -96,11 +96,20 @@ export type UpdateProspectFollowUpResult =
 export async function updateProspectFollowUp(
   input: ValidatedProspectFollowUpInput,
 ): Promise<UpdateProspectFollowUpResult> {
+  return updateProspectFollowUpScoped({ id: input.prospectId }, input);
+}
+
+/**
+ * Shared by the admin (unscoped) and commercial (ownership-scoped) callers —
+ * the where clause is the only thing that differs between them.
+ */
+export async function updateProspectFollowUpScoped(
+  where: Prisma.ProspectWhereUniqueInput,
+  input: ValidatedProspectFollowUpInput,
+): Promise<UpdateProspectFollowUpResult> {
   try {
     await prisma.prospect.update({
-      where: {
-        id: input.prospectId,
-      },
+      where,
       data: {
         interest: input.interest,
         status: input.status,

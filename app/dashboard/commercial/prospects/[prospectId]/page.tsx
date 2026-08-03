@@ -8,12 +8,15 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
+import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
 import {
   Badge,
   DetailSection,
   InfoField,
   ProductDetailSection,
+  formatDateInput,
   formatDateTime,
   getInterestLabel,
   getInterestStyles,
@@ -21,6 +24,11 @@ import {
   getProductLabel,
   getStatusLabel,
 } from "@/component/propects/prospect-detail-sections";
+import {
+  createCommercialActivityAction,
+  updateCommercialProspectFollowUpAction,
+} from "@/src/actions/commercial-prospect.actions";
+import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 import { requireCommercial } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import { getCommercialProspectById } from "@/src/services/commercial-prospect.service";
@@ -98,6 +106,21 @@ export default async function CommercialProspectDetailPage({
           </div>
         </DetailSection>
 
+        <DetailSection title="Suivi commercial">
+          <ProspectFollowUpForm
+            prospectId={prospect.id}
+            action={updateCommercialProspectFollowUpAction}
+            initialValues={{
+              interest: prospect.interest,
+              status: prospect.status,
+              nextAction: prospect.nextAction,
+              followUpDate: prospect.followUpDate
+                ? formatDateInput(prospect.followUpDate)
+                : "",
+            }}
+          />
+        </DetailSection>
+
         <ProductDetailSection prospect={prospect} />
 
         <DetailSection title="Observation initiale du terrain">
@@ -120,6 +143,12 @@ export default async function CommercialProspectDetailPage({
             />
           </div>
         </DetailSection>
+
+        <ProspectActivityForm
+          prospectId={prospect.id}
+          action={createCommercialActivityAction}
+          initialAgentName={getAssignedUserName(prospect)}
+        />
 
         <ProspectActivityTimeline
           activities={

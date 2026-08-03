@@ -1,16 +1,20 @@
 import "server-only";
 
 import { prisma } from "@/src/lib/prisma";
+import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
+import type { ValidatedProspectFollowUpInput } from "@/src/lib/validations/prospect.schema";
 import { assertCommercialAccess } from "@/src/services/commercial-access.service";
 import {
   buildCommercialProspectByIdWhere,
   buildCommercialProspectWhere,
   type CommercialProspectFilters,
 } from "@/src/services/commercial-prospect.service-core";
+import { createProspectActivityCore } from "@/src/services/prospect-activity.service-core";
 import {
   assignedUserListSelect,
   prospectListOrderBy,
 } from "@/src/services/prospect-read.service-core";
+import { updateProspectFollowUpScoped } from "@/src/services/prospect.service";
 
 export async function getCommercialProspects(
   userId: string,
@@ -48,3 +52,51 @@ export async function getCommercialProspectById(
 export type CommercialProspectDetail = NonNullable<
   Awaited<ReturnType<typeof getCommercialProspectById>>
 >;
+
+/**
+ * Only touches follow-up fields (interest/status/nextAction/followUpDate) —
+ * ownership is enforced in the WHERE clause itself, reusing the exact same
+ * update-and-error-mapping logic the admin flow uses.
+ */
+export async function updateCommercialProspect(
+  userId: string,
+  input: ValidatedProspectFollowUpInput,
+) {
+  const commercial = await assertCommercialAccess(userId);
+
+  return updateProspectFollowUpScoped(
+    buildCommercialProspectByIdWhere(input.prospectId, commercial.id),
+    input,
+  );
+}
+
+export async function createCommercialActivity(
+  userId: string,
+  input: ValidatedProspectActivityInput,
+) {
+  const commercial = await assertCommercialAccess(userId);
+
+  return createProspectActivityCore(input, {
+    runTransaction: (work) =>
+      prisma.$transaction((transaction) =>
+        work({
+          findProspect: (id) =>
+            transaction.prospect.findFirst({
+              where: buildCommercialProspectByIdWhere(id, commercial.id),
+              select: { id: true },
+            }),
+          createActivity: (data) =>
+            transaction.prospectActivity.create({
+              data,
+              select: { id: true },
+            }),
+          updateProspect: async (id, data) => {
+            await transaction.prospect.update({
+              where: buildCommercialProspectByIdWhere(id, commercial.id),
+              data,
+            });
+          },
+        }),
+      ),
+  });
+}

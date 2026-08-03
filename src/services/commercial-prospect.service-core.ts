@@ -20,6 +20,6 @@ export function buildCommercialProspectWhere(
 export function buildCommercialProspectByIdWhere(
   prospectId: string,
   commercialId: string,
-): Prisma.ProspectWhereInput {
+): Prisma.ProspectWhereUniqueInput {
   return { id: prospectId, assignedUserId: commercialId };
 }
