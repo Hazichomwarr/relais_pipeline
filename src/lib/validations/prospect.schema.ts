@@ -55,6 +55,13 @@ const optionalPositiveInteger = z.preprocess((value) => {
   return Number(value);
 }, z.number().int("Le nombre doit être un entier.").nonnegative("Le nombre ne peut pas être négatif.").optional());
 
+function optionalEnum<T extends readonly [string, ...string[]]>(values: T) {
+  return z.preprocess(
+    (value) => (value === "" || value === null || value === undefined ? undefined : value),
+    z.enum(values).optional(),
+  );
+}
+
 export const prospectSchema = z
   .object({
     product: z
@@ -91,9 +98,9 @@ export const prospectSchema = z
 
     status: z.enum(prospectStatuses).default("NEW"),
 
-    onlinePresence: z.enum(onlinePresenceOptions).optional(),
+    onlinePresence: optionalEnum(onlinePresenceOptions),
 
-    nextAction: z.enum(followUpActions).optional(),
+    nextAction: optionalEnum(followUpActions),
 
     followUpDate: z.preprocess(
       (value) => {
