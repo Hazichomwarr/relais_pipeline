@@ -45,7 +45,84 @@ export default function UserTable({
 
   return (
     <section className="overflow-hidden rounded-4xl border border-slate-200 bg-white shadow-sm">
-      <div className="overflow-x-auto">
+      {/* Mobile / tablet: user cards */}
+      <div className="flex flex-col gap-4 p-4 lg:hidden">
+        {users.map((user) => (
+          <article
+            key={user.id}
+            className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-sm font-bold text-blue-700">
+                {getInitials(user)}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">
+                  {user.firstName} {user.lastName}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {getRoleLabel(user.role)}
+                </p>
+              </div>
+              <span
+                className={`ml-auto shrink-0 rounded-full px-3 py-1 text-xs font-bold ${
+                  user.active
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {user.active ? "Actif" : "Inactif"}
+              </span>
+            </div>
+
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Téléphone</dt>
+                <dd className="font-medium text-slate-700">
+                  {user.phone ?? "—"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">E-mail</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {user.email ?? "—"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Créé le</dt>
+                <dd className="font-medium text-slate-700">
+                  {formatCreatedAt(user.createdAt)}
+                </dd>
+              </div>
+            </dl>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => onEdit(user)}
+                className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              >
+                <Pencil className="h-4 w-4" />
+                Modifier
+              </button>
+              {user.active && (
+                <button
+                  type="button"
+                  onClick={() => onDeactivate(user)}
+                  disabled={deactivatingUserId === user.id}
+                  className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 font-medium text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <UserMinus className="h-4 w-4" />
+                  Désactiver
+                </button>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Desktop: full data table */}
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-245 border-collapse">
           <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
             <tr>

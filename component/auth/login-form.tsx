@@ -41,7 +41,7 @@ export default function LoginForm({ callbackUrl }: { callbackUrl: string }) {
   return (
     <form
       onSubmit={onSubmit}
-      className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-[0_20px_80px_rgba(15,23,42,0.08)]"
+      className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_20px_80px_rgba(15,23,42,0.08)] sm:p-8"
     >
       <h1 className="text-3xl font-bold tracking-tight text-[#0f2557]">
         Connexion

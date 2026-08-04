@@ -68,15 +68,17 @@ export default function KpiCards({ prospects, followUpCount }: KpiCardsProps) {
         const content = (
           <div
             key={card.label}
-            className="h-full rounded-3xl border border-blue-200 bg-white p-6 transition hover:border-blue-300"
+            className="h-full rounded-3xl border border-blue-200 bg-white p-5 transition hover:border-blue-300 sm:p-6"
           >
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100">
-                <Icon className="h-8 w-8 text-blue-600" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-blue-100 sm:h-16 sm:w-16">
+                <Icon className="h-7 w-7 text-blue-600 sm:h-8 sm:w-8" />
               </div>
 
-              <div>
-                <h2 className="text-5xl font-bold">{card.total}</h2>
+              <div className="min-w-0">
+                <h2 className="text-4xl font-bold sm:text-5xl">
+                  {card.total}
+                </h2>
                 <p className="text-slate-500">{card.label}</p>
                 <p className="mt-1 font-medium text-blue-600">
                   {card.indicator}

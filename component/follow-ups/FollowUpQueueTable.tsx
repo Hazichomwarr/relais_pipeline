@@ -24,7 +24,90 @@ export default function FollowUpQueueTable({
 
   return (
     <div className="overflow-hidden rounded-4xl border border-slate-200 bg-white">
-      <div className="overflow-x-auto p-6">
+      {/* Mobile / tablet: follow-up cards */}
+      <div className="flex flex-col gap-4 p-4 lg:hidden">
+        {items.map((item) => (
+          <article
+            key={item.id}
+            className="rounded-3xl border border-slate-200 bg-[#fafbff] p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-800">
+                  {item.name}
+                </p>
+                <p className="text-sm text-slate-500">{item.prospectType}</p>
+              </div>
+              <span
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getPriorityStyles(item.overdueDays)}`}
+              >
+                {item.followUpLabel}
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                {productLabels[item.product]}
+              </span>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${interestStyles[item.interest]}`}
+              >
+                {interestLabels[item.interest]}
+              </span>
+            </div>
+
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Téléphone</dt>
+                <dd>
+                  <a
+                    href={`tel:${item.phone}`}
+                    className="font-medium text-blue-700 hover:underline"
+                  >
+                    {item.phone}
+                  </a>
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Commercial</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {item.commercialName}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Prochaine action</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {item.nextAction
+                    ? nextActionLabels[item.nextAction]
+                    : "À définir"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Date de suivi</dt>
+                <dd className="text-right font-medium text-slate-700">
+                  {item.followUpDate
+                    ? item.followUpDate.toLocaleString("fr-FR", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })
+                    : "À planifier"}
+                </dd>
+              </div>
+            </dl>
+
+            <Link
+              href={`/admin/prospects/${item.id}`}
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Eye className="h-4 w-4" />
+              Voir le prospect
+            </Link>
+          </article>
+        ))}
+      </div>
+
+      {/* Desktop: full data table */}
+      <div className="hidden overflow-x-auto p-6 lg:block">
         <table className="w-full min-w-300 border-separate border-spacing-y-3">
           <thead>
             <tr className="text-left text-sm font-medium text-slate-500">

@@ -30,7 +30,7 @@ export default function FollowUpFilters({
   }
 
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <FilterSelect
         label="Commercial assigné"
         value={searchParams.get("userId") ?? ""}
@@ -87,7 +87,7 @@ export default function FollowUpFilters({
       <button
         type="button"
         onClick={() => router.push("/admin/follow-ups")}
-        className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 font-medium text-slate-600 transition hover:bg-slate-50"
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 font-medium text-slate-600 transition hover:bg-slate-50"
       >
         <RotateCcw className="h-4 w-4" />
         Réinitialiser
@@ -112,7 +112,7 @@ function FilterSelect({
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557]"
+      className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557]"
     >
       {children}
     </select>

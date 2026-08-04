@@ -62,7 +62,13 @@ export default function CommercialFollowUpPriority({
                     {item.name}
                   </Link>
                   <p className="text-sm text-slate-500">
-                    {labelFor(productOptions, item.product)} · {item.phone}
+                    {labelFor(productOptions, item.product)} ·{" "}
+                    <a
+                      href={`tel:${item.phone}`}
+                      className="font-medium text-blue-700 hover:underline"
+                    >
+                      {item.phone}
+                    </a>
                   </p>
                 </div>
 

@@ -89,9 +89,11 @@ export default function CommercialProspectFilters() {
       <button
         type="button"
         onClick={() => dateInputRef.current?.showPicker()}
-        className="flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600"
+        className="flex h-12 w-full items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 sm:w-auto"
       >
-        {selectedDate || "Date de création"}
+        <span className="min-w-0 flex-1 truncate text-left">
+          {selectedDate || "Date de création"}
+        </span>
         <input
           ref={dateInputRef}
           type="date"
@@ -104,7 +106,7 @@ export default function CommercialProspectFilters() {
       <button
         type="button"
         onClick={() => router.push("/dashboard/commercial")}
-        className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 font-medium text-slate-600 transition hover:bg-slate-50"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 font-medium text-slate-600 transition hover:bg-slate-50 sm:w-auto"
       >
         <RotateCcw className="h-4 w-4" />
         Réinitialiser
@@ -129,7 +131,7 @@ function FilterSelect({
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-12 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557]"
+      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557] sm:w-auto"
     >
       {children}
     </select>

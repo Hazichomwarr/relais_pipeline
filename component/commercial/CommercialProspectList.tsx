@@ -63,7 +63,12 @@ export default function CommercialProspectList({
                   </Link>
                   <p className="text-sm text-slate-500">
                     {labelFor(productOptions, prospect.product)} ·{" "}
-                    {prospect.phone}
+                    <a
+                      href={`tel:${prospect.phone}`}
+                      className="font-medium text-blue-700 hover:underline"
+                    >
+                      {prospect.phone}
+                    </a>
                   </p>
                 </div>
 

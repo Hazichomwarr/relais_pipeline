@@ -27,15 +27,15 @@ export default function ReportDateFilter() {
     <button
       type="button"
       onClick={openPicker}
-      className="mx-2 flex h-14 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 text-lg font-medium shadow-sm cursor-pointer"
+      className="flex h-14 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 text-lg font-medium shadow-sm cursor-pointer sm:w-auto"
     >
-      <Calendar className="h-5 w-5 text-slate-500" />
+      <Calendar className="h-5 w-5 shrink-0 text-slate-500" />
 
-      <span className="text-slate-600">
+      <span className="min-w-0 flex-1 truncate text-left text-slate-600">
         {selectedDate || "Choisir une date"}
       </span>
 
-      <ChevronDown className="h-5 w-5 text-slate-400" />
+      <ChevronDown className="h-5 w-5 shrink-0 text-slate-400" />
 
       <input
         ref={inputRef}

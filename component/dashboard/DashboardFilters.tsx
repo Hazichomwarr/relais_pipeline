@@ -30,9 +30,9 @@ export default function DashboardFilters({
   }
 
   return (
-    <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:flex-wrap">
+    <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <form
-        className="relative min-w-64 flex-1"
+        className="relative sm:col-span-2 xl:col-span-1"
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
@@ -81,19 +81,6 @@ export default function DashboardFilters({
       </FilterSelect>
 
       <FilterSelect
-        label="Produit"
-        value={searchParams.get("product") ?? ""}
-        onChange={(value) => updateParameter("product", value)}
-      >
-        <option value="">Tous les produits</option>
-        {productOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </FilterSelect>
-
-      <FilterSelect
         label="Statut"
         value={searchParams.get("status") ?? ""}
         onChange={(value) => updateParameter("status", value)}
@@ -106,10 +93,23 @@ export default function DashboardFilters({
         ))}
       </FilterSelect>
 
+      <FilterSelect
+        label="Produit"
+        value={searchParams.get("product") ?? ""}
+        onChange={(value) => updateParameter("product", value)}
+      >
+        <option value="">Tous les produits</option>
+        {productOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </FilterSelect>
+
       <button
         type="button"
         onClick={() => router.push("/admin")}
-        className="flex h-14 items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 font-medium text-slate-600 transition hover:bg-slate-50"
+        className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 px-5 font-medium text-slate-600 transition hover:bg-slate-50"
       >
         <RotateCcw className="h-4 w-4" />
         Réinitialiser
@@ -134,7 +134,7 @@ function FilterSelect({
       aria-label={label}
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-14 rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557]"
+      className="h-14 w-full rounded-2xl border border-slate-200 bg-white px-4 text-slate-600 outline-none focus:border-[#0f2557]"
     >
       {children}
     </select>

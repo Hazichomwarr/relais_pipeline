@@ -27,7 +27,7 @@ import {
   getProductLabel,
   getStatusLabel,
 } from "@/component/propects/prospect-detail-sections";
-import Sidebar from "@/component/dashboard/Sidebar";
+import AdminShell from "@/component/dashboard/AdminShell";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import { getProspectById } from "@/src/services/prospect.service";
 
@@ -54,19 +54,15 @@ export default async function ProspectDetailPage({
   }
 
   return (
-    <section className="min-h-screen bg-[#f5f7fb] text-slate-800">
-      <div className="flex">
-        <Sidebar />
-
-        <main className="min-w-0 flex-1 px-5 py-7 lg:px-10 lg:py-9">
-          <div className="mx-auto max-w-7xl">
-            <Link
-              href="/admin"
-              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#0f2557]"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Retour au tableau de bord
-            </Link>
+    <AdminShell>
+      <div className="mx-auto max-w-7xl">
+        <Link
+          href="/admin"
+          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#0f2557]"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour au tableau de bord
+        </Link>
 
             <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
@@ -110,7 +106,16 @@ export default async function ProspectDetailPage({
                     <InfoField
                       icon={<Phone className="h-5 w-5" />}
                       label="Téléphone / WhatsApp"
-                      value={prospect.phone}
+                      value={
+                        prospect.phone ? (
+                          <a
+                            href={`tel:${prospect.phone}`}
+                            className="text-blue-700 hover:underline"
+                          >
+                            {prospect.phone}
+                          </a>
+                        ) : null
+                      }
                     />
                     <InfoField
                       icon={<MapPin className="h-5 w-5" />}
@@ -205,9 +210,7 @@ export default async function ProspectDetailPage({
                 }
               />
             </div>
-          </div>
-        </main>
       </div>
-    </section>
+    </AdminShell>
   );
 }

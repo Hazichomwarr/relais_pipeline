@@ -87,7 +87,16 @@ export default async function CommercialProspectDetailPage({
             <InfoField
               icon={<Phone className="h-5 w-5" />}
               label="Téléphone / WhatsApp"
-              value={prospect.phone}
+              value={
+                prospect.phone ? (
+                  <a
+                    href={`tel:${prospect.phone}`}
+                    className="text-blue-700 hover:underline"
+                  >
+                    {prospect.phone}
+                  </a>
+                ) : null
+              }
             />
             <InfoField
               icon={<MapPin className="h-5 w-5" />}

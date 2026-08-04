@@ -16,10 +16,106 @@ export default function DashboardTable({
   filterUsers,
 }: DashboardTableProps) {
   return (
-    <div className="mt-8 rounded-4xl border border-slate-200 bg-white p-6">
+    <div className="mt-8 rounded-4xl border border-slate-200 bg-white p-4 sm:p-6">
       <DashboardFilters users={filterUsers} />
 
-      <div className="overflow-x-auto">
+      {/* Mobile / tablet: prioritized cards instead of a shrunk table */}
+      <div className="flex flex-col gap-4 lg:hidden">
+        {prospects.map((prospect) => (
+          <article
+            key={prospect.id}
+            className="rounded-3xl border border-slate-200 bg-[#fafbff] p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">
+                  {prospect.name}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {prospect.prospectType}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                {getProductLabel(prospect.product)}
+              </span>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${getInterestStyles(
+                  prospect.interest,
+                )}`}
+              >
+                {getInterestLabel(prospect.interest)}
+              </span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                {getStatusLabel(prospect.status)}
+              </span>
+            </div>
+
+            <dl className="mt-4 space-y-2 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Contact</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {prospect.contactName ?? "Non renseigné"}
+                </dd>
+              </div>
+              {prospect.phone && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-slate-400">Téléphone</dt>
+                  <dd>
+                    <a
+                      href={`tel:${prospect.phone}`}
+                      className="font-medium text-blue-700 hover:underline"
+                    >
+                      {prospect.phone}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Commercial</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {getAssignedUserName(prospect)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Prochaine action</dt>
+                <dd className="min-w-0 truncate text-right font-medium text-slate-700">
+                  {prospect.nextAction
+                    ? getNextActionLabel(prospect.nextAction)
+                    : "À définir"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-slate-400">Suivi</dt>
+                <dd className="text-right font-medium text-slate-700">
+                  {prospect.followUpDate
+                    ? prospect.followUpDate.toLocaleDateString("fr-FR")
+                    : "À planifier"}
+                </dd>
+              </div>
+            </dl>
+
+            {prospect.notes && (
+              <p className="mt-3 line-clamp-3 text-sm text-slate-600">
+                {prospect.notes}
+              </p>
+            )}
+
+            <Link
+              href={`/admin/prospects/${prospect.id}`}
+              className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <Eye className="h-4 w-4" />
+              Voir le prospect
+            </Link>
+          </article>
+        ))}
+      </div>
+
+      {/* Desktop: full data table */}
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-300 border-separate border-spacing-y-3">
           <thead>
             <tr className="text-left text-slate-500">
@@ -154,6 +250,18 @@ export default function DashboardTable({
       </div>
     </div>
   );
+}
+
+function getNextActionLabel(nextAction: NonNullable<ProspectListItem["nextAction"]>) {
+  const labels = {
+    CALL_BACK: "Rappeler",
+    VISIT_AGAIN: "Repasser sur place",
+    SEND_DEMO: "Envoyer une démonstration",
+    SCHEDULE_MEETING: "Organiser une rencontre",
+    NO_ACTION: "Aucune action",
+  };
+
+  return labels[nextAction];
 }
 
 function getProductLabel(product: ProspectListItem["product"]) {

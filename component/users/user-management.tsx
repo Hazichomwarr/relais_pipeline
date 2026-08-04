@@ -194,9 +194,9 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="user-dialog-title"
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 px-4 py-8 backdrop-blur-sm"
+      className="safe-top safe-bottom fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/50 px-4 py-8 backdrop-blur-sm"
     >
-      <section className="w-full max-w-2xl rounded-4xl bg-white shadow-2xl">
+      <section className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-4xl bg-white shadow-2xl">
         <header className="flex items-start justify-between gap-5 border-b border-slate-100 px-6 py-6 md:px-8">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
