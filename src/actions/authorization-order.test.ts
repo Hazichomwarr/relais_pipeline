@@ -109,6 +109,56 @@ for (const functionName of [
   });
 }
 
+const selfServiceActions = [
+  {
+    functionName: "updateOwnProfileAction",
+    serviceCall: "updateOwnProfile(",
+  },
+  {
+    functionName: "changeOwnPasswordAction",
+    serviceCall: "changeOwnPassword(",
+  },
+];
+
+for (const action of selfServiceActions) {
+  test(`${action.functionName} authorizes before validating and before calling its service`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/commercial-profile.actions.ts",
+      action.functionName,
+    );
+
+    const authorizeIndex = functionBody.search(/authorizeSelf\(\)/);
+    const validateIndex = functionBody.indexOf(".safeParse(");
+    const serviceIndex = functionBody.indexOf(action.serviceCall);
+
+    assert.ok(authorizeIndex >= 0, `${action.functionName} has no authorizeSelf() call`);
+    assert.ok(validateIndex >= 0, `${action.functionName} has no .safeParse(...) call`);
+    assert.ok(
+      serviceIndex >= 0,
+      `${action.functionName} never calls ${action.serviceCall}`,
+    );
+    assert.ok(
+      authorizeIndex < validateIndex,
+      `${action.functionName} must authorize before validating`,
+    );
+    assert.ok(
+      validateIndex < serviceIndex,
+      `${action.functionName} must validate before calling its service`,
+    );
+  });
+
+  test(`${action.functionName} never accepts a userId from the client — the target is always the authenticated caller`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/commercial-profile.actions.ts",
+      action.functionName,
+    );
+
+    assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
+    assert.doesNotMatch(functionBody, /values\.userId/);
+    assert.doesNotMatch(functionBody, /\buserId\s*:\s*parsed\.data/);
+  });
+}
+
 test("loginAction stays intentionally public (it's the entry point that establishes identity)", () => {
   const functionBody = extractFunctionBody(
     "src/actions/auth.actions.ts",

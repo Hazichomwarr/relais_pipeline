@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/src/lib/prisma";
 import type {
+  ValidatedCommercialProfileUpdateInput,
   ValidatedUserInput,
   ValidatedUserUpdateInput,
 } from "@/src/lib/validations/user.schema";
@@ -10,6 +11,7 @@ import {
   deactivateUserCore,
   getUserByIdCore,
   listUsersCore,
+  updateOwnProfileCore,
   updateUserCore,
   type UserListFilters,
 } from "@/src/services/user.service-core";
@@ -36,6 +38,13 @@ export async function createUser(input: ValidatedUserInput) {
 
 export async function updateUser(input: ValidatedUserUpdateInput) {
   return updateUserCore(input, dependencies);
+}
+
+export async function updateOwnProfile(
+  userId: string,
+  input: ValidatedCommercialProfileUpdateInput,
+) {
+  return updateOwnProfileCore(userId, input, dependencies);
 }
 
 export async function listUsers(filters: UserListFilters = {}) {

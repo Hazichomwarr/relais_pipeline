@@ -4,6 +4,7 @@ import type { UserRole } from "@prisma/client";
 
 import {
   authenticateCore,
+  changeOwnPasswordCore,
   type CredentialUserRecord,
 } from "./auth-credentials.service-core";
 
@@ -77,6 +78,58 @@ test("user with no password set returns null without calling compare", async () 
 
   assert.equal(identity, null);
   assert.equal(compareCalled, false);
+});
+
+test("changeOwnPasswordCore rejects a wrong current password without updating anything", async () => {
+  let updateCalled = false;
+
+  const result = await changeOwnPasswordCore("wrong-current", "new-secret1", {
+    findPasswordHash: async () => "hashed-current",
+    compare: async (password, hash) => {
+      assert.equal(password, "wrong-current");
+      assert.equal(hash, "hashed-current");
+      return false;
+    },
+    updatePassword: async () => {
+      updateCalled = true;
+    },
+  });
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "CURRENT_PASSWORD_INVALID");
+  }
+  assert.equal(updateCalled, false);
+});
+
+test("changeOwnPasswordCore rejects when the user has no password hash set", async () => {
+  let updateCalled = false;
+
+  const result = await changeOwnPasswordCore("anything", "new-secret1", {
+    findPasswordHash: async () => null,
+    compare: async () => true,
+    updatePassword: async () => {
+      updateCalled = true;
+    },
+  });
+
+  assert.equal(result.success, false);
+  assert.equal(updateCalled, false);
+});
+
+test("changeOwnPasswordCore updates the password once the current one matches", async () => {
+  let updatedWith: string | undefined;
+
+  const result = await changeOwnPasswordCore("correct-current", "new-secret1", {
+    findPasswordHash: async () => "hashed-current",
+    compare: async () => true,
+    updatePassword: async (newPassword) => {
+      updatedWith = newPassword;
+    },
+  });
+
+  assert.equal(result.success, true);
+  assert.equal(updatedWith, "new-secret1");
 });
 
 function makeUser(

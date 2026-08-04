@@ -11,6 +11,7 @@ import {
   deactivateUserCore,
   getUserByIdCore,
   listUsersCore,
+  updateOwnProfileCore,
   updateUserCore,
   type UserServiceDependencies,
 } from "./user.service-core";
@@ -106,6 +107,47 @@ test("lists only active users when requested and sorts them by name", async () =
     users.map((user) => user.id),
     ["user-3", "user-1"],
   );
+});
+
+test("updateOwnProfileCore updates first name, last name, and phone", async () => {
+  const store = createUserStore([
+    makeUser("user-1", {
+      firstName: "Aminata",
+      lastName: "Ouédraogo",
+      phone: "70 12 34 56",
+    }),
+  ]);
+
+  const result = await updateOwnProfileCore(
+    "user-1",
+    { firstName: "Mariam", lastName: "Traoré", phone: "78 90 12 34" },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(store.users[0].firstName, "Mariam");
+  assert.equal(store.users[0].lastName, "Traoré");
+  assert.equal(store.users[0].phone, "78 90 12 34");
+});
+
+test("updateOwnProfileCore never changes email, role, or active status", async () => {
+  const store = createUserStore([
+    makeUser("user-1", {
+      email: "original@example.com",
+      role: "COMMERCIAL",
+      active: true,
+    }),
+  ]);
+
+  await updateOwnProfileCore(
+    "user-1",
+    { firstName: "Mariam", lastName: "Traoré", phone: null },
+    store.dependencies,
+  );
+
+  assert.equal(store.users[0].email, "original@example.com");
+  assert.equal(store.users[0].role, "COMMERCIAL");
+  assert.equal(store.users[0].active, true);
 });
 
 test("returns a controlled result when updating or deactivating an unknown user", async () => {

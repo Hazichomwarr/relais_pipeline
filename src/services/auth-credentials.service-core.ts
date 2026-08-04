@@ -53,3 +53,50 @@ export async function authenticateCore(
     role: user.role,
   };
 }
+
+export type ChangeOwnPasswordResult =
+  | { success: true }
+  | {
+      success: false;
+      code: "CURRENT_PASSWORD_INVALID";
+      message: string;
+    };
+
+export type ChangeOwnPasswordDependencies = {
+  findPasswordHash: () => Promise<string | null>;
+  compare: (password: string, passwordHash: string) => Promise<boolean>;
+  updatePassword: (newPassword: string) => Promise<void>;
+};
+
+export async function changeOwnPasswordCore(
+  currentPassword: string,
+  newPassword: string,
+  dependencies: ChangeOwnPasswordDependencies,
+): Promise<ChangeOwnPasswordResult> {
+  const passwordHash = await dependencies.findPasswordHash();
+
+  if (!passwordHash) {
+    return {
+      success: false,
+      code: "CURRENT_PASSWORD_INVALID",
+      message: "Mot de passe actuel incorrect.",
+    };
+  }
+
+  const currentPasswordMatches = await dependencies.compare(
+    currentPassword,
+    passwordHash,
+  );
+
+  if (!currentPasswordMatches) {
+    return {
+      success: false,
+      code: "CURRENT_PASSWORD_INVALID",
+      message: "Mot de passe actuel incorrect.",
+    };
+  }
+
+  await dependencies.updatePassword(newPassword);
+
+  return { success: true };
+}

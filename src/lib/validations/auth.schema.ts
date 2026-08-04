@@ -19,6 +19,21 @@ export const changePasswordSchema = newPasswordSchema.extend({
   userId: z.string().trim().min(1, "L’utilisateur est requis."),
 });
 
+export const changeOwnPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Le mot de passe actuel est requis."),
+    newPassword: newPasswordSchema.shape.password,
+    confirmPassword: z.string().min(1, "La confirmation est requise."),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    error: "Les mots de passe ne correspondent pas.",
+    path: ["confirmPassword"],
+  });
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type NewPasswordInput = z.infer<typeof newPasswordSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ChangeOwnPasswordInput = z.input<typeof changeOwnPasswordSchema>;
+export type ValidatedChangeOwnPasswordInput = z.output<
+  typeof changeOwnPasswordSchema
+>;

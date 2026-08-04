@@ -4,7 +4,10 @@ import bcrypt from "bcrypt";
 import type { UserRole } from "@prisma/client";
 
 import { prisma } from "@/src/lib/prisma";
-import { authenticateCore } from "@/src/services/auth-credentials.service-core";
+import {
+  authenticateCore,
+  changeOwnPasswordCore,
+} from "@/src/services/auth-credentials.service-core";
 
 const SALT_ROUNDS = 12;
 
@@ -68,5 +71,30 @@ export async function changePassword(userId: string, newPassword: string) {
     where: { id: userId },
     data: { passwordHash },
     select: { id: true },
+  });
+}
+
+/**
+ * Self-service password change (Ticket 13C.4): requires proof of the
+ * current password, unlike changePassword() above which admins use to
+ * force-set a password without knowing the old one.
+ */
+export async function changeOwnPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+) {
+  return changeOwnPasswordCore(currentPassword, newPassword, {
+    findPasswordHash: async () => {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { passwordHash: true },
+      });
+      return user?.passwordHash ?? null;
+    },
+    compare: (plain, hash) => bcrypt.compare(plain, hash),
+    updatePassword: async (updatedPassword) => {
+      await changePassword(userId, updatedPassword);
+    },
   });
 }

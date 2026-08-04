@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { userSchema } from "./user.schema";
+import { commercialProfileUpdateSchema, userSchema } from "./user.schema";
 
 function validInput() {
   return {
@@ -78,4 +78,37 @@ test("defaults new users to active", () => {
   const result = userSchema.parse({ ...validInput(), active: undefined });
 
   assert.equal(result.active, true);
+});
+
+test("commercialProfileUpdateSchema accepts first name, last name, and phone", () => {
+  const result = commercialProfileUpdateSchema.safeParse({
+    firstName: "Aminata",
+    lastName: "Ouédraogo",
+    phone: "70 12 34 56",
+  });
+
+  assert.equal(result.success, true);
+});
+
+test("commercialProfileUpdateSchema has no email/role/active fields to abuse", () => {
+  assert.deepEqual(
+    Object.keys(commercialProfileUpdateSchema.shape).sort(),
+    ["firstName", "lastName", "phone"],
+  );
+});
+
+test("commercialProfileUpdateSchema silently drops extra keys like role or email", () => {
+  const result = commercialProfileUpdateSchema.safeParse({
+    firstName: "Aminata",
+    lastName: "Ouédraogo",
+    phone: "",
+    role: "ADMIN",
+    email: "attacker@example.com",
+    active: false,
+  });
+
+  assert.equal(result.success, true);
+  assert.equal("role" in (result.success ? result.data : {}), false);
+  assert.equal("email" in (result.success ? result.data : {}), false);
+  assert.equal("active" in (result.success ? result.data : {}), false);
 });

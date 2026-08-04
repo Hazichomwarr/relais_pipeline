@@ -56,6 +56,12 @@ export default function CommercialNav({
           >
             Mes suivis
           </Link>
+          <Link
+            href="/dashboard/commercial/profile"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Mon profil
+          </Link>
 
           <form action="/logout" method="POST" className="hidden md:block">
             <button

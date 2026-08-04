@@ -62,7 +62,24 @@ export const deactivateUserSchema = z.object({
   userId: z.string().trim().min(1, "L’utilisateur est requis.").max(100),
 });
 
+/**
+ * A commercial editing their own profile: same field rules as userSchema,
+ * but structurally excludes email/role/active so they can never be set
+ * through this path.
+ */
+export const commercialProfileUpdateSchema = userSchema.pick({
+  firstName: true,
+  lastName: true,
+  phone: true,
+});
+
 export type UserFormInput = z.input<typeof userSchema>;
 export type ValidatedUserInput = z.output<typeof userSchema>;
 export type UserUpdateInput = z.input<typeof userUpdateSchema>;
 export type ValidatedUserUpdateInput = z.output<typeof userUpdateSchema>;
+export type CommercialProfileUpdateInput = z.input<
+  typeof commercialProfileUpdateSchema
+>;
+export type ValidatedCommercialProfileUpdateInput = z.output<
+  typeof commercialProfileUpdateSchema
+>;

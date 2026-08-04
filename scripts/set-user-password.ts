@@ -37,8 +37,10 @@ async function main() {
     throw new Error("This user is inactive.");
   }
 
-  if (user.role !== "COMMERCIAL") {
-    throw new Error("This script is only for COMMERCIAL users.");
+  const allowedRoles = ["ADMIN", "MANAGER", "COMMERCIAL"] as const;
+
+  if (!allowedRoles.includes(user.role)) {
+    throw new Error(`Cannot set a password for users with role ${user.role}.`);
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

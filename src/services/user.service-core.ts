@@ -1,6 +1,7 @@
 import type { User, UserRole } from "@prisma/client";
 
 import type {
+  ValidatedCommercialProfileUpdateInput,
   ValidatedUserInput,
   ValidatedUserUpdateInput,
 } from "@/src/lib/validations/user.schema";
@@ -86,6 +87,34 @@ export async function updateUserCore(
       success: false,
       code: "UPDATE_FAILED",
       message: "L’utilisateur n’a pas pu être modifié. Veuillez réessayer.",
+    };
+  }
+}
+
+/**
+ * Names exactly the three fields a commercial may change about themselves —
+ * never spreads arbitrary input, so email/role/active can't leak through
+ * regardless of what the caller's input object happens to contain.
+ */
+export async function updateOwnProfileCore(
+  userId: string,
+  input: ValidatedCommercialProfileUpdateInput,
+  dependencies: Pick<UserServiceDependencies, "update">,
+): Promise<UserWriteResult> {
+  try {
+    const user = await dependencies.update(userId, {
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone: input.phone,
+    });
+
+    return { success: true, userId: user.id };
+  } catch (error) {
+    console.error("Unable to update own profile:", error);
+    return {
+      success: false,
+      code: "UPDATE_FAILED",
+      message: "Impossible de mettre à jour le profil.",
     };
   }
 }
