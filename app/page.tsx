@@ -22,14 +22,14 @@ export default async function Home() {
           <nav className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/login"
-              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:px-5 sm:text-base"
+              className="hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:px-5 sm:text-base"
             >
               Connexion
             </Link>
 
             <Link
               href="/dashboard"
-              className="hidden rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex sm:px-5 sm:text-base"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 sm:inline-flex sm:px-5 sm:text-base"
             >
               Dashboard
             </Link>
