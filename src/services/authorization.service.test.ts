@@ -71,9 +71,10 @@ test("assertCanChangePasswordCore allows an ADMIN to change another user's passw
   );
 });
 
-test("assertCanChangePasswordCore allows a MANAGER to change another user's password", () => {
-  assert.doesNotThrow(() =>
-    assertCanChangePasswordCore(makeUser("MANAGER"), "other-user"),
+test("assertCanChangePasswordCore denies a MANAGER changing another user's password", () => {
+  assert.throws(
+    () => assertCanChangePasswordCore(makeUser("MANAGER"), "other-user"),
+    hasCode("ACCESS_DENIED"),
   );
 });
 

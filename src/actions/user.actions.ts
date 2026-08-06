@@ -13,7 +13,7 @@ import {
   deactivateUser,
   updateUser,
 } from "@/src/services/user.service";
-import { requireRole } from "@/src/services/authorization.service";
+import { requireAdmin } from "@/src/services/authorization.service";
 
 export type UserActionResult =
   | { success: true; userId: string }
@@ -27,7 +27,7 @@ export async function createUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
   const authorization = await authorizeAction(() =>
-    requireRole("ADMIN", "MANAGER"),
+    requireAdmin(),
   );
 
   if (!authorization.ok) {
@@ -48,7 +48,7 @@ export async function updateUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
   const authorization = await authorizeAction(() =>
-    requireRole("ADMIN", "MANAGER"),
+    requireAdmin(),
   );
 
   if (!authorization.ok) {
@@ -69,7 +69,7 @@ export async function deactivateUserAction(
   values: unknown,
 ): Promise<UserActionResult> {
   const authorization = await authorizeAction(() =>
-    requireRole("ADMIN", "MANAGER"),
+    requireAdmin(),
   );
 
   if (!authorization.ok) {

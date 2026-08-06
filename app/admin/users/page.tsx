@@ -1,8 +1,23 @@
+import { redirect } from "next/navigation";
+
 import AdminShell from "@/component/dashboard/AdminShell";
 import UserManagement from "@/component/users/user-management";
+import {
+  AuthorizationError,
+  requireAdmin,
+} from "@/src/services/authorization.service";
 import { listUsers } from "@/src/services/user.service";
 
 export default async function UsersPage() {
+  try {
+    await requireAdmin();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
+    }
+    throw error;
+  }
+
   const users = await listUsers();
 
   return (

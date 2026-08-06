@@ -1,3 +1,4 @@
+import type { UserRole } from "@prisma/client";
 import {
   ClipboardCheck,
   FileText,
@@ -12,42 +13,48 @@ import MobileNavDrawer, {
   type MobileNavItem,
 } from "@/component/dashboard/MobileNavDrawer";
 
-const adminNavItems: MobileNavItem[] = [
-  {
-    label: "Tableau de bord",
-    href: "/admin",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    label: "Toutes les écoles",
-    href: "/schools",
-    icon: <School className="h-5 w-5" />,
-  },
-  {
-    label: "Suivis",
-    href: "/admin/follow-ups",
-    icon: <ClipboardCheck className="h-5 w-5" />,
-  },
-  {
-    label: "Rapports",
-    href: "/admin",
-    icon: <FileText className="h-5 w-5" />,
-    disabled: true,
-  },
-  {
-    label: "Utilisateurs",
-    href: "/admin/users",
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    label: "Paramètres",
-    href: "/admin",
-    icon: <Settings className="h-5 w-5" />,
-    disabled: true,
-  },
-];
+function getAdminNavItems(role?: UserRole): MobileNavItem[] {
+  return [
+    {
+      label: "Tableau de bord",
+      href: "/admin",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      label: "Toutes les écoles",
+      href: "/schools",
+      icon: <School className="h-5 w-5" />,
+    },
+    {
+      label: "Suivis",
+      href: "/admin/follow-ups",
+      icon: <ClipboardCheck className="h-5 w-5" />,
+    },
+    {
+      label: "Rapports",
+      href: "/admin",
+      icon: <FileText className="h-5 w-5" />,
+      disabled: true,
+    },
+    ...(role === "ADMIN"
+      ? [
+          {
+            label: "Utilisateurs",
+            href: "/admin/users",
+            icon: <Users className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    {
+      label: "Paramètres",
+      href: "/admin",
+      icon: <Settings className="h-5 w-5" />,
+      disabled: true,
+    },
+  ];
+}
 
-export default function AdminMobileHeader() {
+export default function AdminMobileHeader({ role }: { role?: UserRole }) {
   return (
     <header className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 lg:hidden">
       <Image
@@ -59,7 +66,7 @@ export default function AdminMobileHeader() {
       />
 
       <MobileNavDrawer
-        items={adminNavItems}
+        items={getAdminNavItems(role)}
         triggerLabel="Ouvrir le menu d’administration"
         footer={
           <form action="/logout" method="POST">

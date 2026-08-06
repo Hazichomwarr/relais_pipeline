@@ -1,3 +1,4 @@
+import type { UserRole } from "@prisma/client";
 import {
   ChevronDown,
   ClipboardCheck,
@@ -12,8 +13,10 @@ import Link from "next/link";
 
 export default function Sidebar({
   activeItem = "dashboard",
+  role,
 }: {
   activeItem?: "dashboard" | "followUps" | "users" | "schools";
+  role?: UserRole;
 }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
@@ -75,17 +78,19 @@ export default function Sidebar({
           Rapports
         </button>
 
-        <Link
-          href="/admin/users"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "users"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <Users className="h-5 w-5" />
-          Utilisateurs
-        </Link>
+        {role === "ADMIN" && (
+          <Link
+            href="/admin/users"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "users"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Users className="h-5 w-5" />
+            Utilisateurs
+          </Link>
+        )}
 
         <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">
           <Settings className="h-5 w-5" />

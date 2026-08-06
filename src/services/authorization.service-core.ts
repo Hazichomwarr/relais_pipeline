@@ -51,16 +51,18 @@ export function requireRoleCore(
 }
 
 /**
- * A user may change their own password; ADMIN/MANAGER may change anyone's.
- * Takes an already-authenticated user (no session fetch) so callers that
- * already ran requireAuthenticatedUser() don't pay for a second lookup.
+ * A user may change their own password; only ADMIN may change anyone
+ * else's (Ticket 13D.3 — user management is ADMIN-only; MANAGER keeps
+ * every other operational permission but not this one). Takes an
+ * already-authenticated user (no session fetch) so callers that already
+ * ran requireAuthenticatedUser() don't pay for a second lookup.
  */
 export function assertCanChangePasswordCore(
   user: AuthenticatedUser,
   targetUserId: string,
 ): void {
   const isSelf = user.id === targetUserId;
-  const isElevated = user.role === "ADMIN" || user.role === "MANAGER";
+  const isElevated = user.role === "ADMIN";
 
   if (!isSelf && !isElevated) {
     throw new AuthorizationError(

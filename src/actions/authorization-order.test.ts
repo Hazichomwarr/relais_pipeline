@@ -85,6 +85,31 @@ for (const action of gatedActions) {
   });
 }
 
+for (const functionName of [
+  "createUserAction",
+  "updateUserAction",
+  "deactivateUserAction",
+]) {
+  test(`${functionName} authorizes via requireAdmin, not the ADMIN-or-MANAGER role set (Ticket 13D.3)`, () => {
+    const functionBody = extractFunctionBody("src/actions/user.actions.ts", functionName);
+
+    assert.match(functionBody, /requireAdmin\(\)/);
+    assert.doesNotMatch(
+      functionBody,
+      /requireRole\(\s*"ADMIN"\s*,\s*"MANAGER"\s*\)/,
+    );
+  });
+}
+
+test("changePasswordAction still authorizes through assertCanChangePassword (narrowed to ADMIN-only elevation one layer down)", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/auth.actions.ts",
+    "changePasswordAction",
+  );
+
+  assert.match(functionBody, /assertCanChangePassword\(/);
+});
+
 test("createProspectAction stays intentionally public (the field-rep submission form has no login)", () => {
   const functionBody = extractFunctionBody(
     "src/actions/prospect.actions.ts",
