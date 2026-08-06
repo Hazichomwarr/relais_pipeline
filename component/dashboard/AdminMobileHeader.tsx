@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   School,
   Settings,
+  StickyNote,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -29,6 +30,11 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       label: "Suivis",
       href: "/admin/follow-ups",
       icon: <ClipboardCheck className="h-5 w-5" />,
+    },
+    {
+      label: "Mes notes",
+      href: "/notes",
+      icon: <StickyNote className="h-5 w-5" />,
     },
     {
       label: "Rapports",

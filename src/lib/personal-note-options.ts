@@ -20,3 +20,15 @@ export const personalNoteCategoryOptions = [
     label: "Autres",
   },
 ] as const;
+
+export type PersonalNoteCategoryValue =
+  (typeof personalNoteCategoryOptions)[number]["value"];
+
+export function getPersonalNoteCategoryLabel(
+  category: PersonalNoteCategoryValue,
+): string {
+  return (
+    personalNoteCategoryOptions.find((option) => option.value === category)
+      ?.label ?? category
+  );
+}

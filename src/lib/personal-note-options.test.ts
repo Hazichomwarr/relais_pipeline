@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { personalNoteCategoryOptions } from "./personal-note-options";
+import {
+  getPersonalNoteCategoryLabel,
+  personalNoteCategoryOptions,
+} from "./personal-note-options";
 
 test("has exactly the five fixed RELAIS categories", () => {
   assert.deepEqual(
@@ -37,4 +40,10 @@ test("has no duplicate values", () => {
 test("has no duplicate labels", () => {
   const labels = personalNoteCategoryOptions.map((option) => option.label);
   assert.equal(new Set(labels).size, labels.length);
+});
+
+test("getPersonalNoteCategoryLabel resolves every stored value to its exact French label", () => {
+  for (const option of personalNoteCategoryOptions) {
+    assert.equal(getPersonalNoteCategoryLabel(option.value), option.label);
+  }
 });

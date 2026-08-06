@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   School,
   Settings,
+  StickyNote,
   Users,
 } from "lucide-react";
 import Image from "next/image";
@@ -15,7 +16,7 @@ export default function Sidebar({
   activeItem = "dashboard",
   role,
 }: {
-  activeItem?: "dashboard" | "followUps" | "users" | "schools";
+  activeItem?: "dashboard" | "followUps" | "users" | "schools" | "notes";
   role?: UserRole;
 }) {
   return (
@@ -71,6 +72,18 @@ export default function Sidebar({
         >
           <ClipboardCheck className="h-5 w-5" />
           Suivis
+        </Link>
+
+        <Link
+          href="/notes"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "notes"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <StickyNote className="h-5 w-5" />
+          Mes notes
         </Link>
 
         <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">

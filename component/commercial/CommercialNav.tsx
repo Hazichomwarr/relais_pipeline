@@ -3,6 +3,7 @@ import {
   ListChecks,
   LogOut,
   School,
+  StickyNote,
   UserRound,
   Users,
 } from "lucide-react";
@@ -38,6 +39,11 @@ const commercialNavItems: MobileNavItem[] = [
     label: "Mes suivis",
     href: "/dashboard/commercial#mes-suivis",
     icon: <ListChecks className="h-5 w-5" />,
+  },
+  {
+    label: "Mes notes",
+    href: "/notes",
+    icon: <StickyNote className="h-5 w-5" />,
   },
   {
     label: "Mon profil",
@@ -90,6 +96,12 @@ export default function CommercialNav({
             className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Mes suivis
+          </Link>
+          <Link
+            href="/notes"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Mes notes
           </Link>
           <Link
             href="/dashboard/commercial/profile"
