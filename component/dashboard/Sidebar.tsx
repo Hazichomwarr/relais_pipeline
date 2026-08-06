@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  School,
   Settings,
   Users,
 } from "lucide-react";
@@ -12,7 +13,7 @@ import Link from "next/link";
 export default function Sidebar({
   activeItem = "dashboard",
 }: {
-  activeItem?: "dashboard" | "followUps" | "users";
+  activeItem?: "dashboard" | "followUps" | "users" | "schools";
 }) {
   return (
     <aside className="sticky top-0 hidden h-screen w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
@@ -43,6 +44,18 @@ export default function Sidebar({
         >
           <LayoutDashboard className="h-5 w-5" />
           Tableau de bord
+        </Link>
+
+        <Link
+          href="/schools"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "schools"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <School className="h-5 w-5" />
+          Toutes les écoles
         </Link>
 
         <Link

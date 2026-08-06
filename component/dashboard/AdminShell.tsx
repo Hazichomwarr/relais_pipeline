@@ -2,7 +2,7 @@ import AdminMobileHeader from "@/component/dashboard/AdminMobileHeader";
 import Sidebar from "@/component/dashboard/Sidebar";
 
 type AdminShellProps = {
-  activeItem?: "dashboard" | "followUps" | "users";
+  activeItem?: "dashboard" | "followUps" | "users" | "schools";
   children: React.ReactNode;
 };
 

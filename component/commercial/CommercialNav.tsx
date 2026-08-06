@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  School,
   UserRound,
   Users,
 } from "lucide-react";
@@ -27,6 +28,11 @@ const commercialNavItems: MobileNavItem[] = [
     label: "Mes prospects",
     href: "/dashboard/commercial#mes-prospects",
     icon: <Users className="h-5 w-5" />,
+  },
+  {
+    label: "Toutes les écoles",
+    href: "/schools",
+    icon: <School className="h-5 w-5" />,
   },
   {
     label: "Mes suivis",
@@ -72,6 +78,12 @@ export default function CommercialNav({
             className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Mes prospects
+          </Link>
+          <Link
+            href="/schools"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Toutes les écoles
           </Link>
           <Link
             href="/dashboard/commercial#mes-suivis"

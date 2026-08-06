@@ -2,6 +2,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  School,
   Settings,
   Users,
 } from "lucide-react";
@@ -16,6 +17,11 @@ const adminNavItems: MobileNavItem[] = [
     label: "Tableau de bord",
     href: "/admin",
     icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    label: "Toutes les écoles",
+    href: "/schools",
+    icon: <School className="h-5 w-5" />,
   },
   {
     label: "Suivis",
