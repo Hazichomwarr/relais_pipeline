@@ -44,6 +44,18 @@ export async function createProspectAction(
   const result = await createProspect(parsed.data);
 
   if (!result.success) {
+    if (result.code === "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED") {
+      return {
+        success: false,
+        message: result.message,
+        fieldErrors: {
+          duplicateSchoolReviewed: [
+            "Vérifiez les établissements similaires ou confirmez qu’il s’agit bien d’un nouveau prospect.",
+          ],
+        },
+      };
+    }
+
     return {
       success: false,
       message: result.message,

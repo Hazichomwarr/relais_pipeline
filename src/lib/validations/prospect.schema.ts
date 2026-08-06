@@ -137,6 +137,13 @@ export const prospectSchema = z
       .min(1, "Sélectionnez le commercial assigné.")
       .max(100),
 
+    /**
+     * Workflow-only acknowledgment — never persisted to Prisma. The actual
+     * "required when duplicates exist" rule needs a DB lookup, so it lives
+     * in the creation service, not here (see createProspectCore).
+     */
+    duplicateSchoolReviewed: z.boolean().default(false),
+
     // KARMDA
     schoolType: optionalText,
     estimatedStudentCount: optionalPositiveInteger,

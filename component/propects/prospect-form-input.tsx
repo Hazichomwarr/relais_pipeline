@@ -34,6 +34,7 @@ const defaultValues: ProspectFormInput = {
   followUpDate: "",
   notes: "",
   assignedUserId: "",
+  duplicateSchoolReviewed: false,
 
   schoolType: "",
   estimatedStudentCount: undefined,
@@ -83,6 +84,7 @@ export default function ProspectForm({
       resetField("estimatedStudentCount");
       resetField("currentSchoolSystem");
       resetField("contactRole");
+      resetField("duplicateSchoolReviewed");
     }
 
     if (selectedProduct !== "LOKARI") {
@@ -171,6 +173,7 @@ export default function ProspectForm({
         >
           <SharedProspectFields
             register={register}
+            control={control}
             errors={errors}
             assignableUsers={assignableUsers}
           />

@@ -6,12 +6,16 @@ import type {
   ValidatedProspectFollowUpInput,
   ValidatedProspectInput,
 } from "@/src/lib/validations/prospect.schema";
-import { createProspectCore } from "@/src/services/prospect-creation.service-core";
+import {
+  buildProspectData,
+  createProspectCore,
+} from "@/src/services/prospect-creation.service-core";
 import {
   assignedUserListSelect,
   buildProspectWhere,
   prospectListOrderBy,
 } from "@/src/services/prospect-read.service-core";
+import { findPossibleSchoolDuplicates } from "@/src/services/school-duplicate.service";
 import { ProspectFilters } from "../types/propect.-filters";
 
 export type CreateProspectResult =
@@ -25,6 +29,7 @@ export type CreateProspectResult =
         | "ASSIGNED_USER_NOT_FOUND"
         | "ASSIGNED_USER_INACTIVE"
         | "ASSIGNED_USER_NOT_COMMERCIAL"
+        | "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED"
         | "CREATE_FAILED";
       message: string;
     };
@@ -44,6 +49,7 @@ export async function createProspect(
           active: true,
         },
       }),
+    findPossibleDuplicates: (name) => findPossibleSchoolDuplicates(name),
     create: (values, agentNameSnapshot) =>
       prisma.prospect.create({
         data: buildProspectData(values, agentNameSnapshot),
@@ -141,60 +147,3 @@ export async function updateProspectFollowUpScoped(
   }
 }
 
-function buildProspectData(
-  input: ValidatedProspectInput,
-  agentNameSnapshot: string,
-) {
-  const sharedData = {
-    product: input.product,
-    name: input.name,
-    prospectType: input.prospectType,
-    contactName: input.contactName,
-    phone: input.phone,
-    location: input.location,
-    interest: input.interest,
-    status: input.status,
-    onlinePresence: input.onlinePresence,
-    nextAction: input.nextAction,
-    followUpDate: input.followUpDate,
-    notes: input.notes,
-    assignedUserId: input.assignedUserId,
-    agentName: agentNameSnapshot,
-  };
-
-  switch (input.product) {
-    case "KARMDA":
-      return {
-        ...sharedData,
-        schoolType: input.schoolType,
-        estimatedStudentCount: input.estimatedStudentCount,
-        currentSchoolSystem: input.currentSchoolSystem,
-        contactRole: input.contactRole,
-      };
-
-    case "LOKARI":
-      return {
-        ...sharedData,
-        propertyOwnerType: input.propertyOwnerType,
-        estimatedPropertyCount: input.estimatedPropertyCount,
-        propertyCountries: input.propertyCountries,
-        currentPropertySystem: input.currentPropertySystem,
-      };
-
-    case "NIA":
-      return {
-        ...sharedData,
-        savingsGroupType: input.savingsGroupType,
-        estimatedMemberCount: input.estimatedMemberCount,
-        contributionFrequency: input.contributionFrequency,
-        currentSavingsSystem: input.currentSavingsSystem,
-      };
-
-    case "DIGITAL_SERVICES":
-      return {
-        ...sharedData,
-        businessCategory: input.businessCategory,
-        requestedService: input.requestedService,
-      };
-  }
-}

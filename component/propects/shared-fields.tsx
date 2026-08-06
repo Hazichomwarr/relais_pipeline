@@ -1,4 +1,5 @@
-import type { UseFormRegister } from "react-hook-form";
+import type { Control, UseFormRegister } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 
 import {
   followUpActionOptions,
@@ -9,9 +10,12 @@ import {
 import type { ProspectFormInput } from "@/src/lib/validations/prospect.schema";
 
 import { FormError } from "./form-error";
+import { SCHOOL_DUPLICATE_WARNING_ID, SchoolDuplicateWarning } from "./SchoolDuplicateWarning";
+import { useSchoolDuplicateLookup } from "./useSchoolDuplicateLookup";
 
 type SharedProspectFieldsProps = {
   register: UseFormRegister<ProspectFormInput>;
+  control: Control<ProspectFormInput>;
   errors: Record<string, { message?: string } | undefined>;
   assignableUsers: AssignableUserOption[];
 };
@@ -31,9 +35,17 @@ const selectClassName = `${inputClassName} text-slate-600`;
 
 export function SharedProspectFields({
   register,
+  control,
   errors,
   assignableUsers,
 }: SharedProspectFieldsProps) {
+  const product = useWatch({ control, name: "product" });
+  const name = useWatch({ control, name: "name" }) ?? "";
+  const isKarmda = product === "KARMDA";
+
+  const lookup = useSchoolDuplicateLookup(isKarmda, name);
+  const showWarning = isKarmda && lookup.status === "success" && lookup.matches.length > 0;
+
   return (
     <div className="space-y-7">
       <div>
@@ -74,10 +86,20 @@ export function SharedProspectFields({
           type="text"
           placeholder="Ex: Etablissement..."
           className={inputClassName}
+          aria-describedby={showWarning ? SCHOOL_DUPLICATE_WARNING_ID : undefined}
           {...register("name")}
         />
 
         <FormError message={errors.name?.message} />
+
+        {isKarmda && (
+          <SchoolDuplicateWarning
+            lookup={lookup}
+            query={name}
+            checkboxProps={register("duplicateSchoolReviewed")}
+            checkboxError={errors.duplicateSchoolReviewed?.message}
+          />
+        )}
       </div>
 
       <div>
