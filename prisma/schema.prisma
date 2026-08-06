@@ -69,6 +69,14 @@ enum UserRole {
   MANAGER
 }
 
+enum PersonalNoteCategory {
+  URGENT_TODO
+  COMMERCIAL_DEBRIEF
+  RELAIS_IDEA
+  SCHOOL_DOCUMENTS
+  OTHER
+}
+
 model User {
   id String @id @default(cuid())
 
@@ -85,12 +93,35 @@ model User {
   active Boolean @default(true)
 
   assignedProspects Prospect[]
+  personalNotes     PersonalNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([role])
   @@index([active])
+}
+
+model PersonalNote {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  category PersonalNoteCategory
+
+  title   String
+  content String?
+
+  pinned Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, updatedAt])
+  @@index([userId, pinned, updatedAt])
+  @@index([userId, category])
 }
 
 model Prospect {

@@ -52,6 +52,21 @@ const gatedActions = [
     functionName: "createCommercialActivityAction",
     serviceCall: "createCommercialActivity(",
   },
+  {
+    file: "src/actions/personal-note.actions.ts",
+    functionName: "createPersonalNoteAction",
+    serviceCall: "createMyPersonalNote(",
+  },
+  {
+    file: "src/actions/personal-note.actions.ts",
+    functionName: "updatePersonalNoteAction",
+    serviceCall: "updateMyPersonalNote(",
+  },
+  {
+    file: "src/actions/personal-note.actions.ts",
+    functionName: "deletePersonalNoteAction",
+    serviceCall: "deleteMyPersonalNote(",
+  },
 ];
 
 for (const action of gatedActions) {
@@ -181,6 +196,34 @@ for (const action of selfServiceActions) {
     assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
     assert.doesNotMatch(functionBody, /values\.userId/);
     assert.doesNotMatch(functionBody, /\buserId\s*:\s*parsed\.data/);
+  });
+}
+
+for (const functionName of [
+  "createPersonalNoteAction",
+  "updatePersonalNoteAction",
+  "deletePersonalNoteAction",
+]) {
+  test(`${functionName} authorizes via requireAuthenticatedUser — every role manages only their own notes`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/personal-note.actions.ts",
+      functionName,
+    );
+
+    assert.match(functionBody, /authorizeAction\(\(\) => requireAuthenticatedUser\(\)\)/);
+    assert.doesNotMatch(functionBody, /requireRole\(/);
+    assert.doesNotMatch(functionBody, /requireAdmin\(/);
+  });
+
+  test(`${functionName} never accepts a userId from client input — ownership comes from the session`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/personal-note.actions.ts",
+      functionName,
+    );
+
+    assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
+    assert.doesNotMatch(functionBody, /values\.userId/);
+    assert.match(functionBody, /authorization\.user\.id/);
   });
 }
 
