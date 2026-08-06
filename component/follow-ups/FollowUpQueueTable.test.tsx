@@ -5,7 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import FollowUpQueueTable from "./FollowUpQueueTable";
 
 test("renders the follow-up empty state", () => {
-  const html = renderToStaticMarkup(<FollowUpQueueTable items={[]} />);
+  const html = renderToStaticMarkup(
+    <FollowUpQueueTable items={[]} returnTo="/admin/follow-ups" />,
+  );
 
   assert.match(html, /Aucun suivi en attente/);
   assert.match(html, /Toute l’équipe est à jour/);
@@ -14,6 +16,7 @@ test("renders the follow-up empty state", () => {
 test("renders a populated queue with commercial and detail link", () => {
   const html = renderToStaticMarkup(
     <FollowUpQueueTable
+      returnTo="/admin/follow-ups"
       items={[
         {
           id: "prospect-1",

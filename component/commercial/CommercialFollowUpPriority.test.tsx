@@ -5,7 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import CommercialFollowUpPriority from "./CommercialFollowUpPriority";
 
 test("renders the 'all caught up' empty state when there are no follow-ups", () => {
-  const html = renderToStaticMarkup(<CommercialFollowUpPriority items={[]} />);
+  const html = renderToStaticMarkup(
+    <CommercialFollowUpPriority items={[]} returnTo="/dashboard/commercial" />,
+  );
 
   assert.match(html, /Tout est à jour/);
   assert.match(html, /Aucun suivi ne demande votre attention aujourd’hui/);
@@ -14,6 +16,7 @@ test("renders the 'all caught up' empty state when there are no follow-ups", () 
 test("renders a follow-up row with a link to its own detail page", () => {
   const html = renderToStaticMarkup(
     <CommercialFollowUpPriority
+      returnTo="/dashboard/commercial"
       items={[
         {
           id: "prospect-1",
@@ -65,7 +68,7 @@ test("shows a link to the full queue only past the initial 5 items", () => {
   }));
 
   const html = renderToStaticMarkup(
-    <CommercialFollowUpPriority items={items} />,
+    <CommercialFollowUpPriority items={items} returnTo="/dashboard/commercial" />,
   );
 
   assert.match(html, /Voir tous mes suivis/);

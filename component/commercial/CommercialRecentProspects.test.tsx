@@ -8,7 +8,7 @@ import CommercialRecentProspects from "./CommercialRecentProspects";
 
 test("renders the no-assigned-prospects empty state without implying poor performance", () => {
   const html = renderToStaticMarkup(
-    <CommercialRecentProspects prospects={[]} />,
+    <CommercialRecentProspects prospects={[]} returnTo="/dashboard/commercial" />,
   );
 
   assert.match(html, /Aucun prospect ne vous est encore assigné/);
@@ -16,7 +16,10 @@ test("renders the no-assigned-prospects empty state without implying poor perfor
 
 test("renders a recent prospect with a link to its own detail page", () => {
   const html = renderToStaticMarkup(
-    <CommercialRecentProspects prospects={[makeRecentProspect()]} />,
+    <CommercialRecentProspects
+      prospects={[makeRecentProspect()]}
+      returnTo="/dashboard/commercial"
+    />,
   );
 
   assert.match(html, /École Horizon/);

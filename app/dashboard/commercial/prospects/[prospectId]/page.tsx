@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
 import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
@@ -28,20 +29,26 @@ import {
   createCommercialActivityAction,
   updateCommercialProspectFollowUpAction,
 } from "@/src/actions/commercial-prospect.actions";
+import { resolveSafeReturnTo } from "@/src/lib/callback-url";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
+import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
 import { requireCommercial } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
+import { getAdjacentProspects } from "@/src/services/prospect-navigation.service";
 import { getCommercialProspectById } from "@/src/services/commercial-prospect.service";
 
 type CommercialProspectDetailPageProps = {
   params: Promise<{ prospectId: string }>;
+  searchParams: Promise<{ returnTo?: string }>;
 };
 
 export default async function CommercialProspectDetailPage({
   params,
+  searchParams,
 }: CommercialProspectDetailPageProps) {
   const user = await requireCommercial();
   const { prospectId } = await params;
+  const { returnTo } = await searchParams;
 
   const prospect = await getCommercialProspectById(user.id, prospectId);
 
@@ -55,8 +62,24 @@ export default async function CommercialProspectDetailPage({
     notFound();
   }
 
+  const safeReturnTo = resolveSafeReturnTo(returnTo, "/dashboard/commercial");
+  const adjacent = await getAdjacentProspects({
+    id: prospect.id,
+    createdAt: prospect.createdAt,
+    assignedUserId: prospect.assignedUserId,
+    assignedUserName: getAssignedUserName(prospect),
+  });
+  const navProps = buildProspectRecordNavigationProps({
+    role: "commercial",
+    basePath: "/dashboard/commercial/prospects",
+    adjacent,
+    safeReturnTo,
+  });
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+      <ProspectRecordNavigation {...navProps} />
+
       <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge className="bg-white/15 text-white">

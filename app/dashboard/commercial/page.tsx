@@ -6,6 +6,7 @@ import CommercialKpiCards from "@/component/commercial/CommercialKpiCards";
 import CommercialPipeline from "@/component/commercial/CommercialPipeline";
 import CommercialProspectList from "@/component/commercial/CommercialProspectList";
 import CommercialRecentProspects from "@/component/commercial/CommercialRecentProspects";
+import { buildReturnToPath } from "@/src/lib/return-to";
 import { CommercialAccessError } from "@/src/services/commercial-access.service-core";
 import { getCommercialDashboard } from "@/src/services/commercial-dashboard.service";
 import { getCommercialProspects } from "@/src/services/commercial-prospect.service";
@@ -59,6 +60,8 @@ export default async function CommercialDashboardPage({
     throw error;
   }
 
+  const returnTo = buildReturnToPath("/dashboard/commercial", params);
+
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <CommercialHeader firstName={dashboard.commercial.firstName} />
@@ -67,13 +70,20 @@ export default async function CommercialDashboardPage({
 
       <CommercialPipeline pipeline={dashboard.pipeline} />
 
-      <CommercialFollowUpPriority items={dashboard.todaysFollowUps} />
+      <CommercialFollowUpPriority
+        items={dashboard.todaysFollowUps}
+        returnTo={returnTo}
+      />
 
-      <CommercialRecentProspects prospects={dashboard.recentProspects} />
+      <CommercialRecentProspects
+        prospects={dashboard.recentProspects}
+        returnTo={returnTo}
+      />
 
       <CommercialProspectList
         prospects={prospects}
         hasActiveFilters={hasActiveFilters}
+        returnTo={returnTo}
       />
     </main>
   );

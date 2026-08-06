@@ -1,5 +1,6 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
+import { appendReturnTo } from "@/src/lib/return-to";
 import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import Link from "next/link";
 import DashboardFilters, {
@@ -9,11 +10,13 @@ import DashboardFilters, {
 type DashboardTableProps = {
   prospects: ProspectListItem[];
   filterUsers: DashboardUserFilterOption[];
+  returnTo: string;
 };
 
 export default function DashboardTable({
   prospects,
   filterUsers,
+  returnTo,
 }: DashboardTableProps) {
   return (
     <div className="mt-8 rounded-4xl border border-slate-200 bg-white p-4 sm:p-6">
@@ -104,7 +107,7 @@ export default function DashboardTable({
             )}
 
             <Link
-              href={`/admin/prospects/${prospect.id}`}
+              href={appendReturnTo(`/admin/prospects/${prospect.id}`, returnTo)}
               className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50"
             >
               <Eye className="h-4 w-4" />
@@ -199,7 +202,7 @@ export default function DashboardTable({
                   <td className="rounded-r-2xl px-4 py-5">
                     <div className="flex justify-center">
                       <Link
-                        href={`/admin/prospects/${prospect.id}`}
+                        href={appendReturnTo(`/admin/prospects/${prospect.id}`, returnTo)}
                         aria-label={`Voir ${prospect.name}`}
                         className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white hover:bg-slate-50"
                       >

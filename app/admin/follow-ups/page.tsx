@@ -3,6 +3,7 @@ import FollowUpFilters from "@/component/follow-ups/FollowUpFilters";
 import FollowUpKpiCards from "@/component/follow-ups/FollowUpKpiCards";
 import FollowUpQueueTable from "@/component/follow-ups/FollowUpQueueTable";
 import { getFollowUpQueueKpis } from "@/src/lib/follow-up-presentation";
+import { buildReturnToPath } from "@/src/lib/return-to";
 import { followUpQueueFilterSchema } from "@/src/lib/validations/follow-up-queue.schema";
 import { getFollowUpQueue } from "@/src/services/follow-up.service";
 import { listDashboardUserOptions } from "@/src/services/user.service";
@@ -50,7 +51,10 @@ export default async function FollowUpsPage({
         <FollowUpFilters users={filterUsers} />
       </div>
 
-      <FollowUpQueueTable items={items} />
+      <FollowUpQueueTable
+        items={items}
+        returnTo={buildReturnToPath("/admin/follow-ups", params)}
+      />
     </AdminShell>
   );
 }

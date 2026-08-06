@@ -1,12 +1,15 @@
 import { Eye } from "lucide-react";
 import Link from "next/link";
 
+import { appendReturnTo } from "@/src/lib/return-to";
 import type { FollowUpQueueItem } from "@/src/services/follow-up.service";
 
 export default function FollowUpQueueTable({
   items,
+  returnTo,
 }: {
   items: FollowUpQueueItem[];
+  returnTo: string;
 }) {
   if (items.length === 0) {
     return (
@@ -96,7 +99,7 @@ export default function FollowUpQueueTable({
             </dl>
 
             <Link
-              href={`/admin/prospects/${item.id}`}
+              href={appendReturnTo(`/admin/prospects/${item.id}`, returnTo)}
               className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-medium text-slate-700 hover:bg-slate-50"
             >
               <Eye className="h-4 w-4" />
@@ -173,7 +176,7 @@ export default function FollowUpQueueTable({
                 <td className="rounded-r-2xl px-4 py-5">
                   <div className="flex justify-center">
                     <Link
-                      href={`/admin/prospects/${item.id}`}
+                      href={appendReturnTo(`/admin/prospects/${item.id}`, returnTo)}
                       aria-label={`Voir ${item.name}`}
                       className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white transition hover:bg-slate-50"
                     >

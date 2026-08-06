@@ -5,6 +5,7 @@ import {
   productOptions,
   prospectStatusOptions,
 } from "@/src/lib/constants/prospect-options";
+import { appendReturnTo } from "@/src/lib/return-to";
 import type { CommercialDashboard } from "@/src/services/commercial-dashboard.service";
 
 function labelFor(
@@ -21,8 +22,10 @@ const dateFormatter = new Intl.DateTimeFormat("fr-FR", {
 
 export default function CommercialRecentProspects({
   prospects,
+  returnTo,
 }: {
   prospects: CommercialDashboard["recentProspects"];
+  returnTo: string;
 }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -41,7 +44,10 @@ export default function CommercialRecentProspects({
               <li key={prospect.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
                   <Link
-                    href={`/dashboard/commercial/prospects/${prospect.id}`}
+                    href={appendReturnTo(
+                      `/dashboard/commercial/prospects/${prospect.id}`,
+                      returnTo,
+                    )}
                     className="font-semibold text-slate-900 hover:underline"
                   >
                     {prospect.name}

@@ -6,6 +6,7 @@ import {
   productOptions,
   prospectStatusOptions,
 } from "@/src/lib/constants/prospect-options";
+import { appendReturnTo } from "@/src/lib/return-to";
 import type { CommercialProspectListItem } from "@/src/services/commercial-prospect.service";
 
 function labelFor(
@@ -18,9 +19,11 @@ function labelFor(
 export default function CommercialProspectList({
   prospects,
   hasActiveFilters,
+  returnTo,
 }: {
   prospects: CommercialProspectListItem[];
   hasActiveFilters: boolean;
+  returnTo: string;
 }) {
   return (
     <section id="mes-prospects" className="rounded-3xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -56,7 +59,10 @@ export default function CommercialProspectList({
               >
                 <div>
                   <Link
-                    href={`/dashboard/commercial/prospects/${prospect.id}`}
+                    href={appendReturnTo(
+                      `/dashboard/commercial/prospects/${prospect.id}`,
+                      returnTo,
+                    )}
                     className="font-semibold text-slate-900 hover:underline"
                   >
                     {prospect.name}

@@ -5,6 +5,7 @@ import BusinessStats from "@/component/dashboard/BusinessStats";
 import DashboardTable from "@/component/dashboard/DashboardTable";
 import KpiCards from "@/component/dashboard/KpiCards";
 import ReportDateFilter from "@/component/dashboard/ReportDateFilter";
+import { buildReturnToPath } from "@/src/lib/return-to";
 import { getProspects } from "@/src/services/prospect.service";
 import { getFollowUpQueue } from "@/src/services/follow-up.service";
 import { listDashboardUserOptions } from "@/src/services/user.service";
@@ -63,7 +64,11 @@ export default async function AdminPage({
 
       <BusinessStats prospects={prospects} />
 
-      <DashboardTable prospects={prospects} filterUsers={filterUsers} />
+      <DashboardTable
+        prospects={prospects}
+        filterUsers={filterUsers}
+        returnTo={buildReturnToPath("/admin", params)}
+      />
     </AdminShell>
   );
 }

@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   Building2,
   CalendarDays,
   Clock3,
@@ -7,10 +6,10 @@ import {
   Phone,
   UserRound,
 } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 
+import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
 import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
@@ -28,19 +27,27 @@ import {
   getStatusLabel,
 } from "@/component/propects/prospect-detail-sections";
 import AdminShell from "@/component/dashboard/AdminShell";
+import { resolveSafeReturnTo } from "@/src/lib/callback-url";
+import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
+import { getAdjacentProspects } from "@/src/services/prospect-navigation.service";
 import { getProspectById } from "@/src/services/prospect.service";
 
 type ProspectDetailPageProps = {
   params: Promise<{
     prospectId: string;
   }>;
+  searchParams: Promise<{
+    returnTo?: string;
+  }>;
 };
 
 export default async function ProspectDetailPage({
   params,
+  searchParams,
 }: ProspectDetailPageProps) {
   const { prospectId } = await params;
+  const { returnTo } = await searchParams;
   const prospect = await getProspectById(prospectId);
 
   if (!prospect) {
@@ -53,16 +60,24 @@ export default async function ProspectDetailPage({
     notFound();
   }
 
+  const safeReturnTo = resolveSafeReturnTo(returnTo, "/admin");
+  const adjacent = await getAdjacentProspects({
+    id: prospect.id,
+    createdAt: prospect.createdAt,
+    assignedUserId: prospect.assignedUserId,
+    assignedUserName: getAssignedUserName(prospect),
+  });
+  const navProps = buildProspectRecordNavigationProps({
+    role: "admin",
+    basePath: "/admin/prospects",
+    adjacent,
+    safeReturnTo,
+  });
+
   return (
     <AdminShell>
       <div className="mx-auto max-w-7xl">
-        <Link
-          href="/admin"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#0f2557]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour au tableau de bord
-        </Link>
+        <ProspectRecordNavigation {...navProps} />
 
             <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
               <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">

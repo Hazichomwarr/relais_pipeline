@@ -5,6 +5,7 @@ import {
   interestOptions,
   productOptions,
 } from "@/src/lib/constants/prospect-options";
+import { appendReturnTo } from "@/src/lib/return-to";
 import type { FollowUpQueueItem } from "@/src/services/follow-up.service";
 
 const MAX_VISIBLE = 5;
@@ -18,8 +19,10 @@ function labelFor(
 
 export default function CommercialFollowUpPriority({
   items,
+  returnTo,
 }: {
   items: FollowUpQueueItem[];
+  returnTo: string;
 }) {
   const visible = items.slice(0, MAX_VISIBLE);
 
@@ -56,7 +59,10 @@ export default function CommercialFollowUpPriority({
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <Link
-                    href={`/dashboard/commercial/prospects/${item.id}`}
+                    href={appendReturnTo(
+                      `/dashboard/commercial/prospects/${item.id}`,
+                      returnTo,
+                    )}
                     className="font-semibold text-slate-900 hover:underline"
                   >
                     {item.name}
