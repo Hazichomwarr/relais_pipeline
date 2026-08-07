@@ -8,6 +8,7 @@ import {
   Settings,
   StickyNote,
   Users,
+  Wallet,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,7 +17,13 @@ export default function Sidebar({
   activeItem = "dashboard",
   role,
 }: {
-  activeItem?: "dashboard" | "followUps" | "users" | "schools" | "notes";
+  activeItem?:
+    | "dashboard"
+    | "followUps"
+    | "users"
+    | "schools"
+    | "notes"
+    | "finances";
   role?: UserRole;
 }) {
   return (
@@ -72,6 +79,18 @@ export default function Sidebar({
         >
           <ClipboardCheck className="h-5 w-5" />
           Suivis
+        </Link>
+
+        <Link
+          href="/finances"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "finances"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Wallet className="h-5 w-5" />
+          Finances
         </Link>
 
         <Link

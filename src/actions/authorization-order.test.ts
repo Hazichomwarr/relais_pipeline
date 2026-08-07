@@ -67,6 +67,16 @@ const gatedActions = [
     functionName: "deletePersonalNoteAction",
     serviceCall: "deleteMyPersonalNote(",
   },
+  {
+    file: "src/actions/financial-ledger.actions.ts",
+    functionName: "createLedgerEntryAction",
+    serviceCall: "createLedgerEntry(",
+  },
+  {
+    file: "src/actions/financial-ledger.actions.ts",
+    functionName: "reverseLedgerEntryAction",
+    serviceCall: "reverseLedgerEntry(",
+  },
 ];
 
 for (const action of gatedActions) {
@@ -113,6 +123,37 @@ for (const functionName of [
       functionBody,
       /requireRole\(\s*"ADMIN"\s*,\s*"MANAGER"\s*\)/,
     );
+  });
+}
+
+for (const functionName of [
+  "createLedgerEntryAction",
+  "reverseLedgerEntryAction",
+]) {
+  test(`${functionName} authorizes via requireAdmin — financial mutations are ADMIN-only (Ticket 17A)`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/financial-ledger.actions.ts",
+      functionName,
+    );
+
+    assert.match(functionBody, /requireAdmin\(\)/);
+    assert.doesNotMatch(
+      functionBody,
+      /requireRole\(\s*"ADMIN"\s*,\s*"MANAGER"\s*\)/,
+    );
+  });
+
+  test(`${functionName} never accepts a creator/reverser id from client input — it always comes from the authenticated session`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/financial-ledger.actions.ts",
+      functionName,
+    );
+
+    assert.doesNotMatch(functionBody, /parsed\.data\.createdByUserId/);
+    assert.doesNotMatch(functionBody, /parsed\.data\.reversedByUserId/);
+    assert.doesNotMatch(functionBody, /values\.createdByUserId/);
+    assert.doesNotMatch(functionBody, /values\.reversedByUserId/);
+    assert.match(functionBody, /authorization\.user\.id/);
   });
 }
 

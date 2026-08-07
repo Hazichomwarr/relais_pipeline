@@ -12,3 +12,12 @@ test("COMMERCIAL navigation includes a Mes notes link to /notes", () => {
   assert.match(html, /Mes notes/);
   assert.match(html, /href="\/notes"/);
 });
+
+test("COMMERCIAL navigation never exposes a Finances link (Ticket 17B)", () => {
+  const html = renderToStaticMarkup(
+    <CommercialNav firstName="Julbert" lastName="Sermé" />,
+  );
+
+  assert.doesNotMatch(html, /Finances/);
+  assert.doesNotMatch(html, /href="\/finances"/);
+});

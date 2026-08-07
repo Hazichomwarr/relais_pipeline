@@ -3,7 +3,13 @@ import Sidebar from "@/component/dashboard/Sidebar";
 import { auth } from "@/auth";
 
 type AdminShellProps = {
-  activeItem?: "dashboard" | "followUps" | "users" | "schools" | "notes";
+  activeItem?:
+    | "dashboard"
+    | "followUps"
+    | "users"
+    | "schools"
+    | "notes"
+    | "finances";
   children: React.ReactNode;
 };
 
