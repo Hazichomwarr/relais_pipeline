@@ -1,9 +1,11 @@
-import { BarChart3, CheckCircle2, Plus } from "lucide-react";
+import { BarChart3, CheckCircle2, Plus, SearchX } from "lucide-react";
 import Link from "next/link";
 
 import FinancialSummaryCards from "@/component/finances/FinancialSummaryCards";
 import LedgerEmptyState from "@/component/finances/LedgerEmptyState";
 import LedgerEntryTable from "@/component/finances/LedgerEntryTable";
+import LedgerHistoryFilters from "@/component/finances/LedgerHistoryFilters";
+import { parseLedgerHistoryFilter } from "@/src/lib/ledger-history-filters";
 import { requireAuthenticatedUser } from "@/src/services/authorization.service";
 import {
   getFinancialLedgerSummary,
@@ -12,6 +14,8 @@ import {
 
 type FinancesSearchParams = Promise<{
   type?: string;
+  category?: string;
+  product?: string;
   created?: string;
 }>;
 
@@ -29,14 +33,13 @@ export default async function FinancesPage({
   const user = await requireAuthenticatedUser();
   const canCreate = user.role === "ADMIN";
 
-  const typeFilter =
-    params.type === "INFLOW" || params.type === "OUTFLOW"
-      ? params.type
-      : undefined;
+  const filter = parseLedgerHistoryFilter(params);
 
+  // The KPI cards always reflect the whole ledger — history filters must
+  // never narrow "Solde actuel" into e.g. a "fuel balance" (Ticket 17C.1).
   const [summary, entries] = await Promise.all([
     getFinancialLedgerSummary(),
-    listLedgerEntries({ type: typeFilter }),
+    listLedgerEntries(filter),
   ]);
 
   const flashMessage =
@@ -100,57 +103,45 @@ export default async function FinancesPage({
 
       <FinancialSummaryCards summary={summary} />
 
-      <div className="mt-8 mb-4 flex flex-wrap items-center justify-between gap-4">
+      <div className="mt-8 mb-4">
         <h2 className="text-xl font-bold text-[#0f2557]">
           Historique des mouvements
+          {entries.length > 0 && (
+            <span className="ml-2 text-sm font-medium text-slate-400">
+              {entries.length} mouvement{entries.length > 1 ? "s" : ""}
+            </span>
+          )}
         </h2>
-        <nav
-          aria-label="Filtrer les mouvements financiers"
-          className="flex gap-2"
-        >
-          <FilterTabLink href="/finances" label="Tous" active={!typeFilter} />
-          <FilterTabLink
-            href="/finances?type=INFLOW"
-            label="Entrées"
-            active={typeFilter === "INFLOW"}
-          />
-          <FilterTabLink
-            href="/finances?type=OUTFLOW"
-            label="Sorties"
-            active={typeFilter === "OUTFLOW"}
-          />
-        </nav>
+      </div>
+
+      <div className="mb-6">
+        <LedgerHistoryFilters
+          type={filter.type}
+          category={filter.category}
+          product={filter.product}
+        />
       </div>
 
       {entries.length === 0 ? (
-        <LedgerEmptyState canCreate={canCreate} />
+        filter.type ? (
+          <div className="rounded-4xl border border-slate-200 bg-white px-6 py-16 text-center">
+            <SearchX className="mx-auto h-12 w-12 text-slate-400" aria-hidden="true" />
+            <h3 className="mt-5 text-xl font-bold text-[#0f2557]">
+              Aucun mouvement ne correspond à ces filtres.
+            </h3>
+            <Link
+              href="/finances"
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-5 font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Réinitialiser les filtres
+            </Link>
+          </div>
+        ) : (
+          <LedgerEmptyState canCreate={canCreate} />
+        )
       ) : (
         <LedgerEntryTable entries={entries} />
       )}
     </div>
-  );
-}
-
-function FilterTabLink({
-  href,
-  label,
-  active,
-}: {
-  href: string;
-  label: string;
-  active: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-        active
-          ? "bg-blue-50 text-blue-600"
-          : "text-slate-600 hover:bg-slate-100"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }
