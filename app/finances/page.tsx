@@ -1,4 +1,4 @@
-import { CheckCircle2, Plus } from "lucide-react";
+import { BarChart3, CheckCircle2, Plus } from "lucide-react";
 import Link from "next/link";
 
 import FinancialSummaryCards from "@/component/finances/FinancialSummaryCards";
@@ -58,24 +58,34 @@ export default async function FinancesPage({
           </p>
         </div>
 
-        {canCreate && (
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/finances/new?type=INFLOW"
-              className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f]"
-            >
-              <Plus className="h-4 w-4" />
-              Nouvelle entrée
-            </Link>
-            <Link
-              href="/finances/new?type=OUTFLOW"
-              className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              <Plus className="h-4 w-4" />
-              Nouvelle sortie
-            </Link>
-          </div>
-        )}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/finances/reports"
+            className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Voir les rapports
+          </Link>
+
+          {canCreate && (
+            <>
+              <Link
+                href="/finances/new?type=INFLOW"
+                className="flex h-12 items-center justify-center gap-2 rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f]"
+              >
+                <Plus className="h-4 w-4" />
+                Nouvelle entrée
+              </Link>
+              <Link
+                href="/finances/new?type=OUTFLOW"
+                className="flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" />
+                Nouvelle sortie
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       {flashMessage && (

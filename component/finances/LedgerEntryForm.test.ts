@@ -19,7 +19,7 @@ test("category options are chosen from the type prop, never hand-duplicated", ()
   );
   assert.match(
     source,
-    /import\s*\{[^}]*inflowCategoryOptions[^}]*outflowCategoryOptions[^}]*\}\s*from\s*"@\/src\/lib\/financial-ledger-options"/s,
+    /import\s*\{[^}]*inflowCategoryOptions[^}]*outflowCategoryOptions[^}]*\}\s*from\s*"@\/src\/lib\/financial-ledger-options"/,
   );
 });
 
@@ -27,7 +27,7 @@ test("the product field's required/optional/forbidden state is read from the sha
   assert.match(source, /getProductRequirementForCategory\(/);
   assert.match(
     source,
-    /import\s*\{[^}]*getProductRequirementForCategory[^}]*\}\s*from\s*"@\/src\/lib\/financial-ledger-options"/s,
+    /import\s*\{[^}]*getProductRequirementForCategory[^}]*\}\s*from\s*"@\/src\/lib\/financial-ledger-options"/,
   );
 });
 
