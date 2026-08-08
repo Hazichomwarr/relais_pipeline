@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  Newspaper,
   School,
   Settings,
   StickyNote,
@@ -23,7 +24,8 @@ export default function Sidebar({
     | "users"
     | "schools"
     | "notes"
-    | "finances";
+    | "finances"
+    | "updates";
   role?: UserRole;
 }) {
   return (
@@ -55,6 +57,18 @@ export default function Sidebar({
         >
           <LayoutDashboard className="h-5 w-5" />
           Tableau de bord
+        </Link>
+
+        <Link
+          href="/updates"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "updates"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <Newspaper className="h-5 w-5" />
+          À la une
         </Link>
 
         <Link

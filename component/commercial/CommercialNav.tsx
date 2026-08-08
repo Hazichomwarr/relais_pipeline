@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LogOut,
+  Newspaper,
   School,
   StickyNote,
   UserRound,
@@ -24,6 +25,11 @@ const commercialNavItems: MobileNavItem[] = [
     label: "Tableau de bord",
     href: "/dashboard/commercial",
     icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    label: "À la une",
+    href: "/updates",
+    icon: <Newspaper className="h-5 w-5" />,
   },
   {
     label: "Mes prospects",
@@ -78,6 +84,12 @@ export default function CommercialNav({
             className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Tableau de bord
+          </Link>
+          <Link
+            href="/updates"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            À la une
           </Link>
           <Link
             href="/dashboard/commercial#mes-prospects"

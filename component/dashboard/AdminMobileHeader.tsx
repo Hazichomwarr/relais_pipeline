@@ -3,6 +3,7 @@ import {
   ClipboardCheck,
   FileText,
   LayoutDashboard,
+  Newspaper,
   School,
   Settings,
   StickyNote,
@@ -21,6 +22,11 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       label: "Tableau de bord",
       href: "/admin",
       icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      label: "À la une",
+      href: "/updates",
+      icon: <Newspaper className="h-5 w-5" />,
     },
     {
       label: "Toutes les écoles",

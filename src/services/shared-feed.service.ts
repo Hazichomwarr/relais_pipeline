@@ -16,7 +16,9 @@ const prospectActivityFeedSelect = {
   details: true,
   occurredAt: true,
   agentName: true,
-  prospect: { select: { id: true, name: true } },
+  prospect: {
+    select: { id: true, name: true, product: true, assignedUserId: true },
+  },
 } satisfies Prisma.ProspectActivitySelect;
 
 const prospectActivityFeedOrderBy = [

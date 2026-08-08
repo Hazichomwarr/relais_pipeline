@@ -27,7 +27,12 @@ function activityRow(
     details: "Le directeur souhaite une démonstration mardi.",
     occurredAt: new Date("2026-08-08T09:00:00.000Z"),
     agentName: "Julbert Serme",
-    prospect: { id: "prospect-1", name: "Lycée Saint Viateur" },
+    prospect: {
+      id: "prospect-1",
+      name: "Lycée Saint Viateur",
+      product: "KARMDA",
+      assignedUserId: "commercial-1",
+    },
     ...overrides,
   };
 }
@@ -101,6 +106,8 @@ test("mapProspectInteractionRow preserves actor, prospect, activity type, occurr
     actorName: "Julbert Serme",
     prospectId: "prospect-1",
     prospectName: "Lycée Saint Viateur",
+    prospectProduct: "KARMDA",
+    prospectAssignedUserId: "commercial-1",
     activityType: "PHONE_CALL",
     summary: "Appel avec le directeur",
     preview: "Le directeur souhaite une démonstration mardi.",
@@ -129,6 +136,25 @@ test("mapFollowUpCompletedRow maps a FOLLOW_UP activity into a completed follow-
   assert.equal(item.summary, "Relance effectuée");
 });
 
+test("every prospect-related mapper carries product and assignedUserId for role-safe link resolution (Ticket 18B)", () => {
+  const foreignRow = activityRow({
+    prospect: {
+      id: "prospect-2",
+      name: "Boutique Alimentation Koudougou",
+      product: "DIGITAL_SERVICES",
+      assignedUserId: "commercial-7",
+    },
+  });
+
+  assert.equal(mapProspectInteractionRow(foreignRow).prospectProduct, "DIGITAL_SERVICES");
+  assert.equal(mapProspectInteractionRow(foreignRow).prospectAssignedUserId, "commercial-7");
+  assert.equal(
+    mapFollowUpCompletedRow(foreignRow).prospectAssignedUserId,
+    "commercial-7",
+  );
+  assert.equal(mapProspectWonRow(foreignRow).prospectProduct, "DIGITAL_SERVICES");
+});
+
 test("mapProspectWonRow maps a WON_TRANSITION activity, preserving actor and timestamp when known", () => {
   const item = mapProspectWonRow(
     activityRow({
@@ -137,7 +163,12 @@ test("mapProspectWonRow maps a WON_TRANSITION activity, preserving actor and tim
       summary: "Le prospect est devenu client (statut WON).",
       agentName: "Julbert Serme",
       occurredAt: new Date("2026-08-08T10:15:00.000Z"),
-      prospect: { id: "prospect-9", name: "Groupe Scolaire Wend-Panga" },
+      prospect: {
+        id: "prospect-9",
+        name: "Groupe Scolaire Wend-Panga",
+        product: "KARMDA",
+        assignedUserId: null,
+      },
     }),
   );
 
@@ -148,6 +179,8 @@ test("mapProspectWonRow maps a WON_TRANSITION activity, preserving actor and tim
     actorName: "Julbert Serme",
     prospectId: "prospect-9",
     prospectName: "Groupe Scolaire Wend-Panga",
+    prospectProduct: "KARMDA",
+    prospectAssignedUserId: null,
     entity: { kind: "PROSPECT", id: "prospect-9" },
   });
 });

@@ -1,5 +1,6 @@
 import type {
   ProspectActivityType,
+  RelaisProduct,
   UserRole,
   UserStatusActivityType,
 } from "@prisma/client";
@@ -34,33 +35,45 @@ type SharedFeedItemBase = {
   occurredAt: string;
 };
 
-export type ProspectInteractionFeedItem = SharedFeedItemBase & {
-  type: "PROSPECT_INTERACTION";
-  actorName: string | null;
+/**
+ * Carried on every prospect-related item so Ticket 18B can resolve a
+ * role-safe navigation target (admin detail / commercial detail / read-only
+ * school summary / no link) without a second query per feed item or
+ * per-role routing logic baked into this DTO — see
+ * resolveSharedFeedProspectHref in src/lib/shared-feed-prospect-navigation.ts.
+ * Both fields are already visible to every authorized CRM user on the
+ * prospect list/detail pages, so exposing them here adds no new privacy
+ * surface.
+ */
+type SharedFeedProspectRef = {
   prospectId: string;
   prospectName: string;
-  activityType: ProspectActivityType;
-  summary: string;
-  preview: string | null;
+  prospectProduct: RelaisProduct;
+  prospectAssignedUserId: string | null;
   entity: SharedFeedEntityRef;
 };
 
-export type FollowUpCompletedFeedItem = SharedFeedItemBase & {
-  type: "FOLLOW_UP_COMPLETED";
-  actorName: string | null;
-  prospectId: string;
-  prospectName: string;
-  summary: string;
-  entity: SharedFeedEntityRef;
-};
+export type ProspectInteractionFeedItem = SharedFeedItemBase &
+  SharedFeedProspectRef & {
+    type: "PROSPECT_INTERACTION";
+    actorName: string | null;
+    activityType: ProspectActivityType;
+    summary: string;
+    preview: string | null;
+  };
 
-export type ProspectWonFeedItem = SharedFeedItemBase & {
-  type: "PROSPECT_WON";
-  actorName: string | null;
-  prospectId: string;
-  prospectName: string;
-  entity: SharedFeedEntityRef;
-};
+export type FollowUpCompletedFeedItem = SharedFeedItemBase &
+  SharedFeedProspectRef & {
+    type: "FOLLOW_UP_COMPLETED";
+    actorName: string | null;
+    summary: string;
+  };
+
+export type ProspectWonFeedItem = SharedFeedItemBase &
+  SharedFeedProspectRef & {
+    type: "PROSPECT_WON";
+    actorName: string | null;
+  };
 
 export type UserStatusFeedItem = SharedFeedItemBase & {
   type: "USER_ACTIVATED" | "USER_DEACTIVATED";
@@ -122,8 +135,25 @@ export type ProspectActivityFeedRow = {
   details: string | null;
   occurredAt: Date;
   agentName: string | null;
-  prospect: { id: string; name: string };
+  prospect: {
+    id: string;
+    name: string;
+    product: RelaisProduct;
+    assignedUserId: string | null;
+  };
 };
+
+function mapProspectRef(
+  row: ProspectActivityFeedRow,
+): SharedFeedProspectRef {
+  return {
+    prospectId: row.prospect.id,
+    prospectName: row.prospect.name,
+    prospectProduct: row.prospect.product,
+    prospectAssignedUserId: row.prospect.assignedUserId,
+    entity: { kind: "PROSPECT", id: row.prospect.id },
+  };
+}
 
 export function mapProspectInteractionRow(
   row: ProspectActivityFeedRow,
@@ -133,12 +163,10 @@ export function mapProspectInteractionRow(
     type: "PROSPECT_INTERACTION",
     occurredAt: row.occurredAt.toISOString(),
     actorName: row.agentName ?? null,
-    prospectId: row.prospect.id,
-    prospectName: row.prospect.name,
     activityType: row.type,
     summary: row.summary,
     preview: buildInteractionPreview(row.details),
-    entity: { kind: "PROSPECT", id: row.prospect.id },
+    ...mapProspectRef(row),
   };
 }
 
@@ -150,10 +178,8 @@ export function mapFollowUpCompletedRow(
     type: "FOLLOW_UP_COMPLETED",
     occurredAt: row.occurredAt.toISOString(),
     actorName: row.agentName ?? null,
-    prospectId: row.prospect.id,
-    prospectName: row.prospect.name,
     summary: row.summary,
-    entity: { kind: "PROSPECT", id: row.prospect.id },
+    ...mapProspectRef(row),
   };
 }
 
@@ -165,9 +191,7 @@ export function mapProspectWonRow(
     type: "PROSPECT_WON",
     occurredAt: row.occurredAt.toISOString(),
     actorName: row.agentName ?? null,
-    prospectId: row.prospect.id,
-    prospectName: row.prospect.name,
-    entity: { kind: "PROSPECT", id: row.prospect.id },
+    ...mapProspectRef(row),
   };
 }
 
