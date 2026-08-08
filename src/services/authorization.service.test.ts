@@ -7,6 +7,7 @@ import {
   AuthorizationError,
   requireAuthenticatedUserCore,
   requireRoleCore,
+  SHARED_FEED_ROLES,
   type AuthenticatedUser,
 } from "./authorization.service-core";
 
@@ -87,6 +88,20 @@ test("assertCanChangePasswordCore denies a COMMERCIAL changing another user's pa
   assert.throws(
     () => assertCanChangePasswordCore(makeUser("COMMERCIAL"), "other-user"),
     hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN, MANAGER, and COMMERCIAL for the shared feed's role allow-list (Ticket 18A)", () => {
+  for (const role of SHARED_FEED_ROLES) {
+    const user = requireRoleCore({ user: makeUser(role) }, SHARED_FEED_ROLES);
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies an anonymous visitor to the shared feed", () => {
+  assert.throws(
+    () => requireRoleCore(null, SHARED_FEED_ROLES),
+    hasCode("UNAUTHENTICATED"),
   );
 });
 

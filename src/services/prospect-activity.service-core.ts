@@ -7,6 +7,10 @@ import type {
 } from "@prisma/client";
 
 import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
+import {
+  buildWonTransitionActivityData,
+  isWonTransition,
+} from "@/src/services/prospect-won-transition.service-core";
 
 export type ProspectActivityReadResult =
   | {
@@ -52,7 +56,9 @@ export type ProspectActivityReadDependencies = {
 };
 
 export type ProspectActivityTransaction = {
-  findProspect: (prospectId: string) => Promise<{ id: string } | null>;
+  findProspect: (
+    prospectId: string,
+  ) => Promise<{ id: string; status: ProspectStatus } | null>;
   createActivity: (
     data: ActivityCreateData,
   ) => Promise<{ id: string }>;
@@ -132,6 +138,16 @@ export async function createProspectActivityCore(
 
       if (Object.keys(prospectUpdates).length > 0) {
         await transaction.updateProspect(input.prospectId, prospectUpdates);
+
+        if (isWonTransition(prospect.status, prospectUpdates.status)) {
+          await transaction.createActivity(
+            buildWonTransitionActivityData({
+              prospectId: input.prospectId,
+              occurredAt: input.occurredAt,
+              agentName: input.agentName,
+            }),
+          );
+        }
       }
 
       return {

@@ -99,7 +99,7 @@ export async function updateProspectFollowUpAction(
     };
   }
 
-  const result = await updateProspectFollowUp(parsed.data);
+  const result = await updateProspectFollowUp(parsed.data, authorization.user);
 
   if (!result.success) {
     return {

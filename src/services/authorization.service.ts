@@ -8,6 +8,7 @@ import {
   AuthorizationError,
   requireAuthenticatedUserCore,
   requireRoleCore,
+  SHARED_FEED_ROLES,
 } from "@/src/services/authorization.service-core";
 
 export { AuthorizationError };
@@ -39,4 +40,12 @@ export async function requireManager() {
  */
 export async function requireCommercial() {
   return requireRole("COMMERCIAL");
+}
+
+/**
+ * Read boundary for the shared À la une feed (Ticket 18A) — every
+ * operational role may read it, but it is never exposed publicly.
+ */
+export async function requireSharedFeedAccess() {
+  return requireRole(...SHARED_FEED_ROLES);
 }

@@ -67,6 +67,7 @@ export async function updateCommercialProspect(
   return updateProspectFollowUpScoped(
     buildCommercialProspectByIdWhere(input.prospectId, commercial.id),
     input,
+    commercial,
   );
 }
 
@@ -83,7 +84,7 @@ export async function createCommercialActivity(
           findProspect: (id) =>
             transaction.prospect.findFirst({
               where: buildCommercialProspectByIdWhere(id, commercial.id),
-              select: { id: true },
+              select: { id: true, status: true },
             }),
           createActivity: (data) =>
             transaction.prospectActivity.create({

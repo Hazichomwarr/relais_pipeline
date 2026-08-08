@@ -21,6 +21,12 @@ export class AuthorizationError extends Error {
 
 export type SessionLike = { user?: AuthenticatedUser | null } | null;
 
+/**
+ * À la une (Ticket 18A) is shared CRM history, readable by every
+ * operational role — but never anonymously.
+ */
+export const SHARED_FEED_ROLES: UserRole[] = ["ADMIN", "MANAGER", "COMMERCIAL"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

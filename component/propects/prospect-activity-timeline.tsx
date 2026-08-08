@@ -8,6 +8,7 @@ import {
   NotebookPen,
   Phone,
   RefreshCw,
+  Trophy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ const activityIcons: Record<ProspectActivityType, LucideIcon> = {
   DOCUMENT_SENT: FileCheck2,
   FOLLOW_UP: RefreshCw,
   INTERNAL_NOTE: NotebookPen,
+  WON_TRANSITION: Trophy,
 };
 
 export default function ProspectActivityTimeline({

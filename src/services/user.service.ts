@@ -14,6 +14,7 @@ import {
   updateOwnProfileCore,
   updateUserCore,
   type UserListFilters,
+  type UserStatusTransition,
 } from "@/src/services/user.service-core";
 
 const dependencies = {
@@ -22,7 +23,34 @@ const dependencies = {
   update: (
     userId: string,
     data: Parameters<typeof prisma.user.update>[0]["data"],
-  ) => prisma.user.update({ where: { id: userId }, data, select: { id: true } }),
+    statusTransition?: UserStatusTransition,
+  ) => {
+    if (!statusTransition) {
+      return prisma.user.update({
+        where: { id: userId },
+        data,
+        select: { id: true },
+      });
+    }
+
+    return prisma.$transaction(async (transaction) => {
+      const user = await transaction.user.update({
+        where: { id: userId },
+        data,
+        select: { id: true },
+      });
+
+      await transaction.userStatusActivity.create({
+        data: {
+          userId,
+          type: statusTransition.type,
+          actorUserId: statusTransition.actorUserId,
+        },
+      });
+
+      return user;
+    });
+  },
   findById: (userId: string) =>
     prisma.user.findUnique({ where: { id: userId } }),
   list: (filters: UserListFilters) =>
@@ -36,8 +64,11 @@ export async function createUser(input: ValidatedUserInput) {
   return createUserCore(input, dependencies);
 }
 
-export async function updateUser(input: ValidatedUserUpdateInput) {
-  return updateUserCore(input, dependencies);
+export async function updateUser(
+  input: ValidatedUserUpdateInput,
+  actorUserId: string,
+) {
+  return updateUserCore(input, actorUserId, dependencies);
 }
 
 export async function updateOwnProfile(
@@ -55,8 +86,8 @@ export async function getUserById(userId: string) {
   return getUserByIdCore(userId, dependencies);
 }
 
-export async function deactivateUser(userId: string) {
-  return deactivateUserCore(userId, dependencies);
+export async function deactivateUser(userId: string, actorUserId: string) {
+  return deactivateUserCore(userId, actorUserId, dependencies);
 }
 
 export async function listAssignableUsers() {

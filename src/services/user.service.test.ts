@@ -14,6 +14,7 @@ import {
   updateOwnProfileCore,
   updateUserCore,
   type UserServiceDependencies,
+  type UserStatusTransition,
 } from "./user.service-core";
 
 function validUserInput(
@@ -55,7 +56,7 @@ test("updates names, contact details, role, and active state", async () => {
       active: false,
     }),
   };
-  const result = await updateUserCore(input, store.dependencies);
+  const result = await updateUserCore(input, "admin-1", store.dependencies);
 
   assert.equal(result.success, true);
   assert.deepEqual(
@@ -80,7 +81,7 @@ test("updates names, contact details, role, and active state", async () => {
 
 test("deactivates rather than deleting a user", async () => {
   const store = createUserStore([makeUser("user-1")]);
-  const result = await deactivateUserCore("user-1", store.dependencies);
+  const result = await deactivateUserCore("user-1", "admin-1", store.dependencies);
 
   assert.equal(result.success, true);
   assert.equal(store.users.length, 1);
@@ -89,6 +90,49 @@ test("deactivates rather than deleting a user", async () => {
     (await getUserByIdCore("user-1", store.dependencies))?.id,
     "user-1",
   );
+});
+
+test("records a DEACTIVATED status activity, attributed to the acting admin, when deactivateUserCore flips an active user", async () => {
+  const store = createUserStore([makeUser("user-1", { active: true })]);
+  await deactivateUserCore("user-1", "admin-1", store.dependencies);
+
+  assert.deepEqual(store.statusTransitions, [
+    { userId: "user-1", type: "DEACTIVATED", actorUserId: "admin-1" },
+  ]);
+});
+
+test("does not record a duplicate status activity when deactivating an already-inactive user", async () => {
+  const store = createUserStore([makeUser("user-1", { active: false })]);
+  const result = await deactivateUserCore("user-1", "admin-1", store.dependencies);
+
+  assert.equal(result.success, true);
+  assert.deepEqual(store.statusTransitions, []);
+});
+
+test("records an ACTIVATED status activity when updateUserCore flips an inactive user back on", async () => {
+  const store = createUserStore([makeUser("user-1", { active: false })]);
+  const input: ValidatedUserUpdateInput = {
+    userId: "user-1",
+    ...validUserInput({ active: true }),
+  };
+
+  await updateUserCore(input, "admin-2", store.dependencies);
+
+  assert.deepEqual(store.statusTransitions, [
+    { userId: "user-1", type: "ACTIVATED", actorUserId: "admin-2" },
+  ]);
+});
+
+test("records no status activity when updateUserCore leaves active unchanged", async () => {
+  const store = createUserStore([makeUser("user-1", { active: true })]);
+  const input: ValidatedUserUpdateInput = {
+    userId: "user-1",
+    ...validUserInput({ active: true, firstName: "Renamed" }),
+  };
+
+  await updateUserCore(input, "admin-1", store.dependencies);
+
+  assert.deepEqual(store.statusTransitions, []);
 });
 
 test("lists only active users when requested and sorts them by name", async () => {
@@ -154,10 +198,12 @@ test("returns a controlled result when updating or deactivating an unknown user"
   const store = createUserStore();
   const updateResult = await updateUserCore(
     { userId: "missing", ...validUserInput() },
+    "admin-1",
     store.dependencies,
   );
   const deactivateResult = await deactivateUserCore(
     "missing",
+    "admin-1",
     store.dependencies,
   );
 
@@ -171,6 +217,9 @@ test("returns a controlled result when updating or deactivating an unknown user"
 
 function createUserStore(initialUsers: User[] = []) {
   const users = initialUsers.map((user) => ({ ...user }));
+  const statusTransitions: Array<
+    { userId: string } & UserStatusTransition
+  > = [];
   let nextId = users.length + 1;
 
   const dependencies: UserServiceDependencies = {
@@ -179,12 +228,17 @@ function createUserStore(initialUsers: User[] = []) {
       users.push(user);
       return { id: user.id };
     },
-    update: async (userId, data) => {
+    update: async (userId, data, statusTransition) => {
       const user = users.find((item) => item.id === userId);
       if (!user) {
         throw new Error("Unknown user");
       }
       Object.assign(user, data, { updatedAt: new Date() });
+
+      if (statusTransition) {
+        statusTransitions.push({ userId, ...statusTransition });
+      }
+
       return { id: user.id };
     },
     findById: async (userId) =>
@@ -195,7 +249,7 @@ function createUserStore(initialUsers: User[] = []) {
       ),
   };
 
-  return { users, dependencies };
+  return { users, statusTransitions, dependencies };
 }
 
 function makeUser(

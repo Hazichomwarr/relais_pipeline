@@ -61,7 +61,7 @@ export async function updateUserAction(
     return validationFailure(parsed.error.flatten().fieldErrors);
   }
 
-  const result = await updateUser(parsed.data);
+  const result = await updateUser(parsed.data, authorization.user.id);
   return finishMutation(result);
 }
 
@@ -82,7 +82,7 @@ export async function deactivateUserAction(
     return validationFailure(parsed.error.flatten().fieldErrors);
   }
 
-  const result = await deactivateUser(parsed.data.userId);
+  const result = await deactivateUser(parsed.data.userId, authorization.user.id);
   return finishMutation(result);
 }
 

@@ -45,7 +45,7 @@ export async function createProspectActivity(
           findProspect: (id) =>
             transaction.prospect.findUnique({
               where: { id },
-              select: { id: true },
+              select: { id: true, status: true },
             }),
           createActivity: (data) =>
             transaction.prospectActivity.create({

@@ -15,6 +15,10 @@ import {
   buildProspectWhere,
   prospectListOrderBy,
 } from "@/src/services/prospect-read.service-core";
+import {
+  buildWonTransitionActivityData,
+  isWonTransition,
+} from "@/src/services/prospect-won-transition.service-core";
 import { findPossibleSchoolDuplicates } from "@/src/services/school-duplicate.service";
 import { ProspectFilters } from "../types/propect.-filters";
 
@@ -99,29 +103,68 @@ export type UpdateProspectFollowUpResult =
       message: string;
     };
 
+export type ProspectFollowUpActor = {
+  firstName: string;
+  lastName: string;
+};
+
 export async function updateProspectFollowUp(
   input: ValidatedProspectFollowUpInput,
+  actor?: ProspectFollowUpActor,
 ): Promise<UpdateProspectFollowUpResult> {
-  return updateProspectFollowUpScoped({ id: input.prospectId }, input);
+  return updateProspectFollowUpScoped({ id: input.prospectId }, input, actor);
 }
 
 /**
  * Shared by the admin (unscoped) and commercial (ownership-scoped) callers —
  * the where clause is the only thing that differs between them.
+ *
+ * This is also the only other place (besides the interaction form's
+ * optional status field) that can move a prospect into WON, so it carries
+ * the same WON_TRANSITION recording hook (Ticket 18A) — done inside the
+ * same transaction as the status write itself.
  */
 export async function updateProspectFollowUpScoped(
   where: Prisma.ProspectWhereUniqueInput,
   input: ValidatedProspectFollowUpInput,
+  actor?: ProspectFollowUpActor,
 ): Promise<UpdateProspectFollowUpResult> {
   try {
-    await prisma.prospect.update({
+    const existing = await prisma.prospect.findUnique({
       where,
-      data: {
-        interest: input.interest,
-        status: input.status,
-        nextAction: input.nextAction,
-        followUpDate: input.followUpDate,
-      },
+      select: { status: true },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        code: "NOT_FOUND",
+        message: "Ce prospect n’existe plus.",
+      };
+    }
+
+    await prisma.$transaction(async (transaction) => {
+      await transaction.prospect.update({
+        where,
+        data: {
+          interest: input.interest,
+          status: input.status,
+          nextAction: input.nextAction,
+          followUpDate: input.followUpDate,
+        },
+      });
+
+      if (isWonTransition(existing.status, input.status)) {
+        await transaction.prospectActivity.create({
+          data: buildWonTransitionActivityData({
+            prospectId: input.prospectId,
+            occurredAt: new Date(),
+            agentName: actor
+              ? `${actor.firstName} ${actor.lastName}`
+              : undefined,
+          }),
+        });
+      }
     });
 
     return { success: true };

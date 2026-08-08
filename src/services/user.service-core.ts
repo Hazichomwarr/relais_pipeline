@@ -1,4 +1,4 @@
-import type { User, UserRole } from "@prisma/client";
+import type { User, UserRole, UserStatusActivityType } from "@prisma/client";
 
 import type {
   ValidatedCommercialProfileUpdateInput,
@@ -26,6 +26,18 @@ export type DeactivateUserResult =
       message: string;
     };
 
+/**
+ * Passed to `update` only when `active` actually flips, so the Prisma
+ * wiring layer can write the User update and the UserStatusActivity record
+ * (Ticket 18A) in a single transaction. A current `active` boolean alone is
+ * never trustworthy evidence of a past transition, so this descriptor is
+ * the only path that produces shared-feed-eligible history.
+ */
+export type UserStatusTransition = {
+  type: UserStatusActivityType;
+  actorUserId: string;
+};
+
 export type UserServiceDependencies = {
   create: (data: ValidatedUserInput) => Promise<{ id: string }>;
   update: (
@@ -38,10 +50,23 @@ export type UserServiceDependencies = {
       role?: UserRole;
       active?: boolean;
     },
+    statusTransition?: UserStatusTransition,
   ) => Promise<{ id: string }>;
   findById: (userId: string) => Promise<User | null>;
   list: (filters: UserListFilters) => Promise<User[]>;
 };
+
+function resolveStatusTransition(
+  wasActive: boolean,
+  nextActive: boolean | undefined,
+  actorUserId: string,
+): UserStatusTransition | undefined {
+  if (nextActive === undefined || nextActive === wasActive) {
+    return undefined;
+  }
+
+  return { type: nextActive ? "ACTIVATED" : "DEACTIVATED", actorUserId };
+}
 
 export async function createUserCore(
   input: ValidatedUserInput,
@@ -62,6 +87,7 @@ export async function createUserCore(
 
 export async function updateUserCore(
   input: ValidatedUserUpdateInput,
+  actorUserId: string,
   dependencies: UserServiceDependencies,
 ): Promise<UserWriteResult> {
   try {
@@ -71,14 +97,18 @@ export async function updateUserCore(
       return userNotFound();
     }
 
-    const user = await dependencies.update(input.userId, {
-      firstName: input.firstName,
-      lastName: input.lastName,
-      email: input.email,
-      phone: input.phone,
-      role: input.role,
-      active: input.active,
-    });
+    const user = await dependencies.update(
+      input.userId,
+      {
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        phone: input.phone,
+        role: input.role,
+        active: input.active,
+      },
+      resolveStatusTransition(existingUser.active, input.active, actorUserId),
+    );
 
     return { success: true, userId: user.id };
   } catch (error) {
@@ -145,6 +175,7 @@ export async function getUserByIdCore(
 
 export async function deactivateUserCore(
   userId: string,
+  actorUserId: string,
   dependencies: UserServiceDependencies,
 ): Promise<DeactivateUserResult> {
   try {
@@ -158,7 +189,11 @@ export async function deactivateUserCore(
       };
     }
 
-    const user = await dependencies.update(userId, { active: false });
+    const user = await dependencies.update(
+      userId,
+      { active: false },
+      resolveStatusTransition(existingUser.active, false, actorUserId),
+    );
     return { success: true, userId: user.id };
   } catch (error) {
     console.error("Unable to deactivate user:", error);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProspectActivity } from "@prisma/client";
+import type { ProspectActivity, ProspectStatus } from "@prisma/client";
 
 import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
 import {
@@ -157,12 +157,65 @@ test("rolls back activity creation when the prospect update fails", async (conte
   assert.equal(state.prospect.status, "NEW");
 });
 
+test("appends a WON_TRANSITION activity when this submission moves the prospect into WON", async () => {
+  const state = createTransactionalState(true);
+
+  const result = await createProspectActivityCore(
+    validInput({ status: "WON", agentName: "Julbert Serme" }),
+    state.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    state.activities.map((item) => ({ type: item.type, summary: item.summary })),
+    [
+      { type: "PHONE_CALL", summary: "Appel avec le directeur" },
+      {
+        type: "WON_TRANSITION",
+        summary: "Le prospect est devenu client (statut WON).",
+      },
+    ],
+  );
+});
+
+test("does not append a WON_TRANSITION activity when the prospect is already WON", async () => {
+  const state = createTransactionalState(true);
+  state.prospect.status = "WON";
+
+  const result = await createProspectActivityCore(
+    validInput({ status: "WON" }),
+    state.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    state.activities.map((item) => item.type),
+    ["PHONE_CALL"],
+  );
+});
+
+test("does not append a WON_TRANSITION activity for a status change that isn't WON", async () => {
+  const state = createTransactionalState(true);
+
+  const result = await createProspectActivityCore(
+    validInput({ status: "QUALIFIED" }),
+    state.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    state.activities.map((item) => item.type),
+    ["PHONE_CALL"],
+  );
+});
+
 function createTransactionalState(prospectExists: boolean, failUpdate = false) {
   const activities: Array<{
     id: string;
+    type: string;
     summary: string;
   }> = [];
-  const prospect = {
+  const prospect: { id: string; status: ProspectStatus; notes: string } = {
     id: "prospect-1",
     status: "NEW",
     notes: "Observation terrain originale",
@@ -178,10 +231,10 @@ function createTransactionalState(prospectExists: boolean, failUpdate = false) {
 
       const result = await work({
         findProspect: async () =>
-          prospectExists ? { id: prospect.id } : null,
+          prospectExists ? { id: prospect.id, status: prospect.status } : null,
         createActivity: async (data) => {
           const id = `activity-${nextId++}`;
-          stagedActivities.push({ id, summary: data.summary });
+          stagedActivities.push({ id, type: data.type, summary: data.summary });
           return { id };
         },
         updateProspect: async (_prospectId, data) => {
