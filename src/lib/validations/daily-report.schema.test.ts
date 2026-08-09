@@ -82,6 +82,26 @@ test("submitDailyReportSchema only accepts a reportId", () => {
   assert.deepEqual(Object.keys(submitDailyReportSchema.shape), ["reportId"]);
 });
 
+test("createDailyReportSchema and updateDailyReportSchema accept a plain-object templateData payload structurally — per-template validation happens server-side", () => {
+  const created = createDailyReportSchema.safeParse({
+    reportDate: "2026-08-01",
+    templateData: { digitalServicesProspects: 3, karmdaSchoolProspects: 1 },
+  });
+  const updated = updateDailyReportSchema.safeParse({
+    reportId: "report-1",
+    templateData: { documentsPrepared: "x" },
+  });
+
+  assert.equal(created.success, true);
+  assert.equal(updated.success, true);
+});
+
+test("templateData is optional — omitting it is valid (draft may have none yet)", () => {
+  const result = createDailyReportSchema.safeParse({ reportDate: "2026-08-01" });
+
+  assert.equal(result.success, true);
+});
+
 test("client schemas silently drop ownerUserId, templateType, status, and submittedAt — those are server/domain controlled", () => {
   const created = createDailyReportSchema.safeParse({
     reportDate: "2026-08-01",

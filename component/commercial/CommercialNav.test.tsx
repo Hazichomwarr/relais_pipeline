@@ -38,3 +38,19 @@ test("the mobile drawer's item list also includes À la une — the drawer conte
   assert.match(source, /label: "À la une"/);
   assert.match(source, /href: "\/updates"/);
 });
+
+test("COMMERCIAL navigation includes a Mes rapports link to /reports — visible even before a template is assigned (Ticket 19B)", () => {
+  const html = renderToStaticMarkup(
+    <CommercialNav firstName="Julbert" lastName="Sermé" />,
+  );
+
+  assert.match(html, /Mes rapports/);
+  assert.match(html, /href="\/reports"/);
+});
+
+test("the mobile drawer's item list also includes Mes rapports", () => {
+  const source = readFileSync("component/commercial/CommercialNav.tsx", "utf8");
+
+  assert.match(source, /label: "Mes rapports"/);
+  assert.match(source, /href: "\/reports"/);
+});

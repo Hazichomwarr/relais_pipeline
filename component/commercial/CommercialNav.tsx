@@ -1,4 +1,5 @@
 import {
+  FileText,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -50,6 +51,11 @@ const commercialNavItems: MobileNavItem[] = [
     label: "Mes notes",
     href: "/notes",
     icon: <StickyNote className="h-5 w-5" />,
+  },
+  {
+    label: "Mes rapports",
+    href: "/reports",
+    icon: <FileText className="h-5 w-5" />,
   },
   {
     label: "Mon profil",
@@ -114,6 +120,12 @@ export default function CommercialNav({
             className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
           >
             Mes notes
+          </Link>
+          <Link
+            href="/reports"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            Mes rapports
           </Link>
           <Link
             href="/dashboard/commercial/profile"

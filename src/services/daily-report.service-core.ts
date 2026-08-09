@@ -1,6 +1,14 @@
 import type { DailyReportStatus, DailyReportTemplateType } from "@prisma/client";
 
 import { formatDailyReportIsoDate } from "@/src/lib/daily-report-date";
+import {
+  parseDailyReportTemplateData,
+  type DailyReportTemplateData,
+} from "@/src/lib/validations/daily-report-template-data.schema";
+import {
+  validateOperationsCoordinatorSubmission,
+  type OperationsCoordinatorDailyReportData,
+} from "@/src/lib/validations/operations-coordinator-daily-report.schema";
 
 export type DailyReportContentFields = {
   accomplishedToday: string;
@@ -13,6 +21,8 @@ export type DailyReportRow = DailyReportContentFields & {
   reportDate: Date;
   templateType: DailyReportTemplateType;
   status: DailyReportStatus;
+  /** Always a fully typed, default-filled shape — hydrateDailyReportTemplateData normalizes raw/legacy/null JSON before a row ever leaves the service. */
+  templateData: DailyReportTemplateData;
   submittedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -30,6 +40,13 @@ export type DailyReportManagementRow = DailyReportRow & {
 
 export type CreateOwnDailyReportInput = DailyReportContentFields & {
   reportDate: Date;
+  /** Raw client-shaped payload — validated against the server-resolved templateType via parseDailyReportTemplateData, never trusted as-is. */
+  templateData?: unknown;
+};
+
+export type UpdateOwnDailyReportInput = DailyReportContentFields & {
+  /** Raw client-shaped payload — validated against the report's immutable stored templateType, so update input can never switch templates. */
+  templateData?: unknown;
 };
 
 export type DailyReportManagementFilters = {
@@ -40,10 +57,6 @@ export type DailyReportManagementFilters = {
   dateTo?: Date;
 };
 
-/**
- * Ticket 19B will extend this with template-specific fields; 19A carries
- * only the shared core content.
- */
 export type DailyReportSummary = {
   id: string;
   owner: DailyReportOwnerRef;
@@ -53,7 +66,10 @@ export type DailyReportSummary = {
   submittedAt: string | null;
 };
 
-export type DailyReportDetail = DailyReportSummary & DailyReportContentFields;
+export type DailyReportDetail = DailyReportSummary &
+  DailyReportContentFields & {
+    templateData: DailyReportTemplateData;
+  };
 
 export type DailyReportErrorCode =
   | "DAILY_REPORT_NOT_FOUND"
@@ -62,6 +78,8 @@ export type DailyReportErrorCode =
   | "DAILY_REPORT_NOT_EDITABLE"
   | "DAILY_REPORT_ACCOMPLISHED_REQUIRED"
   | "DAILY_REPORT_PLANNED_REQUIRED"
+  | "DAILY_REPORT_TEMPLATE_DATA_INVALID"
+  | "DAILY_REPORT_PROSPECTING_REQUIREMENTS_NOT_MET"
   | "DAILY_REPORT_CREATE_FAILED"
   | "DAILY_REPORT_UPDATE_FAILED"
   | "DAILY_REPORT_SUBMIT_FAILED";
@@ -89,12 +107,14 @@ export type DailyReportServiceDependencies = {
     templateType: DailyReportTemplateType,
     reportDate: Date,
     fields: DailyReportContentFields,
+    templateData: DailyReportTemplateData,
   ) => Promise<{ id: string }>;
   /** Owner-scoped, DRAFT-only conditional update — matches rows by (id, ownerUserId, status: "DRAFT"), so a foreign, unknown, or already-submitted reportId affects zero rows instead of throwing. */
   updateOwnDraft: (
     ownerUserId: string,
     reportId: string,
     fields: DailyReportContentFields,
+    templateData: DailyReportTemplateData,
   ) => Promise<number>;
   /** Owner-scoped, DRAFT-only conditional transition to SUBMITTED — same affected-row-count strategy, and the only path allowed to set submittedAt. */
   submitOwnDraft: (
@@ -187,6 +207,19 @@ export async function createOwnDailyReportCore(
     };
   }
 
+  const templateDataResult = parseDailyReportTemplateData(
+    templateType,
+    input.templateData,
+  );
+
+  if (!templateDataResult.success) {
+    return {
+      success: false,
+      code: "DAILY_REPORT_TEMPLATE_DATA_INVALID",
+      message: templateDataResult.message,
+    };
+  }
+
   try {
     const report = await dependencies.create(
       ownerUserId,
@@ -196,6 +229,7 @@ export async function createOwnDailyReportCore(
         accomplishedToday: input.accomplishedToday,
         plannedTomorrow: input.plannedTomorrow,
       },
+      templateDataResult.data,
     );
     return { success: true, reportId: report.id };
   } catch (error) {
@@ -211,7 +245,7 @@ export async function createOwnDailyReportCore(
 export async function updateOwnDailyReportCore(
   ownerUserId: string,
   reportId: string,
-  input: DailyReportContentFields,
+  input: UpdateOwnDailyReportInput,
   dependencies: Pick<
     DailyReportServiceDependencies,
     "findOwnById" | "updateOwnDraft"
@@ -227,11 +261,31 @@ export async function updateOwnDailyReportCore(
     return dailyReportNotEditable();
   }
 
+  // Dispatches on the report's own immutable stored templateType, never a
+  // client-supplied one — update input has no templateType field at all,
+  // so template switching through update input is structurally impossible.
+  const templateDataResult = parseDailyReportTemplateData(
+    report.templateType,
+    input.templateData,
+  );
+
+  if (!templateDataResult.success) {
+    return {
+      success: false,
+      code: "DAILY_REPORT_TEMPLATE_DATA_INVALID",
+      message: templateDataResult.message,
+    };
+  }
+
   try {
     const updatedCount = await dependencies.updateOwnDraft(
       ownerUserId,
       reportId,
-      input,
+      {
+        accomplishedToday: input.accomplishedToday,
+        plannedTomorrow: input.plannedTomorrow,
+      },
+      templateDataResult.data,
     );
 
     if (updatedCount === 0) {
@@ -282,6 +336,20 @@ export async function submitOwnDailyReportCore(
       code: "DAILY_REPORT_PLANNED_REQUIRED",
       message: "Prévu demain est requis.",
     };
+  }
+
+  if (report.templateType === "OPERATIONS_COORDINATOR") {
+    const prospectingValidation = validateOperationsCoordinatorSubmission(
+      report.templateData as OperationsCoordinatorDailyReportData,
+    );
+
+    if (!prospectingValidation.valid) {
+      return {
+        success: false,
+        code: "DAILY_REPORT_PROSPECTING_REQUIREMENTS_NOT_MET",
+        message: prospectingValidation.message,
+      };
+    }
   }
 
   try {
@@ -356,6 +424,7 @@ export function toDailyReportDetail(
     ...toDailyReportSummary(row),
     accomplishedToday: row.accomplishedToday,
     plannedTomorrow: row.plannedTomorrow,
+    templateData: row.templateData,
   };
 }
 

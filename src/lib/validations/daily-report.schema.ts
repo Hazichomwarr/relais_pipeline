@@ -27,8 +27,10 @@ const reportDateSchema = z
  * blank for autosave; submission enforces non-blank, meaningful text one
  * layer down, in the service (see submitOwnDailyReportCore) — never here,
  * since a schema alone can't see whether a report is a draft or a resubmit.
+ * Exported so template-specific client forms (Ticket 19B) can compose it
+ * with their own payload schema instead of re-declaring these rules.
  */
-const dailyReportContentSchema = z.object({
+export const dailyReportContentSchema = z.object({
   accomplishedToday: z
     .string()
     .trim()
@@ -44,6 +46,16 @@ const dailyReportContentSchema = z.object({
 });
 
 /**
+ * Ticket 19B — only a structural pass: must be a plain object if present.
+ * The real per-template validation (which fields are allowed, prospecting
+ * count/exception rules, etc.) happens in daily-report.service-core.ts via
+ * parseDailyReportTemplateData, dispatched on the server-resolved
+ * templateType — never on a client-claimed template identity, since
+ * neither schema below has a templateType field at all.
+ */
+const templateDataInputSchema = z.record(z.string(), z.unknown()).optional();
+
+/**
  * Never accepts ownerUserId, templateType, status, or submittedAt — those
  * are server/domain controlled (owner comes from the authenticated
  * session, templateType is snapshotted from User.dailyReportTemplateType,
@@ -51,10 +63,12 @@ const dailyReportContentSchema = z.object({
  */
 export const createDailyReportSchema = dailyReportContentSchema.extend({
   reportDate: reportDateSchema,
+  templateData: templateDataInputSchema,
 });
 
 export const updateDailyReportSchema = dailyReportContentSchema.extend({
   reportId: z.string().trim().min(1, "Le rapport est requis.").max(100),
+  templateData: templateDataInputSchema,
 });
 
 export const submitDailyReportSchema = z.object({

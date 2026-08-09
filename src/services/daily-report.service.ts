@@ -3,6 +3,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "@/src/lib/prisma";
+import { hydrateDailyReportTemplateData } from "@/src/lib/validations/daily-report-template-data.schema";
 import {
   createOwnDailyReportCore,
   getDailyReportForManagementCore,
@@ -13,10 +14,11 @@ import {
   submitOwnDailyReportCore,
   updateOwnDailyReportCore,
   type CreateOwnDailyReportInput,
-  type DailyReportContentFields,
   type DailyReportManagementFilters,
   type DailyReportManagementRow,
+  type DailyReportRow,
   type DailyReportServiceDependencies,
+  type UpdateOwnDailyReportInput,
 } from "@/src/services/daily-report.service-core";
 
 const reportSelect = {
@@ -27,6 +29,7 @@ const reportSelect = {
   status: true,
   accomplishedToday: true,
   plannedTomorrow: true,
+  templateData: true,
   submittedAt: true,
   createdAt: true,
   updatedAt: true,
@@ -43,14 +46,31 @@ const managementSelect = {
   owner: { select: ownerRefSelect },
 } satisfies Prisma.DailyReportSelect;
 
-type ReportWithOwner = Prisma.DailyReportGetPayload<{
+type RawReport = Prisma.DailyReportGetPayload<{ select: typeof reportSelect }>;
+type RawReportWithOwner = Prisma.DailyReportGetPayload<{
   select: typeof managementSelect;
 }>;
 
+function toDailyReportRow(report: RawReport): DailyReportRow {
+  return {
+    ...report,
+    templateData: hydrateDailyReportTemplateData(
+      report.templateType,
+      report.templateData,
+    ),
+  };
+}
+
 function toDailyReportManagementRow(
-  report: ReportWithOwner,
+  report: RawReportWithOwner,
 ): DailyReportManagementRow {
-  return report;
+  return {
+    ...report,
+    templateData: hydrateDailyReportTemplateData(
+      report.templateType,
+      report.templateData,
+    ),
+  };
 }
 
 function buildManagementWhere(
@@ -72,35 +92,44 @@ function buildManagementWhere(
   };
 }
 
-const dependencies: DailyReportServiceDependencies = {
-  findOwnerTemplateType: async (ownerUserId) => {
-    const user = await prisma.user.findUnique({
-      where: { id: ownerUserId },
-      select: { dailyReportTemplateType: true },
-    });
-    return user?.dailyReportTemplateType ?? null;
-  },
+/** Reads the authenticated user's *current* daily-report template assignment — used by /reports (Ticket 19B) to decide which form to render, and by the create dependency below to snapshot it onto a new report. */
+export async function getOwnDailyReportTemplateType(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dailyReportTemplateType: true },
+  });
+  return user?.dailyReportTemplateType ?? null;
+}
 
-  findOwnByDate: async (ownerUserId, reportDate) =>
-    prisma.dailyReport.findFirst({
+const dependencies: DailyReportServiceDependencies = {
+  findOwnerTemplateType: getOwnDailyReportTemplateType,
+
+  findOwnByDate: async (ownerUserId, reportDate) => {
+    const report = await prisma.dailyReport.findFirst({
       where: { ownerUserId, reportDate },
       select: reportSelect,
-    }),
+    });
+    return report ? toDailyReportRow(report) : null;
+  },
 
-  findOwnById: async (ownerUserId, reportId) =>
-    prisma.dailyReport.findFirst({
+  findOwnById: async (ownerUserId, reportId) => {
+    const report = await prisma.dailyReport.findFirst({
       where: { id: reportId, ownerUserId },
       select: reportSelect,
-    }),
+    });
+    return report ? toDailyReportRow(report) : null;
+  },
 
-  listOwn: async (ownerUserId) =>
-    prisma.dailyReport.findMany({
+  listOwn: async (ownerUserId) => {
+    const reports = await prisma.dailyReport.findMany({
       where: { ownerUserId },
       orderBy: [{ reportDate: "desc" }, { id: "desc" }],
       select: reportSelect,
-    }),
+    });
+    return reports.map(toDailyReportRow);
+  },
 
-  create: async (ownerUserId, templateType, reportDate, fields) =>
+  create: async (ownerUserId, templateType, reportDate, fields, templateData) =>
     prisma.dailyReport.create({
       data: {
         ownerUserId,
@@ -109,16 +138,18 @@ const dependencies: DailyReportServiceDependencies = {
         status: "DRAFT",
         accomplishedToday: fields.accomplishedToday,
         plannedTomorrow: fields.plannedTomorrow,
+        templateData,
       },
       select: { id: true },
     }),
 
-  updateOwnDraft: async (ownerUserId, reportId, fields) => {
+  updateOwnDraft: async (ownerUserId, reportId, fields, templateData) => {
     const result = await prisma.dailyReport.updateMany({
       where: { id: reportId, ownerUserId, status: "DRAFT" },
       data: {
         accomplishedToday: fields.accomplishedToday,
         plannedTomorrow: fields.plannedTomorrow,
+        templateData,
       },
     });
     return result.count;
@@ -181,7 +212,7 @@ export async function createOwnDailyReport(
 export async function updateOwnDailyReport(
   userId: string,
   reportId: string,
-  input: DailyReportContentFields,
+  input: UpdateOwnDailyReportInput,
 ) {
   return updateOwnDailyReportCore(userId, reportId, input, dependencies);
 }

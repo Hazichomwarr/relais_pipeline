@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { DailyReportTemplateType } from "@prisma/client";
 
+import { hydrateDailyReportTemplateData } from "@/src/lib/validations/daily-report-template-data.schema";
 import {
   compareDailyReportsForManagement,
   compareDailyReportsForOwnHistory,
@@ -26,14 +27,16 @@ function makeReport(
   ownerUserId: string,
   overrides: Partial<DailyReportRow> = {},
 ): DailyReportRow {
+  const templateType = overrides.templateType ?? "ASSISTANT";
   return {
     id,
     ownerUserId,
     reportDate: new Date("2026-08-01T00:00:00.000Z"),
-    templateType: "ASSISTANT",
+    templateType,
     status: "DRAFT",
     accomplishedToday: "Réalisé du jour.",
     plannedTomorrow: "Prévu demain.",
+    templateData: hydrateDailyReportTemplateData(templateType, {}),
     submittedAt: null,
     createdAt: new Date("2026-08-01T09:00:00.000Z"),
     updatedAt: new Date("2026-08-01T09:00:00.000Z"),
@@ -79,7 +82,7 @@ function createReportStore(
     listOwn: async (ownerUserId) =>
       reports.filter((report) => report.ownerUserId === ownerUserId),
 
-    create: async (ownerUserId, templateType, reportDate, fields) => {
+    create: async (ownerUserId, templateType, reportDate, fields, templateData) => {
       counter += 1;
       const id = `report-${counter}`;
       reports.push(
@@ -89,6 +92,7 @@ function createReportStore(
           status: "DRAFT",
           accomplishedToday: fields.accomplishedToday,
           plannedTomorrow: fields.plannedTomorrow,
+          templateData,
           submittedAt: null,
         }),
       );
@@ -97,7 +101,7 @@ function createReportStore(
 
     // Mirrors the real Prisma updateMany({ where: { id, ownerUserId, status: "DRAFT" } })
     // — only mutates (and only counts as affected) when all three still match.
-    updateOwnDraft: async (ownerUserId, reportId, fields) => {
+    updateOwnDraft: async (ownerUserId, reportId, fields, templateData) => {
       const report = reports.find(
         (candidate) =>
           candidate.id === reportId &&
@@ -109,6 +113,7 @@ function createReportStore(
       }
       report.accomplishedToday = fields.accomplishedToday;
       report.plannedTomorrow = fields.plannedTomorrow;
+      report.templateData = templateData;
       report.updatedAt = new Date();
       return 1;
     },
@@ -296,6 +301,130 @@ test("a different owner may still create a report for the same business date", a
 });
 
 // ---------------------------------------------------------------------------
+// Template data (Ticket 19B)
+// ---------------------------------------------------------------------------
+
+test("create validates and stores the Assistant-specific payload, dispatched on the User's assigned template", async () => {
+  const store = createReportStore([], { "user-1": "ASSISTANT" });
+  const result = await createOwnDailyReportCore(
+    "user-1",
+    {
+      reportDate: new Date("2026-08-09T00:00:00.000Z"),
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      templateData: { documentsPrepared: "Contrats classés." },
+    },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  const stored = store.reports[0].templateData as { documentsPrepared: string };
+  assert.equal(stored.documentsPrepared, "Contrats classés.");
+});
+
+test("create validates and stores the Operations Coordinator payload", async () => {
+  const store = createReportStore([], { "user-1": "OPERATIONS_COORDINATOR" });
+  const result = await createOwnDailyReportCore(
+    "user-1",
+    {
+      reportDate: new Date("2026-08-09T00:00:00.000Z"),
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      templateData: { digitalServicesProspects: 2, karmdaSchoolProspects: 1 },
+    },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  const stored = store.reports[0].templateData as {
+    digitalServicesProspects: number | null;
+  };
+  assert.equal(stored.digitalServicesProspects, 2);
+});
+
+test("an invalid template payload (e.g. a non-numeric prospecting count) is rejected at creation", async () => {
+  const store = createReportStore([], { "user-1": "OPERATIONS_COORDINATOR" });
+  const result = await createOwnDailyReportCore(
+    "user-1",
+    {
+      reportDate: new Date("2026-08-09T00:00:00.000Z"),
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      templateData: { digitalServicesProspects: "abc" },
+    },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "DAILY_REPORT_TEMPLATE_DATA_INVALID");
+  }
+  assert.equal(store.reports.length, 0);
+});
+
+test("a draft may save an incomplete Operations Coordinator payload (autosave-friendly)", async () => {
+  const store = createReportStore([], { "user-1": "OPERATIONS_COORDINATOR" });
+  const result = await createOwnDailyReportCore(
+    "user-1",
+    {
+      reportDate: new Date("2026-08-09T00:00:00.000Z"),
+      accomplishedToday: "",
+      plannedTomorrow: "",
+      templateData: {},
+    },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+});
+
+test("update validates template data against the report's stored templateType, not any client-claimed one", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", { templateType: "ASSISTANT" }),
+  ]);
+
+  const result = await updateOwnDailyReportCore(
+    "user-1",
+    "report-1",
+    {
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      // Structurally valid for the Operations template, but this report's
+      // stored templateType is ASSISTANT — must dispatch to the assistant
+      // schema regardless, ignoring these fields rather than switching.
+      templateData: { digitalServicesProspects: 3, karmdaSchoolProspects: 1 },
+    } as never,
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  assert.equal(store.reports[0].templateType, "ASSISTANT");
+  const stored = store.reports[0].templateData as { documentsPrepared: string };
+  assert.equal(stored.documentsPrepared, "");
+});
+
+test("update persists a valid template payload change", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", { templateType: "ASSISTANT" }),
+  ]);
+
+  const result = await updateOwnDailyReportCore(
+    "user-1",
+    "report-1",
+    {
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      templateData: { documentsPrepared: "Mis à jour." },
+    },
+    store.dependencies,
+  );
+
+  assert.equal(result.success, true);
+  const stored = store.reports[0].templateData as { documentsPrepared: string };
+  assert.equal(stored.documentsPrepared, "Mis à jour.");
+});
+
+// ---------------------------------------------------------------------------
 // Template snapshot
 // ---------------------------------------------------------------------------
 
@@ -477,9 +606,9 @@ test("the conditional mutation query enforces DRAFT status even if a race slips 
   // Simulates the report being submitted by a concurrent request between
   // updateOwnDailyReportCore's pre-check and its call to updateOwnDraft.
   const originalUpdateOwnDraft = store.dependencies.updateOwnDraft;
-  store.dependencies.updateOwnDraft = async (ownerUserId, reportId, fields) => {
+  store.dependencies.updateOwnDraft = async (ownerUserId, reportId, fields, templateData) => {
     store.reports[0].status = "SUBMITTED";
-    return originalUpdateOwnDraft(ownerUserId, reportId, fields);
+    return originalUpdateOwnDraft(ownerUserId, reportId, fields, templateData);
   };
 
   const result = await updateOwnDailyReportCore(
@@ -581,6 +710,129 @@ test("concurrent submission attempts: the atomic guard only lets one of two raci
   );
 });
 
+test("Operations Coordinator submission succeeds when both prospecting targets are met", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "OPERATIONS_COORDINATOR",
+      templateData: {
+        digitalServicesProspects: 3,
+        karmdaSchoolProspects: 1,
+        prospectingException: false,
+        prospectingExceptionReason: "",
+        pendingItems: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  const result = await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+
+  assert.equal(result.success, true);
+});
+
+test("Operations Coordinator submission succeeds when a target is missed but a valid exception is given", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "OPERATIONS_COORDINATOR",
+      templateData: {
+        digitalServicesProspects: 0,
+        karmdaSchoolProspects: 0,
+        prospectingException: true,
+        prospectingExceptionReason:
+          "Formation KARMDA à l’École Horizon de 08h30 à 16h00.",
+        pendingItems: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  const result = await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+
+  assert.equal(result.success, true);
+});
+
+test("Operations Coordinator submission is rejected when a target is missed and there is no exception", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "OPERATIONS_COORDINATOR",
+      templateData: {
+        digitalServicesProspects: 2,
+        karmdaSchoolProspects: 1,
+        prospectingException: false,
+        prospectingExceptionReason: "",
+        pendingItems: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  const result = await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "DAILY_REPORT_PROSPECTING_REQUIREMENTS_NOT_MET");
+  }
+  assert.equal(store.reports[0].status, "DRAFT");
+});
+
+test("Operations Coordinator submission is rejected when the exception is checked but the reason is blank", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "OPERATIONS_COORDINATOR",
+      templateData: {
+        digitalServicesProspects: 0,
+        karmdaSchoolProspects: 0,
+        prospectingException: true,
+        prospectingExceptionReason: "",
+        pendingItems: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  const result = await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "DAILY_REPORT_PROSPECTING_REQUIREMENTS_NOT_MET");
+  }
+});
+
+test("Assistant submission does not apply the prospecting rule at all", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", { templateType: "ASSISTANT" }),
+  ]);
+
+  const result = await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+
+  assert.equal(result.success, true);
+});
+
+test("templateData is preserved through submission and remains readable afterward", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "ASSISTANT",
+      templateData: {
+        documentsPrepared: "Contrats classés.",
+        clientsFollowed: "",
+        pendingPaymentsOrSignatures: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  await submitOwnDailyReportCore("user-1", "report-1", store.dependencies);
+  const afterSubmit = await getOwnDailyReportByIdCore("user-1", "report-1", store.dependencies);
+  const templateData = afterSubmit?.templateData as { documentsPrepared: string };
+
+  assert.equal(templateData.documentsPrepared, "Contrats classés.");
+});
+
 // ---------------------------------------------------------------------------
 // Immutability
 // ---------------------------------------------------------------------------
@@ -601,6 +853,37 @@ test("a SUBMITTED report cannot be silently mutated via updateOwnDailyReportCore
   );
 
   assert.notEqual(store.reports[0].accomplishedToday, "Tentative de réécriture");
+});
+
+test("template data cannot be rewritten after submit", async () => {
+  const store = createReportStore([
+    makeReport("report-1", "user-1", {
+      templateType: "ASSISTANT",
+      status: "SUBMITTED",
+      submittedAt: new Date("2026-08-01T17:00:00.000Z"),
+      templateData: {
+        documentsPrepared: "Original.",
+        clientsFollowed: "",
+        pendingPaymentsOrSignatures: "",
+        problemsEncountered: "",
+        managementDecisionNeeded: "",
+      },
+    }),
+  ]);
+
+  await updateOwnDailyReportCore(
+    "user-1",
+    "report-1",
+    {
+      accomplishedToday: "x",
+      plannedTomorrow: "y",
+      templateData: { documentsPrepared: "Tentative de réécriture." },
+    },
+    store.dependencies,
+  );
+
+  const stored = store.reports[0].templateData as { documentsPrepared: string };
+  assert.equal(stored.documentsPrepared, "Original.");
 });
 
 // ---------------------------------------------------------------------------

@@ -43,6 +43,7 @@ export async function createDailyReportAction(
     reportDate: resolveDailyReportDate(parsed.data.reportDate),
     accomplishedToday: parsed.data.accomplishedToday,
     plannedTomorrow: parsed.data.plannedTomorrow,
+    templateData: parsed.data.templateData,
   });
 
   return finishMutation(result);
@@ -112,11 +113,8 @@ function finishMutation(
     return { success: false, message: result.message };
   }
 
-  // Ticket 19B/19C route names are not final yet — /reports (employee
-  // "Mes rapports" + "Rapport du jour") and /reports/daily are the planned
-  // convention; revalidating them now costs nothing ahead of those pages.
   revalidatePath("/reports");
-  revalidatePath("/reports/daily");
+  revalidatePath(`/reports/${result.reportId}`);
 
   return result;
 }

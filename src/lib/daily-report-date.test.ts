@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   formatDailyReportIsoDate,
+  formatDailyReportTime,
+  formatLongDailyReportDate,
   getCurrentBusinessDate,
   resolveDailyReportDate,
 } from "./daily-report-date";
@@ -74,4 +76,21 @@ test("formatDailyReportIsoDate is the inverse of resolveDailyReportDate for a no
   const normalized = resolveDailyReportDate("2026-08-09");
 
   assert.equal(formatDailyReportIsoDate(normalized), "2026-08-09");
+});
+
+test("formatLongDailyReportDate renders a long French date in business-local terms", () => {
+  const normalized = resolveDailyReportDate("2026-08-09");
+
+  assert.equal(formatLongDailyReportDate(normalized), "9 août 2026");
+});
+
+test("formatDailyReportTime renders 16:47 without shifting across the UTC=business-local boundary", () => {
+  assert.equal(
+    formatDailyReportTime(new Date("2026-08-09T16:47:00.000Z")),
+    "16:47",
+  );
+  assert.equal(
+    formatDailyReportTime(new Date("2026-08-09T23:59:00.000Z")),
+    "23:59",
+  );
 });

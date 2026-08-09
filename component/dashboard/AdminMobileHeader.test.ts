@@ -18,3 +18,18 @@ test("ADMIN/MANAGER mobile navigation includes an À la une entry pointing to /u
   assert.match(source, /label: "À la une"/);
   assert.match(source, /href: "\/updates"/);
 });
+
+test("ADMIN/MANAGER mobile navigation includes an active (non-disabled) Rapports entry pointing to /reports (Ticket 19B)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const reportsEntryMatch = source.match(
+    /\{\s*label: "Rapports",[\s\S]*?\},/,
+  );
+
+  assert.ok(reportsEntryMatch, "expected a Rapports nav item entry");
+  assert.match(reportsEntryMatch![0], /href: "\/reports"/);
+  assert.doesNotMatch(reportsEntryMatch![0], /disabled: true/);
+});

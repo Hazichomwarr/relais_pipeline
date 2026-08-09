@@ -23,3 +23,27 @@ export function resolveDailyReportDate(isoDate: string): Date {
 }
 
 export { formatBusinessIsoDate as formatDailyReportIsoDate };
+
+/**
+ * "9 août 2026" — long French date for a reportDate. Formatted against the
+ * "UTC" Intl timeZone deliberately: BUSINESS_TIMEZONE_UTC_OFFSET_MINUTES is
+ * 0 (Africa/Ouagadougou has no offset from UTC), so business-local wall
+ * time and UTC wall time are the same values by construction — this is not
+ * a shortcut, it's the one case where "UTC" *is* the business timezone.
+ */
+export function formatLongDailyReportDate(date: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+/** "16:47" — business-local time of day for an instant like submittedAt. */
+export function formatDailyReportTime(date: Date): string {
+  return new Intl.DateTimeFormat("fr-FR", {
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(date);
+}

@@ -239,6 +239,13 @@ model DailyReport {
   accomplishedToday String
   plannedTomorrow   String
 
+  // Ticket 19B — template-specific payload (Assistant vs Operations
+  // Coordinator fields), validated against `templateType` server-side
+  // before every write (see daily-report-template-data.schema.ts). Never
+  // duplicates accomplishedToday/plannedTomorrow. Nullable: pre-19B
+  // reports and a brand-new draft may have none yet.
+  templateData Json?
+
   submittedAt DateTime?
 
   createdAt DateTime @default(now())

@@ -50,9 +50,8 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
     },
     {
       label: "Rapports",
-      href: "/admin",
+      href: "/reports",
       icon: <FileText className="h-5 w-5" />,
-      disabled: true,
     },
     ...(role === "ADMIN"
       ? [

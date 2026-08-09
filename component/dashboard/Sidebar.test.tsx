@@ -71,3 +71,23 @@ test("the À la une link is highlighted when activeItem is updates", () => {
   assert.ok(updatesLinkMatch, "expected an /updates link in the sidebar");
   assert.match(updatesLinkMatch![0], /bg-blue-50/);
 });
+
+test("ADMIN and MANAGER sidebars include a Rapports link to /reports (Ticket 19B)", () => {
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  const managerHtml = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  for (const html of [adminHtml, managerHtml]) {
+    assert.match(html, /Rapports/);
+    assert.match(html, /href="\/reports"/);
+  }
+});
+
+test("the Rapports link is highlighted when activeItem is reports", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="reports" />,
+  );
+  const reportsLinkMatch = html.match(/<a [^>]*href="\/reports"[^>]*>/);
+
+  assert.ok(reportsLinkMatch, "expected a /reports link in the sidebar");
+  assert.match(reportsLinkMatch![0], /bg-blue-50/);
+});
