@@ -70,18 +70,18 @@ export default function CommercialNav({
 }: CommercialNavProps) {
   return (
     <header className="safe-top sticky top-0 z-20 border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex max-w-7xl items-center justify-around gap-3 px-4 py-4 sm:px-6">
         <div className="flex items-center gap-3">
           <Image
             src="/images/logo.png"
             alt="Relais"
-            width={110}
+            width={170}
             height={12}
             className="object-contain"
           />
-          <span className="hidden text-sm text-slate-500 sm:inline">
+          {/* <span className="hidden text-sm text-slate-500 sm:inline">
             {firstName} {lastName}
-          </span>
+          </span> */}
         </div>
 
         <nav className="hidden items-center gap-2 md:flex md:gap-4">

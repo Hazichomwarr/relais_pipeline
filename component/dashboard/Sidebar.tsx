@@ -70,8 +70,7 @@ export default function Sidebar({
               : "text-slate-600 hover:bg-slate-100"
           }`}
         >
-          <Newspaper className="h-5 w-5" />
-          À la une
+          <Newspaper className="h-5 w-5" />À la une
         </Link>
 
         <Link
@@ -143,7 +142,7 @@ export default function Sidebar({
           }`}
         >
           <ClipboardList className="h-5 w-5" />
-          Rapports quotidiens
+          Suivi des rapports
         </Link>
 
         {role === "ADMIN" && (

@@ -23,7 +23,7 @@ export default async function CommercialProfilePage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight text-[#0f2557] sm:text-4xl">
           Mon compte
