@@ -1,24 +1,33 @@
+import OperationsProspectingSummary from "@/component/daily-reports/management/OperationsProspectingSummary";
 import DailyReportStatusBadge from "@/component/daily-reports/DailyReportStatusBadge";
 import { getDailyReportTemplateTypeLabel } from "@/src/lib/constants/daily-report-options";
 import { formatDailyReportTime } from "@/src/lib/daily-report-date";
 import type { AssistantDailyReportData } from "@/src/lib/validations/assistant-daily-report.schema";
-import {
-  DIGITAL_SERVICES_PROSPECTING_TARGET,
-  KARMDA_SCHOOL_PROSPECTING_TARGET,
-  type OperationsCoordinatorDailyReportData,
-} from "@/src/lib/validations/operations-coordinator-daily-report.schema";
+import type { OperationsCoordinatorDailyReportData } from "@/src/lib/validations/operations-coordinator-daily-report.schema";
 import type { DailyReportRow } from "@/src/services/daily-report.service-core";
+
+/**
+ * The fields this view actually reads — a Pick rather than the full
+ * DailyReportRow so it can render both the self-service DailyReportRow
+ * (Ticket 19B, submittedAt as Date) and the management DailyReportDetail
+ * DTO (Ticket 19C, which has no ownerUserId/createdAt/updatedAt) without
+ * either caller fabricating fields it doesn't have.
+ */
+export type DailyReportReadOnlyViewReport = Pick<
+  DailyReportRow,
+  "status" | "templateType" | "accomplishedToday" | "plannedTomorrow" | "templateData"
+> & { submittedAt: Date | null };
 
 /**
  * Immutable, read-only rendering of a submitted report (Ticket 19B) — no
  * edit controls, no resubmit button. Blank optional fields are simply
  * omitted rather than shown as empty, since Ticket 19B never forces "RAS"
- * into unused fields.
+ * into unused fields. Reused as-is for management detail (Ticket 19C).
  */
 export default function DailyReportReadOnlyView({
   report,
 }: {
-  report: DailyReportRow;
+  report: DailyReportReadOnlyViewReport;
 }) {
   return (
     <div className="space-y-6">
@@ -79,28 +88,12 @@ function OperationsCoordinatorReadOnlyFields({
 }) {
   return (
     <>
-      <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-          Prospection
-        </p>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-          <p className="text-slate-700">
-            Services Digitaux : {data.digitalServicesProspects ?? 0} /{" "}
-            {DIGITAL_SERVICES_PROSPECTING_TARGET}
-          </p>
-          <p className="text-slate-700">
-            Écoles KARMDA : {data.karmdaSchoolProspects ?? 0} /{" "}
-            {KARMDA_SCHOOL_PROSPECTING_TARGET}
-          </p>
-        </div>
-      </div>
-
-      {data.prospectingException && (
-        <ReadOnlyField
-          label="Exception : installation / formation"
-          value={data.prospectingExceptionReason}
-        />
-      )}
+      <OperationsProspectingSummary
+        digitalServicesProspects={data.digitalServicesProspects}
+        karmdaSchoolProspects={data.karmdaSchoolProspects}
+        prospectingException={data.prospectingException}
+        prospectingExceptionReason={data.prospectingExceptionReason}
+      />
 
       <ReadOnlyField label="En attente" value={data.pendingItems} />
       <ReadOnlyField label="Problèmes rencontrés" value={data.problemsEncountered} />

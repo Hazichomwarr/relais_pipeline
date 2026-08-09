@@ -7,6 +7,7 @@ import { hydrateDailyReportTemplateData } from "@/src/lib/validations/daily-repo
 import {
   createOwnDailyReportCore,
   getDailyReportForManagementCore,
+  getDailyReportManagementDashboardCore,
   getOwnDailyReportByIdCore,
   getOwnDailyReportForDateCore,
   listDailyReportsForManagementCore,
@@ -14,8 +15,10 @@ import {
   submitOwnDailyReportCore,
   updateOwnDailyReportCore,
   type CreateOwnDailyReportInput,
+  type DailyReportExpectedUser,
   type DailyReportManagementFilters,
   type DailyReportManagementRow,
+  type DailyReportManagementServiceDependencies,
   type DailyReportRow,
   type DailyReportServiceDependencies,
   type UpdateOwnDailyReportInput,
@@ -231,9 +234,63 @@ export async function getDailyReportForManagement(reportId: string) {
   return getDailyReportForManagementCore(reportId, dependencies);
 }
 
+const managementDashboardDependencies: DailyReportManagementServiceDependencies = {
+  listExpectedReporters: async (): Promise<DailyReportExpectedUser[]> => {
+    const users = await prisma.user.findMany({
+      where: { active: true, dailyReportTemplateType: { not: null } },
+      select: { id: true, firstName: true, lastName: true, dailyReportTemplateType: true },
+      orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      // Guaranteed non-null by the where clause above.
+      dailyReportTemplateType: user.dailyReportTemplateType!,
+    }));
+  },
+
+  findReportsForDate: async (reportDate) => {
+    const reports = await prisma.dailyReport.findMany({
+      where: { reportDate },
+      select: managementSelect,
+    });
+
+    return reports.map(toDailyReportManagementRow);
+  },
+};
+
+/** The "today" management dashboard (Ticket 19C) — expected reporters, derived SUBMITTED/DRAFT/NOT_STARTED state, and attention queues. Historical periods never go through this path — see listDailyReportsForManagement above and the module doc comment in daily-report.service-core.ts. */
+export async function getDailyReportManagementDashboard(businessDate: Date) {
+  return getDailyReportManagementDashboardCore(
+    businessDate,
+    managementDashboardDependencies,
+  );
+}
+
+/**
+ * Employee options for the management filter dropdown — anyone currently
+ * assigned a template, or anyone who has ever submitted/drafted a report
+ * (even if since reassigned or deactivated), so historical filtering by a
+ * past reporter still works.
+ */
+export async function listDailyReportEmployeeOptions() {
+  return prisma.user.findMany({
+    where: {
+      OR: [{ dailyReportTemplateType: { not: null } }, { dailyReports: { some: {} } }],
+    },
+    select: { id: true, firstName: true, lastName: true },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+}
+
 export type DailyReportListItem = Awaited<
   ReturnType<typeof listOwnDailyReports>
 >[number];
 export type DailyReportManagementListItem = Awaited<
   ReturnType<typeof listDailyReportsForManagement>
+>[number];
+export type DailyReportEmployeeOption = Awaited<
+  ReturnType<typeof listDailyReportEmployeeOptions>
 >[number];

@@ -11,7 +11,8 @@ type AdminShellProps = {
     | "notes"
     | "finances"
     | "updates"
-    | "reports";
+    | "reports"
+    | "reportsManagement";
   children: React.ReactNode;
 };
 

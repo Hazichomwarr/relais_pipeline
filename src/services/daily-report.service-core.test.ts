@@ -4,10 +4,15 @@ import type { DailyReportTemplateType } from "@prisma/client";
 
 import { hydrateDailyReportTemplateData } from "@/src/lib/validations/daily-report-template-data.schema";
 import {
+  compareDailyReportAttentionItems,
+  compareDailyReporterStatuses,
   compareDailyReportsForManagement,
   compareDailyReportsForOwnHistory,
+  composeDailyReportManagementDashboard,
   createOwnDailyReportCore,
+  filterDailyReporterStatuses,
   getDailyReportForManagementCore,
+  getDailyReportManagementDashboardCore,
   getOwnDailyReportByIdCore,
   getOwnDailyReportForDateCore,
   listDailyReportsForManagementCore,
@@ -16,6 +21,8 @@ import {
   toDailyReportDetail,
   toDailyReportSummary,
   updateOwnDailyReportCore,
+  type DailyReporterStatus,
+  type DailyReportExpectedUser,
   type DailyReportManagementRow,
   type DailyReportOwnerRef,
   type DailyReportRow,
@@ -1029,4 +1036,454 @@ test("getOwnDailyReportForDateCore resolves the report for a given business date
 
   assert.equal(found?.id, "report-1");
   assert.equal(notFound, null);
+});
+
+// ---------------------------------------------------------------------------
+// Management dashboard (Ticket 19C)
+// ---------------------------------------------------------------------------
+
+function makeExpectedUser(
+  id: string,
+  overrides: Partial<DailyReportExpectedUser> = {},
+): DailyReportExpectedUser {
+  return {
+    id,
+    firstName: "Prénom",
+    lastName: "Nom",
+    dailyReportTemplateType: "ASSISTANT",
+    ...overrides,
+  };
+}
+
+function makeManagementRow(
+  id: string,
+  ownerUserId: string,
+  overrides: Partial<DailyReportManagementRow> = {},
+): DailyReportManagementRow {
+  const templateType = overrides.templateType ?? "ASSISTANT";
+  return {
+    id,
+    ownerUserId,
+    reportDate: new Date("2026-08-09T00:00:00.000Z"),
+    templateType,
+    status: "SUBMITTED",
+    accomplishedToday: "x",
+    plannedTomorrow: "y",
+    templateData: hydrateDailyReportTemplateData(templateType, {}),
+    submittedAt: new Date("2026-08-09T16:47:00.000Z"),
+    createdAt: new Date("2026-08-09T09:00:00.000Z"),
+    updatedAt: new Date("2026-08-09T09:00:00.000Z"),
+    owner: { id: ownerUserId, firstName: "Prénom", lastName: "Nom" },
+    ...overrides,
+  };
+}
+
+test("only active users with an assigned template are expected reporters — never hardcoded, never role-inferred", async () => {
+  const rawUsers = [
+    { id: "user-1", firstName: "Lucie", lastName: "Gouba", active: true, dailyReportTemplateType: "ASSISTANT" as const },
+    { id: "user-2", firstName: "Ancien", lastName: "Employé", active: false, dailyReportTemplateType: "ASSISTANT" as const },
+    { id: "user-3", firstName: "Sans", lastName: "Modèle", active: true, dailyReportTemplateType: null },
+  ];
+
+  const dashboard = await getDailyReportManagementDashboardCore(
+    new Date("2026-08-09T00:00:00.000Z"),
+    {
+      listExpectedReporters: async () =>
+        rawUsers
+          .filter((user) => user.active && user.dailyReportTemplateType !== null)
+          .map((user) => ({
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            dailyReportTemplateType: user.dailyReportTemplateType!,
+          })),
+      findReportsForDate: async () => [],
+    },
+  );
+
+  assert.deepEqual(dashboard.reporters.map((reporter) => reporter.user.id), ["user-1"]);
+});
+
+test("getDailyReportManagementDashboardCore uses exactly one bounded query per dependency, never one per employee", async () => {
+  let expectedCalls = 0;
+  let reportsCalls = 0;
+
+  await getDailyReportManagementDashboardCore(new Date("2026-08-09T00:00:00.000Z"), {
+    listExpectedReporters: async () => {
+      expectedCalls += 1;
+      return [makeExpectedUser("user-1"), makeExpectedUser("user-2"), makeExpectedUser("user-3")];
+    },
+    findReportsForDate: async () => {
+      reportsCalls += 1;
+      return [];
+    },
+  });
+
+  assert.equal(expectedCalls, 1);
+  assert.equal(reportsCalls, 1);
+});
+
+test("an expected user with a SUBMITTED report today derives state SUBMITTED", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [makeManagementRow("report-1", "user-1", { status: "SUBMITTED" })],
+  );
+
+  assert.equal(dashboard.reporters[0].state, "SUBMITTED");
+  assert.equal(dashboard.reporters[0].reportId, "report-1");
+});
+
+test("an expected user with a DRAFT report today derives state DRAFT", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [makeManagementRow("report-1", "user-1", { status: "DRAFT", submittedAt: null })],
+  );
+
+  assert.equal(dashboard.reporters[0].state, "DRAFT");
+});
+
+test("an expected user with no report row today derives state NOT_STARTED — no database row is required or created", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [],
+  );
+
+  assert.equal(dashboard.reporters[0].state, "NOT_STARTED");
+  assert.equal(dashboard.reporters[0].reportId, null);
+  assert.equal(dashboard.reporters[0].submittedAt, null);
+});
+
+test("summary counts reconcile exactly with the reporter cards: 4 expected, 2 submitted, 1 draft, 1 not started", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [
+      makeExpectedUser("user-1"),
+      makeExpectedUser("user-2"),
+      makeExpectedUser("user-3"),
+      makeExpectedUser("user-4"),
+    ],
+    [
+      makeManagementRow("report-1", "user-1", { status: "SUBMITTED" }),
+      makeManagementRow("report-2", "user-2", { status: "SUBMITTED" }),
+      makeManagementRow("report-3", "user-3", { status: "DRAFT", submittedAt: null }),
+      // user-4 has no report row: NOT_STARTED.
+    ],
+  );
+
+  assert.deepEqual(dashboard.summary, {
+    expected: 4,
+    submitted: 2,
+    draft: 1,
+    notStarted: 1,
+  });
+});
+
+test("businessDate is formatted via the centralized business-date helper", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T12:00:00.000Z"),
+    [],
+    [],
+  );
+
+  assert.equal(dashboard.businessDate, "2026-08-09");
+});
+
+test("reporter ordering: NOT_STARTED, then DRAFT, then SUBMITTED, each group ordered by lastName then firstName then id", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [
+      makeExpectedUser("user-1", { firstName: "Mamadou", lastName: "Nana" }),
+      makeExpectedUser("user-2", { firstName: "Lucie", lastName: "Gouba" }),
+      makeExpectedUser("user-3", { firstName: "Awa", lastName: "Bazié" }),
+      makeExpectedUser("user-4", { firstName: "Zoé", lastName: "Kaboré" }),
+    ],
+    [
+      // user-1 (Nana) SUBMITTED, user-2 (Gouba) DRAFT, user-3/user-4 NOT_STARTED.
+      makeManagementRow("report-1", "user-1", { status: "SUBMITTED" }),
+      makeManagementRow("report-2", "user-2", { status: "DRAFT", submittedAt: null }),
+    ],
+  );
+
+  assert.deepEqual(
+    dashboard.reporters.map((reporter) => reporter.user.id),
+    ["user-3", "user-4", "user-2", "user-1"],
+  );
+});
+
+test("compareDailyReporterStatuses falls back to a deterministic ascending id order on a full tie", () => {
+  const left: DailyReporterStatus = {
+    user: { id: "user-a", firstName: "Awa", lastName: "Bazié" },
+    templateType: "ASSISTANT",
+    state: "NOT_STARTED",
+    reportId: null,
+    submittedAt: null,
+    operationsSummary: null,
+    hasDecisionNeeded: false,
+    hasProblemReported: false,
+  };
+  const right = { ...left, user: { ...left.user, id: "user-b" } };
+
+  assert.ok(compareDailyReporterStatuses(left, right) < 0);
+  assert.ok(compareDailyReporterStatuses(right, left) > 0);
+  assert.equal(compareDailyReporterStatuses(left, left), 0);
+});
+
+test("decisionsRequired includes a non-empty SUBMITTED managementDecisionNeeded", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [
+      makeManagementRow("report-1", "user-1", {
+        status: "SUBMITTED",
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          managementDecisionNeeded: "Contrat école Wend-Panga à valider.",
+        }),
+      }),
+    ],
+  );
+
+  assert.equal(dashboard.decisionsRequired.length, 1);
+  assert.equal(
+    dashboard.decisionsRequired[0].content,
+    "Contrat école Wend-Panga à valider.",
+  );
+});
+
+test("a blank managementDecisionNeeded is excluded from decisionsRequired", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [makeManagementRow("report-1", "user-1", { status: "SUBMITTED" })],
+  );
+
+  assert.deepEqual(dashboard.decisionsRequired, []);
+});
+
+test("a DRAFT report's managementDecisionNeeded is excluded from decisionsRequired even if non-empty", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [
+      makeManagementRow("report-1", "user-1", {
+        status: "DRAFT",
+        submittedAt: null,
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          managementDecisionNeeded: "Ne doit pas apparaître avant envoi.",
+        }),
+      }),
+    ],
+  );
+
+  assert.deepEqual(dashboard.decisionsRequired, []);
+});
+
+test("problemsReported includes a non-empty SUBMITTED problemsEncountered, separately from decisions", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [
+      makeManagementRow("report-1", "user-1", {
+        status: "SUBMITTED",
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          problemsEncountered: "Imprimante en panne.",
+          managementDecisionNeeded: "",
+        }),
+      }),
+    ],
+  );
+
+  assert.equal(dashboard.problemsReported.length, 1);
+  assert.equal(dashboard.problemsReported[0].content, "Imprimante en panne.");
+  assert.deepEqual(dashboard.decisionsRequired, []);
+});
+
+test("a blank problemsEncountered is excluded from problemsReported", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [makeManagementRow("report-1", "user-1", { status: "SUBMITTED" })],
+  );
+
+  assert.deepEqual(dashboard.problemsReported, []);
+});
+
+test("a DRAFT report's problemsEncountered is excluded from problemsReported even if non-empty", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1")],
+    [
+      makeManagementRow("report-1", "user-1", {
+        status: "DRAFT",
+        submittedAt: null,
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          problemsEncountered: "Ne doit pas apparaître avant envoi.",
+        }),
+      }),
+    ],
+  );
+
+  assert.deepEqual(dashboard.problemsReported, []);
+});
+
+test("attention queues support both templates — Operations Coordinator decisions/problems included the same way", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1", { dailyReportTemplateType: "OPERATIONS_COORDINATOR" })],
+    [
+      makeManagementRow("report-1", "user-1", {
+        templateType: "OPERATIONS_COORDINATOR",
+        status: "SUBMITTED",
+        templateData: hydrateDailyReportTemplateData("OPERATIONS_COORDINATOR", {
+          managementDecisionNeeded: "Le client demande une deuxième journée de formation.",
+          problemsEncountered: "École Horizon : configuration réseau incomplète.",
+        }),
+      }),
+    ],
+  );
+
+  assert.equal(dashboard.decisionsRequired.length, 1);
+  assert.equal(dashboard.problemsReported.length, 1);
+});
+
+test("compareDailyReportAttentionItems orders submittedAt DESC, then a descending reportId tiebreaker", () => {
+  const sameInstant = "2026-08-09T16:47:00.000Z";
+  const owner: DailyReportOwnerRef = { id: "user-1", firstName: "Awa", lastName: "Bazié" };
+
+  const earlier = {
+    reportId: "report-a",
+    owner,
+    templateType: "ASSISTANT" as const,
+    content: "x",
+    submittedAt: "2026-08-09T09:00:00.000Z",
+  };
+  const laterA = {
+    reportId: "report-b",
+    owner,
+    templateType: "ASSISTANT" as const,
+    content: "y",
+    submittedAt: sameInstant,
+  };
+  const laterB = { ...laterA, reportId: "report-c" };
+
+  const sorted = [earlier, laterB, laterA].sort(compareDailyReportAttentionItems);
+
+  assert.deepEqual(
+    sorted.map((item) => item.reportId),
+    ["report-c", "report-b", "report-a"],
+  );
+});
+
+test("operationsSummary is populated for an Operations Coordinator reporter with a report (draft or submitted), null otherwise", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [
+      makeExpectedUser("user-1", { dailyReportTemplateType: "OPERATIONS_COORDINATOR" }),
+      makeExpectedUser("user-2", { dailyReportTemplateType: "OPERATIONS_COORDINATOR" }),
+      makeExpectedUser("user-3", { dailyReportTemplateType: "ASSISTANT" }),
+    ],
+    [
+      makeManagementRow("report-1", "user-1", {
+        templateType: "OPERATIONS_COORDINATOR",
+        status: "SUBMITTED",
+        templateData: hydrateDailyReportTemplateData("OPERATIONS_COORDINATOR", {
+          digitalServicesProspects: 3,
+          karmdaSchoolProspects: 1,
+        }),
+      }),
+      makeManagementRow("report-2", "user-3", {
+        templateType: "ASSISTANT",
+        status: "SUBMITTED",
+      }),
+    ],
+  );
+
+  const withReport = dashboard.reporters.find((reporter) => reporter.user.id === "user-1");
+  const withoutReport = dashboard.reporters.find((reporter) => reporter.user.id === "user-2");
+  const assistantReporter = dashboard.reporters.find((reporter) => reporter.user.id === "user-3");
+
+  assert.deepEqual(withReport?.operationsSummary, {
+    digitalServicesProspects: 3,
+    karmdaSchoolProspects: 1,
+    prospectingException: false,
+    prospectingExceptionReason: "",
+  });
+  assert.equal(withoutReport?.operationsSummary, null);
+  assert.equal(assistantReporter?.operationsSummary, null);
+});
+
+test("hasDecisionNeeded and hasProblemReported are true only for a SUBMITTED report with non-blank content", () => {
+  const dashboard = composeDailyReportManagementDashboard(
+    new Date("2026-08-09T00:00:00.000Z"),
+    [makeExpectedUser("user-1"), makeExpectedUser("user-2")],
+    [
+      makeManagementRow("report-1", "user-1", {
+        status: "SUBMITTED",
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          managementDecisionNeeded: "Décision requise.",
+          problemsEncountered: "Problème signalé.",
+        }),
+      }),
+      makeManagementRow("report-2", "user-2", {
+        status: "DRAFT",
+        submittedAt: null,
+        templateData: hydrateDailyReportTemplateData("ASSISTANT", {
+          managementDecisionNeeded: "Ne compte pas tant que brouillon.",
+          problemsEncountered: "Ne compte pas tant que brouillon.",
+        }),
+      }),
+    ],
+  );
+
+  const submittedReporter = dashboard.reporters.find((reporter) => reporter.user.id === "user-1");
+  const draftReporter = dashboard.reporters.find((reporter) => reporter.user.id === "user-2");
+
+  assert.equal(submittedReporter?.hasDecisionNeeded, true);
+  assert.equal(submittedReporter?.hasProblemReported, true);
+  assert.equal(draftReporter?.hasDecisionNeeded, false);
+  assert.equal(draftReporter?.hasProblemReported, false);
+});
+
+test("filterDailyReporterStatuses narrows by employeeId, templateType, and state independently", () => {
+  const reporters: DailyReporterStatus[] = [
+    {
+      user: { id: "user-1", firstName: "Lucie", lastName: "Gouba" },
+      templateType: "ASSISTANT",
+      state: "SUBMITTED",
+      reportId: "report-1",
+      submittedAt: "2026-08-09T16:47:00.000Z",
+      operationsSummary: null,
+      hasDecisionNeeded: false,
+      hasProblemReported: false,
+    },
+    {
+      user: { id: "user-2", firstName: "Mamadou", lastName: "Nana" },
+      templateType: "OPERATIONS_COORDINATOR",
+      state: "NOT_STARTED",
+      reportId: null,
+      submittedAt: null,
+      operationsSummary: null,
+      hasDecisionNeeded: false,
+      hasProblemReported: false,
+    },
+  ];
+
+  assert.deepEqual(
+    filterDailyReporterStatuses(reporters, { employeeId: "user-2" }).map((r) => r.user.id),
+    ["user-2"],
+  );
+  assert.deepEqual(
+    filterDailyReporterStatuses(reporters, { templateType: "ASSISTANT" }).map((r) => r.user.id),
+    ["user-1"],
+  );
+  assert.deepEqual(
+    filterDailyReporterStatuses(reporters, { state: "NOT_STARTED" }).map((r) => r.user.id),
+    ["user-2"],
+  );
+  assert.deepEqual(filterDailyReporterStatuses(reporters, {}).map((r) => r.user.id), [
+    "user-1",
+    "user-2",
+  ]);
 });

@@ -62,8 +62,10 @@ test("renders the Operations Coordinator prospection counts and exception, when 
     />,
   );
 
-  assert.match(html, /Services Digitaux : 2 \/ 3/);
-  assert.match(html, /Écoles KARMDA : 1 \/ 1/);
+  assert.match(html, /Services Digitaux/);
+  assert.match(html, /2 \/ 3/);
+  assert.match(html, /Écoles KARMDA/);
+  assert.match(html, /1 \/ 1/);
   assert.match(html, /Formation KARMDA toute la journée\./);
 });
 

@@ -1,4 +1,5 @@
 import {
+  addBusinessDays,
   formatBusinessIsoDate,
   parseIsoDateAsBusinessMidnight,
   startOfBusinessDay,
@@ -46,4 +47,20 @@ export function formatDailyReportTime(date: Date): string {
     timeStyle: "short",
     timeZone: "UTC",
   }).format(date);
+}
+
+/**
+ * An inclusive N-business-day window ending on today's business date
+ * (Ticket 19C's "7 derniers jours" / "30 derniers jours" history filters).
+ * Both bounds are normalized reportDate-comparable instants, so
+ * listDailyReportsForManagement's gte/lte range matches exactly — no
+ * separate "exclusive end" bookkeeping is needed since reportDate values
+ * are always exact business-midnight instants, not continuous time spans.
+ */
+export function resolveDailyReportHistoryRange(
+  days: number,
+  referenceDate: Date = new Date(),
+): { dateFrom: Date; dateTo: Date } {
+  const today = getCurrentBusinessDate(referenceDate);
+  return { dateFrom: addBusinessDays(today, -(days - 1)), dateTo: today };
 }

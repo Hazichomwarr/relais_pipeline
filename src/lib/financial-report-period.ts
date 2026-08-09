@@ -41,7 +41,7 @@ export function startOfBusinessDay(date: Date): Date {
   );
 }
 
-function addBusinessDays(date: Date, days: number): Date {
+export function addBusinessDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * MS_PER_DAY);
 }
 

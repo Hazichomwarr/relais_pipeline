@@ -451,6 +451,297 @@ export async function getDailyReportForManagementCore(
   return report ? toDailyReportDetail(report) : null;
 }
 
+// ---------------------------------------------------------------------------
+// Management dashboard (Ticket 19C) — "today" only. Historical periods reuse
+// listDailyReportsForManagementCore above (persisted reports only, no
+// derived NOT_STARTED — see the module doc comment near DailyReporterState).
+// ---------------------------------------------------------------------------
+
+/**
+ * A V1 employee is "expected" to report today when they are active and
+ * currently have a template assigned — never inferred from UserRole, never
+ * hardcoded to specific people. This says nothing about any date other
+ * than today: today's expectation must not be projected onto historical
+ * dates, since the app has no assignment-history model (Ticket 19C
+ * deliberately does not add one).
+ */
+export type DailyReportExpectedUser = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  dailyReportTemplateType: DailyReportTemplateType;
+};
+
+/**
+ * Derived UI-only state — never persisted, never added to DailyReportStatus.
+ * NOT_STARTED exists only for today's dashboard, computed as
+ * (expected reporters) - (reports that exist for today).
+ */
+export type DailyReporterState = "SUBMITTED" | "DRAFT" | "NOT_STARTED";
+
+export type DailyReporterOperationsSummary = {
+  digitalServicesProspects: number | null;
+  karmdaSchoolProspects: number | null;
+  prospectingException: boolean;
+  prospectingExceptionReason: string;
+};
+
+export type DailyReporterStatus = {
+  user: DailyReportOwnerRef;
+  templateType: DailyReportTemplateType;
+  state: DailyReporterState;
+  reportId: string | null;
+  submittedAt: string | null;
+  /** Populated whenever a report row exists (draft or submitted) for an OPERATIONS_COORDINATOR reporter — structured numeric data, not free-text prose, so showing it from a draft doesn't violate the "no draft prose in management view" rule below. */
+  operationsSummary: DailyReporterOperationsSummary | null;
+  /** True only for a SUBMITTED report with non-blank content — a draft's decision/problem text never counts, since the employee hasn't formally reported it yet. */
+  hasDecisionNeeded: boolean;
+  hasProblemReported: boolean;
+};
+
+export type DailyReportAttentionItem = {
+  reportId: string;
+  owner: DailyReportOwnerRef;
+  templateType: DailyReportTemplateType;
+  content: string;
+  submittedAt: string;
+};
+
+export type DailyReportManagementDashboard = {
+  businessDate: string;
+  summary: {
+    expected: number;
+    submitted: number;
+    draft: number;
+    notStarted: number;
+  };
+  reporters: DailyReporterStatus[];
+  decisionsRequired: DailyReportAttentionItem[];
+  problemsReported: DailyReportAttentionItem[];
+};
+
+export type DailyReportManagementServiceDependencies = {
+  /** Active users with a currently assigned template — see DailyReportExpectedUser's doc comment for why this only ever describes "today". */
+  listExpectedReporters: () => Promise<DailyReportExpectedUser[]>;
+  /** Every report (any owner) for one business date — a single bounded query, composed in memory against the expected-reporter list rather than one query per employee. */
+  findReportsForDate: (reportDate: Date) => Promise<DailyReportManagementRow[]>;
+};
+
+const REPORTER_STATE_PRIORITY: Record<DailyReporterState, number> = {
+  NOT_STARTED: 0,
+  DRAFT: 1,
+  SUBMITTED: 2,
+};
+
+/**
+ * NOT_STARTED, then DRAFT, then SUBMITTED — attention-oriented, not simply
+ * alphabetical or state-alphabetical, so unfinished reporting always
+ * surfaces first for management. Ties broken by lastName, firstName, then
+ * a descending id as a final deterministic tiebreaker.
+ */
+export function compareDailyReporterStatuses(
+  left: DailyReporterStatus,
+  right: DailyReporterStatus,
+): number {
+  const priorityDiff =
+    REPORTER_STATE_PRIORITY[left.state] - REPORTER_STATE_PRIORITY[right.state];
+  if (priorityDiff !== 0) {
+    return priorityDiff;
+  }
+
+  const lastNameDiff = left.user.lastName.localeCompare(right.user.lastName, "fr", {
+    sensitivity: "base",
+  });
+  if (lastNameDiff !== 0) {
+    return lastNameDiff;
+  }
+
+  const firstNameDiff = left.user.firstName.localeCompare(
+    right.user.firstName,
+    "fr",
+    { sensitivity: "base" },
+  );
+  if (firstNameDiff !== 0) {
+    return firstNameDiff;
+  }
+
+  if (left.user.id === right.user.id) {
+    return 0;
+  }
+
+  return left.user.id < right.user.id ? -1 : 1;
+}
+
+/** submittedAt DESC, then a descending reportId tiebreaker. */
+export function compareDailyReportAttentionItems(
+  left: DailyReportAttentionItem,
+  right: DailyReportAttentionItem,
+): number {
+  const diff = new Date(right.submittedAt).getTime() - new Date(left.submittedAt).getTime();
+  if (diff !== 0) {
+    return diff;
+  }
+
+  if (left.reportId === right.reportId) {
+    return 0;
+  }
+
+  return left.reportId < right.reportId ? 1 : -1;
+}
+
+/** Both templates share these exact field names/types (Ticket 19B) — this narrows without re-deriving anything template-specific. */
+function getManagementAttentionFields(templateData: DailyReportTemplateData): {
+  managementDecisionNeeded: string;
+  problemsEncountered: string;
+} {
+  return templateData as { managementDecisionNeeded: string; problemsEncountered: string };
+}
+
+function toOperationsSummary(
+  templateData: DailyReportTemplateData,
+): DailyReporterOperationsSummary {
+  const data = templateData as OperationsCoordinatorDailyReportData;
+  return {
+    digitalServicesProspects: data.digitalServicesProspects,
+    karmdaSchoolProspects: data.karmdaSchoolProspects,
+    prospectingException: data.prospectingException,
+    prospectingExceptionReason: data.prospectingExceptionReason,
+  };
+}
+
+function buildAttentionItems(
+  submittedReports: DailyReportManagementRow[],
+  field: "managementDecisionNeeded" | "problemsEncountered",
+): DailyReportAttentionItem[] {
+  const items: DailyReportAttentionItem[] = [];
+
+  for (const report of submittedReports) {
+    const content = getManagementAttentionFields(report.templateData)[field];
+
+    if (!content.trim()) {
+      continue;
+    }
+
+    items.push({
+      reportId: report.id,
+      owner: report.owner,
+      templateType: report.templateType,
+      content,
+      // A SUBMITTED report always has submittedAt (set atomically at
+      // submission — Ticket 19A); the non-null assertion documents that
+      // invariant rather than working around an uncertain value.
+      submittedAt: report.submittedAt!.toISOString(),
+    });
+  }
+
+  return items.sort(compareDailyReportAttentionItems);
+}
+
+/**
+ * Pure composition step — no I/O — so it's directly unit-testable without
+ * a database: given who is expected to report today and what reports
+ * exist for that date, derive every reporter's state, the summary counts,
+ * and the two attention queues (SUBMITTED reports only).
+ */
+export function composeDailyReportManagementDashboard(
+  businessDate: Date,
+  expectedUsers: DailyReportExpectedUser[],
+  reportsForDate: DailyReportManagementRow[],
+): DailyReportManagementDashboard {
+  const reportsByOwner = new Map(
+    reportsForDate.map((report) => [report.ownerUserId, report]),
+  );
+
+  const reporters = expectedUsers.map((user): DailyReporterStatus => {
+    const report = reportsByOwner.get(user.id) ?? null;
+    const state: DailyReporterState = !report
+      ? "NOT_STARTED"
+      : report.status === "SUBMITTED"
+        ? "SUBMITTED"
+        : "DRAFT";
+
+    const attentionFields = report
+      ? getManagementAttentionFields(report.templateData)
+      : null;
+
+    return {
+      user: { id: user.id, firstName: user.firstName, lastName: user.lastName },
+      templateType: user.dailyReportTemplateType,
+      state,
+      reportId: report?.id ?? null,
+      submittedAt: report?.submittedAt ? report.submittedAt.toISOString() : null,
+      operationsSummary:
+        report && user.dailyReportTemplateType === "OPERATIONS_COORDINATOR"
+          ? toOperationsSummary(report.templateData)
+          : null,
+      hasDecisionNeeded:
+        report?.status === "SUBMITTED" &&
+        Boolean(attentionFields?.managementDecisionNeeded.trim()),
+      hasProblemReported:
+        report?.status === "SUBMITTED" &&
+        Boolean(attentionFields?.problemsEncountered.trim()),
+    };
+  });
+
+  const submittedReports = reportsForDate.filter(
+    (report) => report.status === "SUBMITTED",
+  );
+
+  return {
+    businessDate: formatDailyReportIsoDate(businessDate),
+    summary: {
+      expected: reporters.length,
+      submitted: reporters.filter((reporter) => reporter.state === "SUBMITTED").length,
+      draft: reporters.filter((reporter) => reporter.state === "DRAFT").length,
+      notStarted: reporters.filter((reporter) => reporter.state === "NOT_STARTED").length,
+    },
+    reporters: [...reporters].sort(compareDailyReporterStatuses),
+    decisionsRequired: buildAttentionItems(submittedReports, "managementDecisionNeeded"),
+    problemsReported: buildAttentionItems(submittedReports, "problemsEncountered"),
+  };
+}
+
+export async function getDailyReportManagementDashboardCore(
+  businessDate: Date,
+  dependencies: DailyReportManagementServiceDependencies,
+): Promise<DailyReportManagementDashboard> {
+  const [expectedUsers, reportsForDate] = await Promise.all([
+    dependencies.listExpectedReporters(),
+    dependencies.findReportsForDate(businessDate),
+  ]);
+
+  return composeDailyReportManagementDashboard(businessDate, expectedUsers, reportsForDate);
+}
+
+export type DailyReporterFilters = {
+  employeeId?: string;
+  templateType?: DailyReportTemplateType;
+  state?: DailyReporterState;
+};
+
+/**
+ * Pure array filtering for the "today" reporter list — the dashboard query
+ * itself always computes the full picture (so summary counts stay
+ * accurate); filters narrow only what's displayed.
+ */
+export function filterDailyReporterStatuses(
+  reporters: DailyReporterStatus[],
+  filters: DailyReporterFilters,
+): DailyReporterStatus[] {
+  return reporters.filter((reporter) => {
+    if (filters.employeeId && reporter.user.id !== filters.employeeId) {
+      return false;
+    }
+    if (filters.templateType && reporter.templateType !== filters.templateType) {
+      return false;
+    }
+    if (filters.state && reporter.state !== filters.state) {
+      return false;
+    }
+    return true;
+  });
+}
+
 function dailyReportNotFound(): DailyReportWriteResult {
   return {
     success: false,

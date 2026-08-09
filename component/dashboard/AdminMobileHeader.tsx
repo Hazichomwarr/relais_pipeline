@@ -1,6 +1,7 @@
 import type { UserRole } from "@prisma/client";
 import {
   ClipboardCheck,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   Newspaper,
@@ -49,9 +50,14 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       icon: <StickyNote className="h-5 w-5" />,
     },
     {
-      label: "Rapports",
+      label: "Mes rapports",
       href: "/reports",
       icon: <FileText className="h-5 w-5" />,
+    },
+    {
+      label: "Rapports quotidiens",
+      href: "/admin/reports",
+      icon: <ClipboardList className="h-5 w-5" />,
     },
     ...(role === "ADMIN"
       ? [

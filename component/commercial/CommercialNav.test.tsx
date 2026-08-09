@@ -54,3 +54,14 @@ test("the mobile drawer's item list also includes Mes rapports", () => {
   assert.match(source, /label: "Mes rapports"/);
   assert.match(source, /href: "\/reports"/);
 });
+
+test("COMMERCIAL navigation never exposes the management Rapports quotidiens link (Ticket 19C — /admin/reports is ADMIN/MANAGER only)", () => {
+  const html = renderToStaticMarkup(
+    <CommercialNav firstName="Julbert" lastName="Sermé" />,
+  );
+  const source = readFileSync("component/commercial/CommercialNav.tsx", "utf8");
+
+  assert.doesNotMatch(html, /Rapports quotidiens/);
+  assert.doesNotMatch(html, /href="\/admin\/reports"/);
+  assert.doesNotMatch(source, /\/admin\/reports/);
+});

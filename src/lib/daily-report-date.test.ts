@@ -7,6 +7,7 @@ import {
   formatLongDailyReportDate,
   getCurrentBusinessDate,
   resolveDailyReportDate,
+  resolveDailyReportHistoryRange,
 } from "./daily-report-date";
 
 function iso(instant: Date): string {
@@ -93,4 +94,24 @@ test("formatDailyReportTime renders 16:47 without shifting across the UTC=busine
     formatDailyReportTime(new Date("2026-08-09T23:59:00.000Z")),
     "23:59",
   );
+});
+
+test("resolveDailyReportHistoryRange for 7 days includes today and the six preceding business days", () => {
+  const { dateFrom, dateTo } = resolveDailyReportHistoryRange(
+    7,
+    new Date("2026-08-09T12:00:00.000Z"),
+  );
+
+  assert.equal(iso(dateTo), "2026-08-09T00:00:00.000Z");
+  assert.equal(iso(dateFrom), "2026-08-03T00:00:00.000Z");
+});
+
+test("resolveDailyReportHistoryRange for 30 days spans a month boundary correctly", () => {
+  const { dateFrom, dateTo } = resolveDailyReportHistoryRange(
+    30,
+    new Date("2026-08-09T12:00:00.000Z"),
+  );
+
+  assert.equal(iso(dateTo), "2026-08-09T00:00:00.000Z");
+  assert.equal(iso(dateFrom), "2026-07-11T00:00:00.000Z");
 });

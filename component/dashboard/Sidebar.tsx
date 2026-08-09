@@ -2,6 +2,7 @@ import type { UserRole } from "@prisma/client";
 import {
   ChevronDown,
   ClipboardCheck,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   Newspaper,
@@ -26,7 +27,8 @@ export default function Sidebar({
     | "notes"
     | "finances"
     | "updates"
-    | "reports";
+    | "reports"
+    | "reportsManagement";
   role?: UserRole;
 }) {
   return (
@@ -129,7 +131,19 @@ export default function Sidebar({
           }`}
         >
           <FileText className="h-5 w-5" />
-          Rapports
+          Mes rapports
+        </Link>
+
+        <Link
+          href="/admin/reports"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "reportsManagement"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <ClipboardList className="h-5 w-5" />
+          Rapports quotidiens
         </Link>
 
         {role === "ADMIN" && (
