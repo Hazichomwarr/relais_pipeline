@@ -106,6 +106,16 @@ enum PaymentMethod {
   OTHER
 }
 
+enum DailyReportTemplateType {
+  ASSISTANT
+  OPERATIONS_COORDINATOR
+}
+
+enum DailyReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
 enum LedgerEntryCategory {
   CLIENT_PAYMENT
   CAPITAL_CONTRIBUTION
@@ -140,9 +150,16 @@ model User {
 
   active Boolean @default(true)
 
+  // Ticket 19A — the employee's current daily-report template, distinct
+  // from `role` (CRM permission). Nullable: not every CRM user submits
+  // daily reports. Changing this only affects reports created afterward —
+  // DailyReport.templateType snapshots the template at creation time.
+  dailyReportTemplateType DailyReportTemplateType?
+
   assignedProspects    Prospect[]
   personalNotes        PersonalNote[]
   createdLedgerEntries LedgerEntry[]
+  dailyReports         DailyReport[]
 
   statusActivities      UserStatusActivity[] @relation("UserStatusActivityTarget")
   statusActivityActions UserStatusActivity[] @relation("UserStatusActivityActor")
@@ -152,6 +169,7 @@ model User {
 
   @@index([role])
   @@index([active])
+  @@index([dailyReportTemplateType])
 }
 
 // Ticket 18A — the only historical record of User.active transitions.
@@ -194,6 +212,42 @@ model PersonalNote {
   @@index([userId, updatedAt])
   @@index([userId, pinned, updatedAt])
   @@index([userId, category])
+}
+
+// Ticket 19A — a historical business record: what an employee reported for
+// a given Burkina Faso business day. Ownership, date, and template are
+// permanent facts about that day and must never be inferred from mutable
+// current User state (see User.dailyReportTemplateType comment above).
+model DailyReport {
+  id String @id @default(cuid())
+
+  ownerUserId String
+  owner       User   @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  // The Burkina Faso business calendar day this report concerns (see
+  // src/lib/daily-report-date.ts) — not createdAt. Normalized to business
+  // midnight so @@unique reliably enforces one report per employee per day.
+  reportDate DateTime
+
+  // Snapshotted from User.dailyReportTemplateType at creation time. Never
+  // re-derived from the User relation, so a later template reassignment
+  // does not rewrite historical reports.
+  templateType DailyReportTemplateType
+
+  status DailyReportStatus @default(DRAFT)
+
+  accomplishedToday String
+  plannedTomorrow   String
+
+  submittedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerUserId, reportDate])
+  @@index([reportDate])
+  @@index([ownerUserId, reportDate])
+  @@index([status, reportDate])
 }
 
 model Prospect {

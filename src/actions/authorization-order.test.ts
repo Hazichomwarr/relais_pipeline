@@ -77,6 +77,21 @@ const gatedActions = [
     functionName: "reverseLedgerEntryAction",
     serviceCall: "reverseLedgerEntry(",
   },
+  {
+    file: "src/actions/daily-report.actions.ts",
+    functionName: "createDailyReportAction",
+    serviceCall: "createOwnDailyReport(",
+  },
+  {
+    file: "src/actions/daily-report.actions.ts",
+    functionName: "updateDailyReportAction",
+    serviceCall: "updateOwnDailyReport(",
+  },
+  {
+    file: "src/actions/daily-report.actions.ts",
+    functionName: "submitDailyReportAction",
+    serviceCall: "submitOwnDailyReport(",
+  },
 ];
 
 for (const action of gatedActions) {
@@ -263,6 +278,36 @@ for (const functionName of [
     );
 
     assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
+    assert.doesNotMatch(functionBody, /values\.userId/);
+    assert.match(functionBody, /authorization\.user\.id/);
+  });
+}
+
+for (const functionName of [
+  "createDailyReportAction",
+  "updateDailyReportAction",
+  "submitDailyReportAction",
+]) {
+  test(`${functionName} authorizes via requireAuthenticatedUser — every assigned role manages only their own daily reports (Ticket 19A)`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/daily-report.actions.ts",
+      functionName,
+    );
+
+    assert.match(functionBody, /authorizeAction\(\(\) => requireAuthenticatedUser\(\)\)/);
+    assert.doesNotMatch(functionBody, /requireRole\(/);
+    assert.doesNotMatch(functionBody, /requireAdmin\(/);
+  });
+
+  test(`${functionName} never accepts an owner/user id from client input — ownership comes from the session`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/daily-report.actions.ts",
+      functionName,
+    );
+
+    assert.doesNotMatch(functionBody, /parsed\.data\.ownerUserId/);
+    assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
+    assert.doesNotMatch(functionBody, /values\.ownerUserId/);
     assert.doesNotMatch(functionBody, /values\.userId/);
     assert.match(functionBody, /authorization\.user\.id/);
   });

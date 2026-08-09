@@ -80,6 +80,44 @@ test("defaults new users to active", () => {
   assert.equal(result.active, true);
 });
 
+test("dailyReportTemplateType defaults to null when omitted (not every user submits daily reports)", () => {
+  const result = userSchema.parse(validInput());
+
+  assert.equal(result.dailyReportTemplateType, null);
+});
+
+test("dailyReportTemplateType accepts an empty string as 'no template' and normalizes it to null", () => {
+  const result = userSchema.parse({
+    ...validInput(),
+    dailyReportTemplateType: "",
+  });
+
+  assert.equal(result.dailyReportTemplateType, null);
+});
+
+test("dailyReportTemplateType accepts ASSISTANT and OPERATIONS_COORDINATOR", () => {
+  const assistant = userSchema.safeParse({
+    ...validInput(),
+    dailyReportTemplateType: "ASSISTANT",
+  });
+  const coordinator = userSchema.safeParse({
+    ...validInput(),
+    dailyReportTemplateType: "OPERATIONS_COORDINATOR",
+  });
+
+  assert.equal(assistant.success, true);
+  assert.equal(coordinator.success, true);
+});
+
+test("dailyReportTemplateType rejects a value outside the known V1 templates", () => {
+  const result = userSchema.safeParse({
+    ...validInput(),
+    dailyReportTemplateType: "SALES_MANAGER",
+  });
+
+  assert.equal(result.success, false);
+});
+
 test("commercialProfileUpdateSchema accepts first name, last name, and phone", () => {
   const result = commercialProfileUpdateSchema.safeParse({
     firstName: "Aminata",

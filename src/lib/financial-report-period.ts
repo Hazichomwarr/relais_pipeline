@@ -32,7 +32,7 @@ function businessLocalMidnight(year: number, month: number, day: number): Date {
 }
 
 /** Start of the business-local calendar day containing `date`, as a UTC instant. */
-function startOfBusinessDay(date: Date): Date {
+export function startOfBusinessDay(date: Date): Date {
   const local = toBusinessLocal(date);
   return businessLocalMidnight(
     local.getUTCFullYear(),
@@ -54,7 +54,8 @@ export function formatBusinessIsoDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function parseIsoDateAsBusinessMidnight(isoDate: string): Date {
+/** "2026-08-06" -> the UTC instant representing that day's business-local midnight. */
+export function parseIsoDateAsBusinessMidnight(isoDate: string): Date {
   const [year, month, day] = isoDate.split("-").map(Number);
   return businessLocalMidnight(year, month - 1, day);
 }

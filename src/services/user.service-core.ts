@@ -1,4 +1,9 @@
-import type { User, UserRole, UserStatusActivityType } from "@prisma/client";
+import type {
+  DailyReportTemplateType,
+  User,
+  UserRole,
+  UserStatusActivityType,
+} from "@prisma/client";
 
 import type {
   ValidatedCommercialProfileUpdateInput,
@@ -49,6 +54,7 @@ export type UserServiceDependencies = {
       phone?: string | null;
       role?: UserRole;
       active?: boolean;
+      dailyReportTemplateType?: DailyReportTemplateType | null;
     },
     statusTransition?: UserStatusTransition,
   ) => Promise<{ id: string }>;
@@ -106,6 +112,7 @@ export async function updateUserCore(
         phone: input.phone,
         role: input.role,
         active: input.active,
+        dailyReportTemplateType: input.dailyReportTemplateType,
       },
       resolveStatusTransition(existingUser.active, input.active, actorUserId),
     );

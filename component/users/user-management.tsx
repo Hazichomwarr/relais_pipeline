@@ -12,6 +12,7 @@ import {
   deactivateUserAction,
   updateUserAction,
 } from "@/src/actions/user.actions";
+import { dailyReportTemplateTypeOptions } from "@/src/lib/constants/daily-report-options";
 import { userRoleOptions } from "@/src/lib/constants/user-options";
 import {
   userSchema,
@@ -272,6 +273,23 @@ function UserDialog({ user, onClose, onSaved }: UserDialogProps) {
             </select>
           </FormField>
 
+          <FormField
+            label="Modèle de rapport quotidien"
+            error={errors.dailyReportTemplateType?.message}
+          >
+            <select
+              className={inputClassName}
+              {...register("dailyReportTemplateType")}
+            >
+              <option value="">Aucun rapport quotidien</option>
+              {dailyReportTemplateTypeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
           {user && (
             <label className="flex items-center justify-between gap-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
               <span>
@@ -357,5 +375,6 @@ function getDefaultValues(user?: User): UserFormInput {
     email: user?.email ?? "",
     role: user?.role ?? "",
     active: user?.active ?? true,
+    dailyReportTemplateType: user?.dailyReportTemplateType ?? "",
   };
 }

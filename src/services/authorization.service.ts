@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import {
   assertCanChangePasswordCore,
   AuthorizationError,
+  DAILY_REPORT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   SHARED_FEED_ROLES,
@@ -48,4 +49,14 @@ export async function requireCommercial() {
  */
 export async function requireSharedFeedAccess() {
   return requireRole(...SHARED_FEED_ROLES);
+}
+
+/**
+ * Read boundary for management-wide daily report visibility (Ticket 19A/C)
+ * — ADMIN and MANAGER only. COMMERCIAL never gets global read access here,
+ * even once assigned a report template; they can only reach their own
+ * reports through the self-service path (requireAuthenticatedUser()).
+ */
+export async function requireDailyReportManagementAccess() {
+  return requireRole(...DAILY_REPORT_MANAGEMENT_ROLES);
 }

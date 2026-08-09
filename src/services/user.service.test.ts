@@ -27,6 +27,7 @@ function validUserInput(
     phone: "70 12 34 56",
     role: "COMMERCIAL",
     active: true,
+    dailyReportTemplateType: null,
     ...overrides,
   };
 }
@@ -77,6 +78,42 @@ test("updates names, contact details, role, and active state", async () => {
       active: false,
     },
   );
+});
+
+test("createUserCore persists an ADMIN-assigned daily report template", async () => {
+  const store = createUserStore();
+  const created = await createUserCore(
+    validUserInput({ dailyReportTemplateType: "ASSISTANT" }),
+    store.dependencies,
+  );
+
+  assert.equal(created.success, true);
+  assert.equal(store.users[0].dailyReportTemplateType, "ASSISTANT");
+});
+
+test("a user may be created with no daily report template assigned", async () => {
+  const store = createUserStore();
+  const created = await createUserCore(
+    validUserInput({ dailyReportTemplateType: null }),
+    store.dependencies,
+  );
+
+  assert.equal(created.success, true);
+  assert.equal(store.users[0].dailyReportTemplateType, null);
+});
+
+test("updateUserCore changes an existing user's daily report template assignment", async () => {
+  const store = createUserStore([
+    makeUser("user-1", { dailyReportTemplateType: "ASSISTANT" }),
+  ]);
+  const input: ValidatedUserUpdateInput = {
+    userId: "user-1",
+    ...validUserInput({ dailyReportTemplateType: "OPERATIONS_COORDINATOR" }),
+  };
+
+  await updateUserCore(input, "admin-1", store.dependencies);
+
+  assert.equal(store.users[0].dailyReportTemplateType, "OPERATIONS_COORDINATOR");
 });
 
 test("deactivates rather than deleting a user", async () => {
@@ -265,6 +302,7 @@ function makeUser(
     passwordHash: null,
     role: "COMMERCIAL",
     active: true,
+    dailyReportTemplateType: null,
     createdAt: new Date("2026-08-03T12:00:00.000Z"),
     updatedAt: new Date("2026-08-03T12:00:00.000Z"),
     ...overrides,

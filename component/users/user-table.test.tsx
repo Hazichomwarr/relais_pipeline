@@ -65,6 +65,7 @@ function makeUser(id: string, overrides: Partial<User> = {}): User {
     passwordHash: null,
     role: "COMMERCIAL",
     active: true,
+    dailyReportTemplateType: null,
     createdAt: new Date("2026-08-03T12:00:00.000Z"),
     updatedAt: new Date("2026-08-03T12:00:00.000Z"),
     ...overrides,

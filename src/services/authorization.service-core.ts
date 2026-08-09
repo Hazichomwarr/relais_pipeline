@@ -27,6 +27,14 @@ export type SessionLike = { user?: AuthenticatedUser | null } | null;
  */
 export const SHARED_FEED_ROLES: UserRole[] = ["ADMIN", "MANAGER", "COMMERCIAL"];
 
+/**
+ * Ticket 19A — ADMIN and MANAGER may read daily reports across every
+ * employee (Ticket 19C). This is a read-only grant: it must never be used
+ * to authorize a mutation, since only the report owner may edit/submit
+ * their own report in V1.
+ */
+export const DAILY_REPORT_MANAGEMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

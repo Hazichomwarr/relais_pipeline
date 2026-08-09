@@ -1,6 +1,23 @@
 import { z } from "zod";
 
+import { dailyReportTemplateTypes } from "@/src/lib/validations/daily-report.schema";
+
 export const userRoles = ["ADMIN", "COMMERCIAL", "MANAGER"] as const;
+
+/**
+ * Ticket 19A — nullable: not every CRM user submits daily reports. Only
+ * ADMIN may set this (userSchema is only ever parsed behind requireAdmin()
+ * in createUserAction/updateUserAction — commercialProfileUpdateSchema
+ * below explicitly excludes it via .pick()).
+ */
+const optionalDailyReportTemplateType = z.preprocess(
+  (value) => (value === "" || value === null || value === undefined ? null : value),
+  z
+    .enum(dailyReportTemplateTypes, {
+      error: "Sélectionnez un modèle de rapport quotidien valide.",
+    })
+    .nullable(),
+);
 
 const optionalEmail = z.preprocess(
   (value) => {
@@ -52,6 +69,7 @@ export const userSchema = z.object({
     .min(1, "Sélectionnez un rôle.")
     .pipe(z.enum(userRoles, { error: "Sélectionnez un rôle valide." })),
   active: z.boolean().default(true),
+  dailyReportTemplateType: optionalDailyReportTemplateType,
 });
 
 export const userUpdateSchema = userSchema.extend({

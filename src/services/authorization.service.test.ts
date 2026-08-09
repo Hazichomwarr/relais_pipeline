@@ -5,6 +5,7 @@ import type { UserRole } from "@prisma/client";
 import {
   assertCanChangePasswordCore,
   AuthorizationError,
+  DAILY_REPORT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   SHARED_FEED_ROLES,
@@ -102,6 +103,24 @@ test("requireRoleCore denies an anonymous visitor to the shared feed", () => {
   assert.throws(
     () => requireRoleCore(null, SHARED_FEED_ROLES),
     hasCode("UNAUTHENTICATED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER for management-wide daily report reading (Ticket 19A)", () => {
+  for (const role of DAILY_REPORT_MANAGEMENT_ROLES) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      DAILY_REPORT_MANAGEMENT_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL management-wide daily report reading, even with a report template assigned (Ticket 19A)", () => {
+  assert.throws(
+    () =>
+      requireRoleCore({ user: makeUser("COMMERCIAL") }, DAILY_REPORT_MANAGEMENT_ROLES),
+    hasCode("ACCESS_DENIED"),
   );
 });
 
