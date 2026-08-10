@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 
 import AdminShell from "@/component/dashboard/AdminShell";
-import CommercialNav from "@/component/commercial/CommercialNav";
+import CommercialShell from "@/component/commercial/CommercialShell";
 import SchoolDirectoryCards from "@/component/schools/SchoolDirectoryCards";
 import { resolveSchoolDetailHref } from "@/src/lib/school-directory-navigation";
 import { requireRole } from "@/src/services/authorization.service";
@@ -49,10 +49,9 @@ export default async function SchoolsPage({ searchParams }: SchoolsPageProps) {
 
   if (user.role === "COMMERCIAL") {
     return (
-      <div className="min-h-screen bg-[#f5f7fb]">
-        <CommercialNav firstName={user.firstName} lastName={user.lastName} />
+      <CommercialShell firstName={user.firstName} lastName={user.lastName}>
         <main className="px-4 py-6 sm:px-6 sm:py-8">{content}</main>
-      </div>
+      </CommercialShell>
     );
   }
 

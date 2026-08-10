@@ -5,7 +5,7 @@ import test from "node:test";
 /**
  * AdminMobileHeader's nav items only render once MobileNavDrawer's client
  * state opens (renderToStaticMarkup always sees the closed, item-less
- * state), so — unlike Sidebar and CommercialNav, which also render a
+ * state), so — unlike Sidebar and CommercialSidebar, which also render a
  * static always-visible desktop nav — this can't be verified by rendering.
  * Asserted against the source instead.
  */

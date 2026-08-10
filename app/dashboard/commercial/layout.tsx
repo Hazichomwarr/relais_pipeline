@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import CommercialNav from "@/component/commercial/CommercialNav";
+import CommercialShell from "@/component/commercial/CommercialShell";
 import {
   AuthorizationError,
   requireCommercial,
@@ -23,9 +23,8 @@ export default async function CommercialLayout({
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb]">
-      <CommercialNav firstName={user.firstName} lastName={user.lastName} />
+    <CommercialShell firstName={user.firstName} lastName={user.lastName}>
       {children}
-    </div>
+    </CommercialShell>
   );
 }

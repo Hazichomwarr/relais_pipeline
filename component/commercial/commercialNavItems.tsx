@@ -1,0 +1,124 @@
+import {
+  FileText,
+  LayoutDashboard,
+  ListChecks,
+  Newspaper,
+  School,
+  StickyNote,
+  UserRound,
+  Users,
+} from "lucide-react";
+
+export type CommercialActiveItem =
+  | "dashboard"
+  | "updates"
+  | "prospects"
+  | "schools"
+  | "followUps"
+  | "notes"
+  | "reports"
+  | "profile";
+
+export type CommercialNavItem = {
+  key: CommercialActiveItem;
+  label: string;
+  href: string;
+  /** A rendered icon element, not a component reference — see
+   * MobileNavDrawer's MobileNavItem for why. */
+  icon: React.ReactNode;
+};
+
+export const commercialNavItems: CommercialNavItem[] = [
+  {
+    key: "dashboard",
+    label: "Tableau de bord",
+    href: "/dashboard/commercial",
+    icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    key: "updates",
+    label: "À la une",
+    href: "/updates",
+    icon: <Newspaper className="h-5 w-5" />,
+  },
+  {
+    key: "prospects",
+    label: "Mes prospects",
+    href: "/dashboard/commercial#mes-prospects",
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    key: "schools",
+    label: "Toutes les écoles",
+    href: "/schools",
+    icon: <School className="h-5 w-5" />,
+  },
+  {
+    key: "followUps",
+    label: "Mes suivis",
+    href: "/dashboard/commercial#mes-suivis",
+    icon: <ListChecks className="h-5 w-5" />,
+  },
+  {
+    key: "notes",
+    label: "Mes notes",
+    href: "/notes",
+    icon: <StickyNote className="h-5 w-5" />,
+  },
+  {
+    key: "reports",
+    label: "Mes rapports",
+    href: "/reports",
+    icon: <FileText className="h-5 w-5" />,
+  },
+  {
+    key: "profile",
+    label: "Mon profil",
+    href: "/dashboard/commercial/profile",
+    icon: <UserRound className="h-5 w-5" />,
+  },
+];
+
+/**
+ * The commercial dashboard, prospects, and follow-ups all live under
+ * /dashboard/commercial (prospects/follow-ups are in-page anchors, not
+ * routes), so highlighting is resolved from pathname rather than a
+ * per-page activeItem prop — that also lets the shell live in
+ * app/dashboard/commercial/layout.tsx and stay mounted across that
+ * segment's loading boundaries instead of flashing in per page.
+ */
+export function resolveCommercialActiveItem(
+  pathname: string | null,
+): CommercialActiveItem | undefined {
+  const path = pathname ?? "";
+
+  if (path === "/dashboard/commercial/profile") {
+    return "profile";
+  }
+
+  if (path.startsWith("/dashboard/commercial/prospects")) {
+    return "prospects";
+  }
+
+  if (path === "/dashboard/commercial") {
+    return "dashboard";
+  }
+
+  if (path === "/updates" || path.startsWith("/updates/")) {
+    return "updates";
+  }
+
+  if (path === "/schools" || path.startsWith("/schools/")) {
+    return "schools";
+  }
+
+  if (path === "/notes" || path.startsWith("/notes/")) {
+    return "notes";
+  }
+
+  if (path === "/reports" || path.startsWith("/reports/")) {
+    return "reports";
+  }
+
+  return undefined;
+}

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import AdminShell from "@/component/dashboard/AdminShell";
-import CommercialNav from "@/component/commercial/CommercialNav";
+import CommercialShell from "@/component/commercial/CommercialShell";
 import {
   AuthorizationError,
   requireSharedFeedAccess,
@@ -31,10 +31,9 @@ export default async function UpdatesLayout({
 
   if (user.role === "COMMERCIAL") {
     return (
-      <div className="min-h-screen bg-[#f5f7fb]">
-        <CommercialNav firstName={user.firstName} lastName={user.lastName} />
+      <CommercialShell firstName={user.firstName} lastName={user.lastName}>
         <main className="px-4 py-6 sm:px-6 sm:py-8">{children}</main>
-      </div>
+      </CommercialShell>
     );
   }
 
