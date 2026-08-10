@@ -8,6 +8,7 @@ import {
   School,
   Settings,
   StickyNote,
+  UserCheck,
   Users,
   Wallet,
 } from "lucide-react";
@@ -29,6 +30,15 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/updates",
       icon: <Newspaper className="h-5 w-5" />,
     },
+    ...(role === "ADMIN"
+      ? [
+          {
+            label: "Mes prospects",
+            href: "/admin/my-prospects",
+            icon: <UserCheck className="h-5 w-5" />,
+          },
+        ]
+      : []),
     {
       label: "Toutes les écoles",
       href: "/schools",

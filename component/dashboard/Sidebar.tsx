@@ -9,6 +9,7 @@ import {
   School,
   Settings,
   StickyNote,
+  UserCheck,
   Users,
   Wallet,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export default function Sidebar({
 }: {
   activeItem?:
     | "dashboard"
+    | "myProspects"
     | "followUps"
     | "users"
     | "schools"
@@ -72,6 +74,20 @@ export default function Sidebar({
         >
           <Newspaper className="h-5 w-5" />À la une
         </Link>
+
+        {role === "ADMIN" && (
+          <Link
+            href="/admin/my-prospects"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "myProspects"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <UserCheck className="h-5 w-5" />
+            Mes prospects
+          </Link>
+        )}
 
         <Link
           href="/schools"

@@ -102,6 +102,32 @@ test("ADMIN and MANAGER sidebars include a distinct Rapports quotidiens (managem
   }
 });
 
+test("ADMIN sidebar includes a Mes prospects link to /admin/my-prospects (Ticket 15H.2)", () => {
+  const html = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+
+  assert.match(html, /Mes prospects/);
+  assert.match(html, /href="\/admin\/my-prospects"/);
+});
+
+test("MANAGER sidebar never exposes the ADMIN-only Mes prospects link (Ticket 15H.2)", () => {
+  const html = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  assert.doesNotMatch(html, /Mes prospects/);
+  assert.doesNotMatch(html, /href="\/admin\/my-prospects"/);
+});
+
+test("the Mes prospects link is highlighted when activeItem is myProspects", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="myProspects" />,
+  );
+  const myProspectsLinkMatch = html.match(
+    /<a [^>]*href="\/admin\/my-prospects"[^>]*>/,
+  );
+
+  assert.ok(myProspectsLinkMatch, "expected an /admin/my-prospects link in the sidebar");
+  assert.match(myProspectsLinkMatch![0], /bg-blue-50/);
+});
+
 test("the Rapports quotidiens link is highlighted when activeItem is reportsManagement, not when it is reports", () => {
   const managementActive = renderToStaticMarkup(
     <Sidebar role="ADMIN" activeItem="reportsManagement" />,

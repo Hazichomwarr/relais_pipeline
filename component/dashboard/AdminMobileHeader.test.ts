@@ -34,6 +34,37 @@ test("ADMIN/MANAGER mobile navigation includes an active (non-disabled) Mes rapp
   assert.doesNotMatch(reportsEntryMatch![0], /disabled: true/);
 });
 
+test("ADMIN mobile navigation includes an active Mes prospects entry pointing to /admin/my-prospects (Ticket 15H.2)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const myProspectsEntryMatch = source.match(
+    /\{\s*label: "Mes prospects",[\s\S]*?\},/,
+  );
+
+  assert.ok(myProspectsEntryMatch, "expected a Mes prospects nav item entry");
+  assert.match(myProspectsEntryMatch![0], /href: "\/admin\/my-prospects"/);
+  assert.doesNotMatch(myProspectsEntryMatch![0], /disabled: true/);
+});
+
+test("Mes prospects is only added for ADMIN, mirroring the existing Utilisateurs role gate (Ticket 15H.2)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const myProspectsBlockMatch = source.match(
+    /role === "ADMIN"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Mes prospects",/,
+  );
+
+  assert.ok(
+    myProspectsBlockMatch,
+    "expected the Mes prospects entry to be gated behind role === \"ADMIN\"",
+  );
+});
+
 test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quotidiens entry pointing to /admin/reports (Ticket 19C)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
