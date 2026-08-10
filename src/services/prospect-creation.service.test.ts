@@ -6,8 +6,8 @@ import type { PossibleSchoolDuplicate } from "./school-duplicate.service-core";
 import {
   buildProspectData,
   createProspectCore,
-  type AssignedUserCandidate,
   type CreateProspectCoreDependencies,
+  type ProspectCreationActor,
 } from "./prospect-creation.service-core";
 
 function validInput(
@@ -23,93 +23,56 @@ function validInput(
     interest: "INTERESTED",
     status: "NEW",
     notes: "Le directeur souhaite organiser une démonstration.",
-    assignedUserId: "user-1",
     duplicateSchoolReviewed: false,
     schoolType: "Privée",
     ...overrides,
   };
 }
 
-function user(
-  overrides: Partial<AssignedUserCandidate> = {},
-): AssignedUserCandidate {
+function actor(overrides: Partial<ProspectCreationActor> = {}): ProspectCreationActor {
   return {
     id: "user-1",
     firstName: "Aminata",
     lastName: "Ouédraogo",
-    role: "COMMERCIAL",
-    active: true,
     ...overrides,
   };
 }
 
-test("creates a prospect with assignedUserId and the full-name snapshot", async () => {
+test("creates a prospect owned by the actor, with a full-name snapshot", async () => {
   let createdInput: ValidatedProspectInput | undefined;
-  let snapshot: string | undefined;
-  const result = await createProspectCore(validInput(), {
-    findAssignedUser: async () => user(),
+  let createdActor: ProspectCreationActor | undefined;
+  const result = await createProspectCore(actor(), validInput(), {
     findPossibleDuplicates: async () => [],
-    create: async (input, agentNameSnapshot) => {
+    create: async (input, creationActor) => {
       createdInput = input;
-      snapshot = agentNameSnapshot;
+      createdActor = creationActor;
       return { id: "prospect-1" };
     },
   });
 
   assert.deepEqual(result, { success: true, prospectId: "prospect-1" });
-  assert.equal(createdInput?.assignedUserId, "user-1");
-  assert.equal(snapshot, "Aminata Ouédraogo");
+  assert.equal(createdActor?.id, "user-1");
+  assert.equal(createdInput?.name, "École Wend-Panga");
 });
 
-test("rejects an unknown User without creating a prospect", async () => {
-  const scenario = createScenario(null);
-  const result = await createProspectCore(validInput(), scenario.dependencies);
-
-  assert.equal(result.success, false);
-  if (!result.success) {
-    assert.equal(result.code, "ASSIGNED_USER_NOT_FOUND");
-  }
-  assert.equal(scenario.createCalls, 0);
-});
-
-test("rejects an inactive commercial without creating a prospect", async () => {
-  const scenario = createScenario(user({ active: false }));
-  const result = await createProspectCore(validInput(), scenario.dependencies);
-
-  assert.equal(result.success, false);
-  if (!result.success) {
-    assert.equal(result.code, "ASSIGNED_USER_INACTIVE");
-  }
-  assert.equal(scenario.createCalls, 0);
-});
-
-for (const role of ["ADMIN", "MANAGER"] as const) {
-  test(`rejects a ${role} User without creating a prospect`, async () => {
-    const scenario = createScenario(user({ role }));
+for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+  test(`accepts any authenticated actor regardless of role (${role})`, async () => {
+    const scenario = createScenario();
     const result = await createProspectCore(
+      actor({ id: `user-${role}` }),
       validInput(),
       scenario.dependencies,
     );
 
-    assert.equal(result.success, false);
-    if (!result.success) {
-      assert.equal(result.code, "ASSIGNED_USER_NOT_COMMERCIAL");
-    }
-    assert.equal(scenario.createCalls, 0);
+    assert.equal(result.success, true);
+    assert.equal(scenario.createCalls, 1);
   });
 }
 
-test("accepts an active commercial", async () => {
-  const scenario = createScenario(user());
-  const result = await createProspectCore(validInput(), scenario.dependencies);
-
-  assert.equal(result.success, true);
-  assert.equal(scenario.createCalls, 1);
-});
-
 test("never checks for duplicates on a non-KARMDA product", async () => {
-  const scenario = createScenario(user(), [duplicate()]);
+  const scenario = createScenario([duplicate()]);
   const result = await createProspectCore(
+    actor(),
     validInput({ product: "LOKARI", propertyOwnerType: "Bailleur" }),
     scenario.dependencies,
   );
@@ -120,8 +83,9 @@ test("never checks for duplicates on a non-KARMDA product", async () => {
 });
 
 test("KARMDA with no possible duplicates creates normally without acknowledgment", async () => {
-  const scenario = createScenario(user(), []);
+  const scenario = createScenario([]);
   const result = await createProspectCore(
+    actor(),
     validInput({ duplicateSchoolReviewed: false }),
     scenario.dependencies,
   );
@@ -131,8 +95,9 @@ test("KARMDA with no possible duplicates creates normally without acknowledgment
 });
 
 test("KARMDA with possible duplicates and no acknowledgment is rejected", async () => {
-  const scenario = createScenario(user(), [duplicate()]);
+  const scenario = createScenario([duplicate()]);
   const result = await createProspectCore(
+    actor(),
     validInput({ duplicateSchoolReviewed: false }),
     scenario.dependencies,
   );
@@ -145,8 +110,9 @@ test("KARMDA with possible duplicates and no acknowledgment is rejected", async 
 });
 
 test("KARMDA with possible duplicates and acknowledgment succeeds", async () => {
-  const scenario = createScenario(user(), [duplicate()]);
+  const scenario = createScenario([duplicate()]);
   const result = await createProspectCore(
+    actor(),
     validInput({ duplicateSchoolReviewed: true }),
     scenario.dependencies,
   );
@@ -156,10 +122,9 @@ test("KARMDA with possible duplicates and acknowledgment succeeds", async () => 
 });
 
 test("an exact-name match is just one more possible duplicate, not a special-cased rejection", async () => {
-  const scenario = createScenario(user(), [
-    duplicate({ name: validInput().name }),
-  ]);
+  const scenario = createScenario([duplicate({ name: validInput().name })]);
   const result = await createProspectCore(
+    actor(),
     validInput({ duplicateSchoolReviewed: true }),
     scenario.dependencies,
   );
@@ -168,8 +133,9 @@ test("an exact-name match is just one more possible duplicate, not a special-cas
 });
 
 test("the server always rechecks duplicates for KARMDA, never trusting a stale client acknowledgment alone", async () => {
-  const scenario = createScenario(user(), [duplicate()]);
+  const scenario = createScenario([duplicate()]);
   await createProspectCore(
+    actor(),
     validInput({ duplicateSchoolReviewed: true }),
     scenario.dependencies,
   );
@@ -180,7 +146,7 @@ test("the server always rechecks duplicates for KARMDA, never trusting a stale c
 test("the duplicate acknowledgment is never persisted to the Prospect record", () => {
   const data = buildProspectData(
     validInput({ duplicateSchoolReviewed: true }),
-    "Aminata Ouédraogo",
+    actor(),
   );
 
   assert.equal("duplicateSchoolReviewed" in data, false);
@@ -189,7 +155,7 @@ test("the duplicate acknowledgment is never persisted to the Prospect record", (
 test("existing KARMDA fields still make it into the persisted data alongside the acknowledgment being dropped", () => {
   const data = buildProspectData(
     validInput({ duplicateSchoolReviewed: true, schoolType: "Privée" }),
-    "Aminata Ouédraogo",
+    actor(),
   );
 
   assert.equal(data.name, "École Wend-Panga");
@@ -197,14 +163,20 @@ test("existing KARMDA fields still make it into the persisted data alongside the
   assert.equal("schoolType" in data && data.schoolType, "Privée");
 });
 
-function createScenario(
-  candidate: AssignedUserCandidate | null,
-  possibleDuplicates: PossibleSchoolDuplicate[] = [],
-) {
+test("ownership is always derived from the actor — assignedUserId and agentName never come from the validated input", () => {
+  const data = buildProspectData(
+    validInput(),
+    actor({ id: "user-42", firstName: "Julbert", lastName: "Sermé" }),
+  );
+
+  assert.equal(data.assignedUserId, "user-42");
+  assert.equal(data.agentName, "Julbert Sermé");
+});
+
+function createScenario(possibleDuplicates: PossibleSchoolDuplicate[] = []) {
   let createCalls = 0;
   let findPossibleDuplicatesCalls = 0;
   const dependencies: CreateProspectCoreDependencies = {
-    findAssignedUser: async () => candidate,
     findPossibleDuplicates: async () => {
       findPossibleDuplicatesCalls += 1;
       return possibleDuplicates;

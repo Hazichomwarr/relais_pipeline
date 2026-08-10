@@ -11,7 +11,10 @@ import {
   createProspect,
   updateProspectFollowUp,
 } from "@/src/services/prospect.service";
-import { requireRole } from "@/src/services/authorization.service";
+import {
+  requireAuthenticatedUser,
+  requireRole,
+} from "@/src/services/authorization.service";
 
 export type CreateProspectActionResult =
   | {
@@ -25,12 +28,20 @@ export type CreateProspectActionResult =
     };
 
 /**
- * Intentionally unauthenticated: this is the public field-rep prospect
- * submission form served from "/" (see Ticket 13D's public-route rule).
+ * "/" stays a public page (Ticket 13D) so the form can be viewed for
+ * training before an account is activated, but submitting now requires
+ * authentication (Ticket 15H.1) — the authenticated user always becomes
+ * the prospect's Commercial, never a client-supplied assignedUserId.
  */
 export async function createProspectAction(
   values: unknown,
 ): Promise<CreateProspectActionResult> {
+  const authorization = await authorizeAction(() => requireAuthenticatedUser());
+
+  if (!authorization.ok) {
+    return { success: false, message: authorization.message };
+  }
+
   const parsed = prospectSchema.safeParse(values);
 
   if (!parsed.success) {
@@ -41,7 +52,7 @@ export async function createProspectAction(
     };
   }
 
-  const result = await createProspect(parsed.data);
+  const result = await createProspect(authorization.user, parsed.data);
 
   if (!result.success) {
     if (result.code === "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED") {

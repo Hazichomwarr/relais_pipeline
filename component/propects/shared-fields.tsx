@@ -17,15 +17,17 @@ type SharedProspectFieldsProps = {
   register: UseFormRegister<ProspectFormInput>;
   control: Control<ProspectFormInput>;
   errors: Record<string, { message?: string } | undefined>;
-  assignableUsers: AssignableUserOption[];
+  currentUser: CurrentProspectFormUser | null;
 };
 
-export type AssignableUserOption = {
-  id: string;
+/**
+ * The authenticated submitter (Ticket 15H.1) — display only. Ownership is
+ * derived server-side from the session, never from a client-submitted id,
+ * so this never becomes a form field.
+ */
+export type CurrentProspectFormUser = {
   firstName: string;
   lastName: string;
-  email: string | null;
-  phone: string | null;
 };
 
 const inputClassName =
@@ -37,7 +39,7 @@ export function SharedProspectFields({
   register,
   control,
   errors,
-  assignableUsers,
+  currentUser,
 }: SharedProspectFieldsProps) {
   const product = useWatch({ control, name: "product" });
   const name = useWatch({ control, name: "name" }) ?? "";
@@ -295,35 +297,20 @@ export function SharedProspectFields({
       </div>
 
       <div>
-        <label
-          htmlFor="assignedUserId"
-          className="mb-2 block font-semibold text-slate-800"
-        >
-          Commercial assigné
+        <label className="mb-2 block font-semibold text-slate-800">
+          Commercial
         </label>
 
-        <select
-          id="assignedUserId"
-          className={selectClassName}
-          {...register("assignedUserId")}
-        >
-          <option value="">Sélectionnez un commercial</option>
-          {assignableUsers.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.firstName} {user.lastName}
-              {user.phone ? ` — ${user.phone}` : user.email ? ` — ${user.email}` : ""}
-            </option>
-          ))}
-        </select>
-
-        {assignableUsers.length === 0 && (
-          <p className="mt-2 text-sm text-amber-700">
-            Aucun commercial actif n’est disponible. Créez ou activez un
-            utilisateur avec le rôle Commercial dans l’administration.
+        {currentUser ? (
+          <div className="flex h-14 w-full items-center rounded-2xl border border-slate-200 bg-slate-50 px-4 text-slate-700">
+            {currentUser.firstName} {currentUser.lastName}
+          </div>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            Vous devez être connecté pour soumettre ce rapport. Votre nom
+            sera automatiquement associé au prospect après connexion.
           </p>
         )}
-
-        <FormError message={errors.assignedUserId?.message} />
       </div>
     </div>
   );

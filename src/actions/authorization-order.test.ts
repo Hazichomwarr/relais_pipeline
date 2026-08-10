@@ -14,6 +14,11 @@ import test from "node:test";
 const gatedActions = [
   {
     file: "src/actions/prospect.actions.ts",
+    functionName: "createProspectAction",
+    serviceCall: "createProspect(",
+  },
+  {
+    file: "src/actions/prospect.actions.ts",
     functionName: "updateProspectFollowUpAction",
     serviceCall: "updateProspectFollowUp(",
   },
@@ -181,13 +186,28 @@ test("changePasswordAction still authorizes through assertCanChangePassword (nar
   assert.match(functionBody, /assertCanChangePassword\(/);
 });
 
-test("createProspectAction stays intentionally public (the field-rep submission form has no login)", () => {
+test("createProspectAction authorizes via requireAuthenticatedUser — prospecting is role-neutral for any authenticated active User (Ticket 15H.1)", () => {
   const functionBody = extractFunctionBody(
     "src/actions/prospect.actions.ts",
     "createProspectAction",
   );
 
-  assert.doesNotMatch(functionBody, /authorizeAction\(/);
+  assert.match(functionBody, /authorizeAction\(\(\) => requireAuthenticatedUser\(\)\)/);
+  assert.doesNotMatch(functionBody, /requireRole\(/);
+  assert.doesNotMatch(functionBody, /requireAdmin\(/);
+  assert.doesNotMatch(functionBody, /requireCommercial\(/);
+});
+
+test("createProspectAction never accepts an owner from client input — the Commercial is always the authenticated caller", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect.actions.ts",
+    "createProspectAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.assignedUserId/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.agentName/);
+  assert.doesNotMatch(functionBody, /values\.assignedUserId/);
+  assert.match(functionBody, /createProspect\(authorization\.user, parsed\.data\)/);
 });
 
 for (const functionName of [

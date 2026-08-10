@@ -9,6 +9,7 @@ import type {
 import {
   buildProspectData,
   createProspectCore,
+  type ProspectCreationActor,
 } from "@/src/services/prospect-creation.service-core";
 import {
   assignedUserListSelect,
@@ -29,34 +30,19 @@ export type CreateProspectResult =
     }
   | {
       success: false;
-      code:
-        | "ASSIGNED_USER_NOT_FOUND"
-        | "ASSIGNED_USER_INACTIVE"
-        | "ASSIGNED_USER_NOT_COMMERCIAL"
-        | "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED"
-        | "CREATE_FAILED";
+      code: "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED" | "CREATE_FAILED";
       message: string;
     };
 
 export async function createProspect(
+  actor: ProspectCreationActor,
   input: ValidatedProspectInput,
 ): Promise<CreateProspectResult> {
-  return createProspectCore(input, {
-    findAssignedUser: (assignedUserId) =>
-      prisma.user.findUnique({
-        where: { id: assignedUserId },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          active: true,
-        },
-      }),
+  return createProspectCore(actor, input, {
     findPossibleDuplicates: (name) => findPossibleSchoolDuplicates(name),
-    create: (values, agentNameSnapshot) =>
+    create: (values, creationActor) =>
       prisma.prospect.create({
-        data: buildProspectData(values, agentNameSnapshot),
+        data: buildProspectData(values, creationActor),
         select: { id: true },
       }),
   });

@@ -17,7 +17,6 @@ function validInput() {
     nextAction: "CALL_BACK",
     followUpDate: "2026-08-10",
     notes: "Le prospect a demandé une démonstration.",
-    assignedUserId: "user-1",
     schoolType: "PRIVATE_PRIMARY",
   };
 }
@@ -76,15 +75,6 @@ test("rejects a genuinely invalid nextAction value", () => {
   const result = prospectSchema.safeParse({
     ...validInput(),
     nextAction: "NOT_A_REAL_OPTION",
-  });
-
-  assert.equal(result.success, false);
-});
-
-test("requires the assigned commercial", () => {
-  const result = prospectSchema.safeParse({
-    ...validInput(),
-    assignedUserId: "",
   });
 
   assert.equal(result.success, false);

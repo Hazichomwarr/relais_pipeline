@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Send, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, LogIn, Send, ShieldCheck, X } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useForm, useWatch } from "react-hook-form";
 
 import { createProspectAction } from "@/src/actions/prospect.actions";
@@ -18,7 +19,7 @@ import { KarmdaFields } from "./KarmdaFields";
 import { LokariFields } from "./LokariFields";
 import { NiaFields } from "./NiaFields";
 import { SharedProspectFields } from "./shared-fields";
-import type { AssignableUserOption } from "./shared-fields";
+import type { CurrentProspectFormUser } from "./shared-fields";
 
 const defaultValues: ProspectFormInput = {
   product: "",
@@ -33,7 +34,6 @@ const defaultValues: ProspectFormInput = {
   nextAction: undefined,
   followUpDate: "",
   notes: "",
-  assignedUserId: "",
   duplicateSchoolReviewed: false,
 
   schoolType: "",
@@ -56,9 +56,9 @@ const defaultValues: ProspectFormInput = {
 };
 
 export default function ProspectForm({
-  assignableUsers,
+  currentUser,
 }: {
-  assignableUsers: AssignableUserOption[];
+  currentUser: CurrentProspectFormUser | null;
 }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -108,6 +108,11 @@ export default function ProspectForm({
   }, [selectedProduct, resetField]);
 
   async function onSubmit(values: ValidatedProspectInput) {
+    if (!currentUser) {
+      setServerError("Connectez-vous pour envoyer ce rapport.");
+      return;
+    }
+
     setServerError(null);
 
     const result = await createProspectAction(values);
@@ -175,7 +180,7 @@ export default function ProspectForm({
             register={register}
             control={control}
             errors={errors}
-            assignableUsers={assignableUsers}
+            currentUser={currentUser}
           />
 
           {selectedProduct === "KARMDA" && (
@@ -203,17 +208,33 @@ export default function ProspectForm({
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-[#0f2557] px-5 text-lg font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Send className="h-5 w-5" />
+          {currentUser ? (
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex h-16 w-full items-center justify-center gap-3 rounded-2xl bg-[#0f2557] px-5 text-lg font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Send className="h-5 w-5" />
 
-            {isSubmitting
-              ? "Enregistrement en cours..."
-              : "Enregistrer le prospect"}
-          </button>
+              {isSubmitting
+                ? "Enregistrement en cours..."
+                : "Enregistrer le prospect"}
+            </button>
+          ) : (
+            <div className="space-y-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-6 text-center">
+              <p className="font-medium text-slate-700">
+                Connectez-vous pour envoyer ce rapport.
+              </p>
+
+              <Link
+                href="/login?callbackUrl=/"
+                className="inline-flex h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0f2557] px-5 text-lg font-semibold text-white transition hover:opacity-95"
+              >
+                <LogIn className="h-5 w-5" />
+                Se connecter
+              </Link>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-2 text-center text-sm text-slate-500">
             <ShieldCheck className="h-5 w-5" />

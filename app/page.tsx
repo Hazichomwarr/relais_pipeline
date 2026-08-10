@@ -1,10 +1,16 @@
 import Link from "next/link";
 
+import { auth } from "@/auth";
 import ProspectForm from "@/component/propects/prospect-form-input";
-import { listAssignableUsers } from "@/src/services/user.service";
 
 export default async function Home() {
-  const assignableUsers = await listAssignableUsers();
+  const session = await auth();
+  const currentUser = session?.user
+    ? {
+        firstName: session.user.firstName,
+        lastName: session.user.lastName,
+      }
+    : null;
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -46,7 +52,7 @@ export default async function Home() {
 
       {/* CONTENT */}
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        <ProspectForm assignableUsers={assignableUsers} />
+        <ProspectForm currentUser={currentUser} />
       </section>
     </main>
   );

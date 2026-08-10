@@ -131,12 +131,6 @@ export const prospectSchema = z
       .min(10, "Ajoutez au moins quelques détails sur la visite.")
       .max(2000, "Les notes sont trop longues."),
 
-    assignedUserId: z
-      .string()
-      .trim()
-      .min(1, "Sélectionnez le commercial assigné.")
-      .max(100),
-
     /**
      * Workflow-only acknowledgment — never persisted to Prisma. The actual
      * "required when duplicates exist" rule needs a DB lookup, so it lives

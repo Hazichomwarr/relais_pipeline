@@ -1,26 +1,24 @@
-import type { UserRole } from "@prisma/client";
-
 import type { ValidatedProspectInput } from "@/src/lib/validations/prospect.schema";
 import type { PossibleSchoolDuplicate } from "@/src/services/school-duplicate.service-core";
 
-export type AssignedUserCandidate = {
+/**
+ * The authenticated caller submitting the form (Ticket 15H.1) — "Commercial"
+ * means whoever brought the opportunity in, not a formal COMMERCIAL role, so
+ * this is any authenticated active User, not a role-narrowed candidate.
+ */
+export type ProspectCreationActor = {
   id: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
-  active: boolean;
 };
 
 export type CreateProspectCoreDependencies = {
-  findAssignedUser: (
-    assignedUserId: string,
-  ) => Promise<AssignedUserCandidate | null>;
   findPossibleDuplicates: (
     name: string,
   ) => Promise<PossibleSchoolDuplicate[]>;
   create: (
     input: ValidatedProspectInput,
-    agentNameSnapshot: string,
+    actor: ProspectCreationActor,
   ) => Promise<{ id: string }>;
 };
 
@@ -28,49 +26,16 @@ export type CreateProspectCoreResult =
   | { success: true; prospectId: string }
   | {
       success: false;
-      code:
-        | "ASSIGNED_USER_NOT_FOUND"
-        | "ASSIGNED_USER_INACTIVE"
-        | "ASSIGNED_USER_NOT_COMMERCIAL"
-        | "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED"
-        | "CREATE_FAILED";
+      code: "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED" | "CREATE_FAILED";
       message: string;
     };
 
 export async function createProspectCore(
+  actor: ProspectCreationActor,
   input: ValidatedProspectInput,
   dependencies: CreateProspectCoreDependencies,
 ): Promise<CreateProspectCoreResult> {
   try {
-    const assignedUser = await dependencies.findAssignedUser(
-      input.assignedUserId,
-    );
-
-    if (!assignedUser) {
-      return {
-        success: false,
-        code: "ASSIGNED_USER_NOT_FOUND",
-        message: "Le commercial sélectionné n’existe plus.",
-      };
-    }
-
-    if (!assignedUser.active) {
-      return {
-        success: false,
-        code: "ASSIGNED_USER_INACTIVE",
-        message:
-          "Ce commercial est désactivé et ne peut plus recevoir de nouveaux prospects.",
-      };
-    }
-
-    if (assignedUser.role !== "COMMERCIAL") {
-      return {
-        success: false,
-        code: "ASSIGNED_USER_NOT_COMMERCIAL",
-        message: "L’utilisateur sélectionné n’a pas le rôle commercial.",
-      };
-    }
-
     if (input.product === "KARMDA") {
       const possibleDuplicates = await dependencies.findPossibleDuplicates(
         input.name,
@@ -86,8 +51,7 @@ export async function createProspectCore(
       }
     }
 
-    const agentNameSnapshot = `${assignedUser.firstName} ${assignedUser.lastName}`;
-    const prospect = await dependencies.create(input, agentNameSnapshot);
+    const prospect = await dependencies.create(input, actor);
 
     return { success: true, prospectId: prospect.id };
   } catch (error) {
@@ -107,7 +71,7 @@ export async function createProspectCore(
  */
 export function buildProspectData(
   input: ValidatedProspectInput,
-  agentNameSnapshot: string,
+  actor: ProspectCreationActor,
 ) {
   const sharedData = {
     product: input.product,
@@ -122,8 +86,8 @@ export function buildProspectData(
     nextAction: input.nextAction,
     followUpDate: input.followUpDate,
     notes: input.notes,
-    assignedUserId: input.assignedUserId,
-    agentName: agentNameSnapshot,
+    assignedUserId: actor.id,
+    agentName: `${actor.firstName} ${actor.lastName}`,
   };
 
   switch (input.product) {
