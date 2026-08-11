@@ -128,6 +128,28 @@ test("the Mes prospects link is highlighted when activeItem is myProspects", () 
   assert.match(myProspectsLinkMatch![0], /bg-blue-50/);
 });
 
+test("ADMIN and MANAGER sidebars rename the shared directory link to Répertoire, pointing at /products (Ticket 15G.1)", () => {
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  const managerHtml = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  for (const html of [adminHtml, managerHtml]) {
+    assert.match(html, /Répertoire/);
+    assert.match(html, /href="\/products"/);
+    assert.doesNotMatch(html, /Toutes les écoles/);
+    assert.doesNotMatch(html, /href="\/schools"/);
+  }
+});
+
+test("the Répertoire link is highlighted when activeItem is products", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="products" />,
+  );
+  const productsLinkMatch = html.match(/<a [^>]*href="\/products"[^>]*>/);
+
+  assert.ok(productsLinkMatch, "expected a /products link in the sidebar");
+  assert.match(productsLinkMatch![0], /bg-blue-50/);
+});
+
 test("the Rapports quotidiens link is highlighted when activeItem is reportsManagement, not when it is reports", () => {
   const managementActive = renderToStaticMarkup(
     <Sidebar role="ADMIN" activeItem="reportsManagement" />,

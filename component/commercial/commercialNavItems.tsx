@@ -1,9 +1,9 @@
 import {
   FileText,
   LayoutDashboard,
+  Library,
   ListChecks,
   Newspaper,
-  School,
   StickyNote,
   UserRound,
   Users,
@@ -13,7 +13,7 @@ export type CommercialActiveItem =
   | "dashboard"
   | "updates"
   | "prospects"
-  | "schools"
+  | "products"
   | "followUps"
   | "notes"
   | "reports"
@@ -48,10 +48,10 @@ export const commercialNavItems: CommercialNavItem[] = [
     icon: <Users className="h-5 w-5" />,
   },
   {
-    key: "schools",
-    label: "Toutes les écoles",
-    href: "/schools",
-    icon: <School className="h-5 w-5" />,
+    key: "products",
+    label: "Répertoire",
+    href: "/products",
+    icon: <Library className="h-5 w-5" />,
   },
   {
     key: "followUps",
@@ -108,8 +108,14 @@ export function resolveCommercialActiveItem(
     return "updates";
   }
 
+  if (path === "/products" || path.startsWith("/products/")) {
+    return "products";
+  }
+
+  // /schools is a legacy redirect target (Ticket 15G.1) — keep it
+  // highlighting Répertoire for anyone who still lands on the old route.
   if (path === "/schools" || path.startsWith("/schools/")) {
-    return "schools";
+    return "products";
   }
 
   if (path === "/notes" || path.startsWith("/notes/")) {

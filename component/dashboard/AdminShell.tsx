@@ -8,7 +8,7 @@ type AdminShellProps = {
     | "myProspects"
     | "followUps"
     | "users"
-    | "schools"
+    | "products"
     | "notes"
     | "finances"
     | "updates"

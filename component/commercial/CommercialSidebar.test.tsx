@@ -62,7 +62,7 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
     "Tableau de bord",
     "À la une",
     "Mes prospects",
-    "Toutes les écoles",
+    "Répertoire",
     "Mes suivis",
     "Mes notes",
     "Mes rapports",
@@ -70,6 +70,16 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
   ]) {
     assert.match(html, new RegExp(label));
   }
+});
+
+test("COMMERCIAL sidebar renames the shared directory link to Répertoire, pointing at /products (Ticket 15G.1)", () => {
+  const html = renderToStaticMarkup(
+    <CommercialSidebar firstName="Julbert" lastName="Sermé" />,
+  );
+
+  assert.match(html, /Répertoire/);
+  assert.match(html, /href="\/products"/);
+  assert.doesNotMatch(html, /Toutes les écoles/);
 });
 
 test("COMMERCIAL sidebar shows the account name, role, and a logout control", () => {
@@ -95,6 +105,9 @@ test("the mobile drawer's item list mirrors the desktop sidebar — asserted aga
   assert.match(source, /label: "Mes rapports"/);
   assert.match(source, /href: "\/reports"/);
   assert.doesNotMatch(source, /\/admin\/reports/);
+  assert.match(source, /label: "Répertoire"/);
+  assert.match(source, /href: "\/products"/);
+  assert.doesNotMatch(source, /label: "Toutes les écoles"/);
 });
 
 test("resolveCommercialActiveItem highlights Tableau de bord on /dashboard/commercial", () => {
@@ -121,12 +134,17 @@ test("resolveCommercialActiveItem highlights Mon profil on /dashboard/commercial
 
 test("resolveCommercialActiveItem highlights the shared-page destinations", () => {
   assert.equal(resolveCommercialActiveItem("/updates"), "updates");
-  assert.equal(resolveCommercialActiveItem("/schools"), "schools");
-  assert.equal(resolveCommercialActiveItem("/schools/some-prospect"), "schools");
+  assert.equal(resolveCommercialActiveItem("/products"), "products");
+  assert.equal(resolveCommercialActiveItem("/products/karmda"), "products");
   assert.equal(resolveCommercialActiveItem("/notes"), "notes");
   assert.equal(resolveCommercialActiveItem("/notes/some-note"), "notes");
   assert.equal(resolveCommercialActiveItem("/reports"), "reports");
   assert.equal(resolveCommercialActiveItem("/reports/some-report"), "reports");
+});
+
+test("resolveCommercialActiveItem still highlights Répertoire on the legacy /schools redirect route (Ticket 15G.1)", () => {
+  assert.equal(resolveCommercialActiveItem("/schools"), "products");
+  assert.equal(resolveCommercialActiveItem("/schools/some-prospect"), "products");
 });
 
 test("resolveCommercialActiveItem returns undefined for unrelated or null paths", () => {

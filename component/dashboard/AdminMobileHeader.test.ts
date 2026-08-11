@@ -65,6 +65,22 @@ test("Mes prospects is only added for ADMIN, mirroring the existing Utilisateurs
   );
 });
 
+test("ADMIN/MANAGER mobile navigation renames the shared directory entry to Répertoire, pointing at /products (Ticket 15G.1)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const repertoireEntryMatch = source.match(
+    /\{\s*label: "Répertoire",[\s\S]*?\},/,
+  );
+
+  assert.ok(repertoireEntryMatch, "expected a Répertoire nav item entry");
+  assert.match(repertoireEntryMatch![0], /href: "\/products"/);
+  assert.doesNotMatch(repertoireEntryMatch![0], /disabled: true/);
+  assert.doesNotMatch(source, /label: "Toutes les écoles"/);
+});
+
 test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quotidiens entry pointing to /admin/reports (Ticket 19C)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",

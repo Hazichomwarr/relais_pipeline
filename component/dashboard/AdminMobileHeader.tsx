@@ -4,8 +4,8 @@ import {
   ClipboardList,
   FileText,
   LayoutDashboard,
+  Library,
   Newspaper,
-  School,
   Settings,
   StickyNote,
   UserCheck,
@@ -40,9 +40,9 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
         ]
       : []),
     {
-      label: "Toutes les écoles",
-      href: "/schools",
-      icon: <School className="h-5 w-5" />,
+      label: "Répertoire",
+      href: "/products",
+      icon: <Library className="h-5 w-5" />,
     },
     {
       label: "Suivis",
