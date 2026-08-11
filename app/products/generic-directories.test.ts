@@ -5,9 +5,14 @@ import test from "node:test";
 /**
  * These pages transitively import next-auth, so — like every other
  * *-authorization.test.ts in this repo — they're asserted against source.
+ *
+ * DIGITAL_SERVICES is deliberately excluded here (Ticket 15G.2 gave it a
+ * real directory — search, dedicated cards, a shared detail route — see
+ * digital-services-directory.test.ts). LOKARI/NIA remain untouched
+ * foundation directories, so they keep the original 15G.1 behavior this
+ * file asserts.
  */
 const genericDirectoryPages = [
-  { file: "app/products/digital-services/page.tsx", product: "DIGITAL_SERVICES" },
   { file: "app/products/lokari/page.tsx", product: "LOKARI" },
   { file: "app/products/nia/page.tsx", product: "NIA" },
 ];

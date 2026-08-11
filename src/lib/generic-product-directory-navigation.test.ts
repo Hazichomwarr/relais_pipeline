@@ -47,3 +47,42 @@ test("a COMMERCIAL viewing an unassigned prospect gets no link", () => {
 
   assert.equal(href, null);
 });
+
+test("a COMMERCIAL viewing a foreign prospect gets the product's shared read-only route when a foreignHref is supplied (Ticket 15G.2)", () => {
+  const href = resolveGenericProductDetailHref(
+    { id: "commercial-1", role: "COMMERCIAL" },
+    { id: "prospect-1", assignedUserId: "commercial-2" },
+    { foreignHref: (id) => `/products/digital-services/${id}` },
+  );
+
+  assert.equal(href, "/products/digital-services/prospect-1");
+});
+
+test("ADMIN/MANAGER ignore foreignHref entirely — they always get the admin route", () => {
+  const href = resolveGenericProductDetailHref(
+    { id: "admin-1", role: "ADMIN" },
+    { id: "prospect-1", assignedUserId: "someone-else" },
+    { foreignHref: (id) => `/products/digital-services/${id}` },
+  );
+
+  assert.equal(href, "/admin/prospects/prospect-1");
+});
+
+test("an owning COMMERCIAL ignores foreignHref entirely — they always get their editable route", () => {
+  const href = resolveGenericProductDetailHref(
+    { id: "commercial-1", role: "COMMERCIAL" },
+    { id: "prospect-1", assignedUserId: "commercial-1" },
+    { foreignHref: (id) => `/products/digital-services/${id}` },
+  );
+
+  assert.equal(href, "/dashboard/commercial/prospects/prospect-1");
+});
+
+test("omitting foreignHref preserves the pre-15G.2 behavior (LOKARI/NIA) — no link for a foreign prospect", () => {
+  const href = resolveGenericProductDetailHref(
+    { id: "commercial-1", role: "COMMERCIAL" },
+    { id: "prospect-1", assignedUserId: "commercial-2" },
+  );
+
+  assert.equal(href, null);
+});
