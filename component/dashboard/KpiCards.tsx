@@ -1,11 +1,10 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
-import { Flame, PhoneCall, Trophy, Users, type LucideIcon } from "lucide-react";
+import { Flame, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 type KpiCardsProps = {
   prospects: ProspectListItem[];
-  followUpCount: number;
 };
 
 type KpiCard = {
@@ -16,7 +15,9 @@ type KpiCard = {
   href?: string;
 };
 
-export default function KpiCards({ prospects, followUpCount }: KpiCardsProps) {
+export default function KpiCards({ prospects }: KpiCardsProps) {
+  const totalProspects = prospects.length;
+
   const uniqueAgents = new Set(
     prospects.map((prospect) => getAssignedUserName(prospect)),
   ).size;
@@ -34,11 +35,10 @@ export default function KpiCards({ prospects, followUpCount }: KpiCardsProps) {
 
   const cards: KpiCard[] = [
     {
-      label: "Prospects à rappeler",
-      total: followUpCount,
-      indicator: "Voir la file de suivi",
-      icon: PhoneCall,
-      href: "/admin/follow-ups",
+      label: "Prospects",
+      total: totalProspects,
+      indicator: "Tous produits confondus",
+      icon: Users,
     },
     {
       label: "Commerciaux",
