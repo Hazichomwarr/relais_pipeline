@@ -102,6 +102,26 @@ test("ADMIN and MANAGER sidebars include a distinct Rapports quotidiens (managem
   }
 });
 
+test("ADMIN and MANAGER sidebars include a Nouveau prospect link to / (Ticket 15H.3)", () => {
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  const managerHtml = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  for (const html of [adminHtml, managerHtml]) {
+    assert.match(html, /Nouveau prospect/);
+    assert.match(html, /href="\/"/);
+  }
+});
+
+test("the Nouveau prospect link is highlighted when activeItem is newProspect", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="newProspect" />,
+  );
+  const newProspectLinkMatch = html.match(/<a [^>]*href="\/"[^>]*>/);
+
+  assert.ok(newProspectLinkMatch, "expected a / link in the sidebar");
+  assert.match(newProspectLinkMatch![0], /bg-blue-50/);
+});
+
 test("ADMIN sidebar includes a Mes prospects link to /admin/my-prospects (Ticket 15H.2)", () => {
   const html = renderToStaticMarkup(<Sidebar role="ADMIN" />);
 

@@ -61,6 +61,7 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
   for (const label of [
     "Tableau de bord",
     "À la une",
+    "Nouveau prospect",
     "Mes prospects",
     "Répertoire",
     "Mes suivis",
@@ -70,6 +71,15 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
   ]) {
     assert.match(html, new RegExp(label));
   }
+});
+
+test("COMMERCIAL sidebar includes a Nouveau prospect link to / (Ticket 15H.3)", () => {
+  const html = renderToStaticMarkup(
+    <CommercialSidebar firstName="Julbert" lastName="Sermé" />,
+  );
+
+  assert.match(html, /Nouveau prospect/);
+  assert.match(html, /href="\/"/);
 });
 
 test("COMMERCIAL sidebar renames the shared directory link to Répertoire, pointing at /products (Ticket 15G.1)", () => {
@@ -108,6 +118,20 @@ test("the mobile drawer's item list mirrors the desktop sidebar — asserted aga
   assert.match(source, /label: "Répertoire"/);
   assert.match(source, /href: "\/products"/);
   assert.doesNotMatch(source, /label: "Toutes les écoles"/);
+});
+
+test("resolveCommercialActiveItem highlights Nouveau prospect only on the exact root route (Ticket 15H.3)", () => {
+  assert.equal(resolveCommercialActiveItem("/"), "newProspect");
+});
+
+test("resolveCommercialActiveItem does not activate Nouveau prospect on other routes (Ticket 15H.3 regression)", () => {
+  assert.equal(resolveCommercialActiveItem("/products"), "products");
+  assert.equal(resolveCommercialActiveItem("/updates"), "updates");
+  assert.equal(resolveCommercialActiveItem("/dashboard/commercial"), "dashboard");
+  assert.equal(
+    resolveCommercialActiveItem("/dashboard/commercial/prospects/abc"),
+    "prospects",
+  );
 });
 
 test("resolveCommercialActiveItem highlights Tableau de bord on /dashboard/commercial", () => {

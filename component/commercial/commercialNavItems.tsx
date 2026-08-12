@@ -5,6 +5,7 @@ import {
   ListChecks,
   Newspaper,
   StickyNote,
+  UserPlus,
   UserRound,
   Users,
 } from "lucide-react";
@@ -12,6 +13,7 @@ import {
 export type CommercialActiveItem =
   | "dashboard"
   | "updates"
+  | "newProspect"
   | "prospects"
   | "products"
   | "followUps"
@@ -40,6 +42,12 @@ export const commercialNavItems: CommercialNavItem[] = [
     label: "À la une",
     href: "/updates",
     icon: <Newspaper className="h-5 w-5" />,
+  },
+  {
+    key: "newProspect",
+    label: "Nouveau prospect",
+    href: "/",
+    icon: <UserPlus className="h-5 w-5" />,
   },
   {
     key: "prospects",
@@ -91,6 +99,12 @@ export function resolveCommercialActiveItem(
   pathname: string | null,
 ): CommercialActiveItem | undefined {
   const path = pathname ?? "";
+
+  // Exact match only — "/" is a prefix of every route, so a startsWith
+  // check here would make Nouveau prospect active everywhere.
+  if (path === "/") {
+    return "newProspect";
+  }
 
   if (path === "/dashboard/commercial/profile") {
     return "profile";

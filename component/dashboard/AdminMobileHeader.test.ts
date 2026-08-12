@@ -34,6 +34,21 @@ test("ADMIN/MANAGER mobile navigation includes an active (non-disabled) Mes rapp
   assert.doesNotMatch(reportsEntryMatch![0], /disabled: true/);
 });
 
+test("ADMIN/MANAGER mobile navigation includes an active, unconditional Nouveau prospect entry pointing to / (Ticket 15H.3)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const newProspectEntryMatch = source.match(
+    /\{\s*label: "Nouveau prospect",[\s\S]*?\},/,
+  );
+
+  assert.ok(newProspectEntryMatch, "expected a Nouveau prospect nav item entry");
+  assert.match(newProspectEntryMatch![0], /href: "\/"/);
+  assert.doesNotMatch(newProspectEntryMatch![0], /disabled: true/);
+});
+
 test("ADMIN mobile navigation includes an active Mes prospects entry pointing to /admin/my-prospects (Ticket 15H.2)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
