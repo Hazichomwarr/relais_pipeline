@@ -11,13 +11,14 @@ import test from "node:test";
  * the source directly instead.
  */
 
-test("the finances layout gates read access to ADMIN and MANAGER only", () => {
+test("the finances layout gates read access to ADMIN only (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B)", () => {
   const source = readFileSync("app/finances/layout.tsx", "utf8");
 
-  assert.match(source, /requireRole\("ADMIN", "MANAGER"\)/);
+  assert.match(source, /requireAdmin\(\)/);
+  assert.doesNotMatch(source, /requireRole\(/);
   assert.match(
     source,
-    /error\.code === "UNAUTHENTICATED" \? "\/login" : "\/dashboard\/commercial"/,
+    /error\.code === "UNAUTHENTICATED" \? "\/login" : "\/dashboard"/,
   );
 });
 

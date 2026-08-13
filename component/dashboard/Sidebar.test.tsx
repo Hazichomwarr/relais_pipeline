@@ -35,11 +35,11 @@ test("ADMIN sidebar includes a Finances link to /finances (Ticket 17B)", () => {
   assert.match(html, /href="\/finances"/);
 });
 
-test("MANAGER sidebar includes a Finances link to /finances (Ticket 17B)", () => {
+test("MANAGER sidebar never exposes the ADMIN-only Finances link (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B)", () => {
   const html = renderToStaticMarkup(<Sidebar role="MANAGER" />);
 
-  assert.match(html, /Finances/);
-  assert.match(html, /href="\/finances"/);
+  assert.doesNotMatch(html, /Finances/);
+  assert.doesNotMatch(html, /href="\/finances"/);
 });
 
 test("the finances link is highlighted when activeItem is finances", () => {

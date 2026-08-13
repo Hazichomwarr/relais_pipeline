@@ -80,6 +80,37 @@ test("Mes prospects is only added for ADMIN, mirroring the existing Utilisateurs
   );
 });
 
+test("ADMIN mobile navigation includes an active Finances entry pointing to /finances (Ticket 17B)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const financesEntryMatch = source.match(
+    /\{\s*label: "Finances",[\s\S]*?\},/,
+  );
+
+  assert.ok(financesEntryMatch, "expected a Finances nav item entry");
+  assert.match(financesEntryMatch![0], /href: "\/finances"/);
+  assert.doesNotMatch(financesEntryMatch![0], /disabled: true/);
+});
+
+test("Finances is only added for ADMIN, mirroring the Mes prospects/Utilisateurs role gate (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const financesBlockMatch = source.match(
+    /role === "ADMIN"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Finances",/,
+  );
+
+  assert.ok(
+    financesBlockMatch,
+    "expected the Finances entry to be gated behind role === \"ADMIN\"",
+  );
+});
+
 test("ADMIN/MANAGER mobile navigation renames the shared directory entry to Répertoire, pointing at /products (Ticket 15G.1)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",

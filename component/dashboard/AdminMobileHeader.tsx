@@ -62,11 +62,15 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/admin/follow-ups",
       icon: <ClipboardCheck className="h-5 w-5" />,
     },
-    {
-      label: "Finances",
-      href: "/finances",
-      icon: <Wallet className="h-5 w-5" />,
-    },
+    ...(role === "ADMIN"
+      ? [
+          {
+            label: "Finances",
+            href: "/finances",
+            icon: <Wallet className="h-5 w-5" />,
+          },
+        ]
+      : []),
     {
       label: "Analyses",
       href: "/admin/analytics/funnel",
