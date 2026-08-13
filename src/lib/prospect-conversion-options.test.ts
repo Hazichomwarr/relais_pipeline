@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   conversionOutcomeOptions,
   conversionReasonOptions,
+  getConversionOutcomeLabel,
+  getConversionReasonLabel,
 } from "./prospect-conversion-options";
 import {
   conversionOutcomes,
@@ -34,6 +36,15 @@ test("no label leaks a campaign-specific term (École Pilote, discount amount, .
   const forbidden = /école pilote|5\s*000|cfa|site gratuit|promotion actuelle/i;
   for (const option of [...conversionOutcomeOptions, ...conversionReasonOptions]) {
     assert.doesNotMatch(option.label, forbidden, `${option.value}: "${option.label}"`);
+  }
+});
+
+test("getConversionOutcomeLabel/getConversionReasonLabel resolve every enum value to its centralized label", () => {
+  for (const option of conversionOutcomeOptions) {
+    assert.equal(getConversionOutcomeLabel(option.value), option.label);
+  }
+  for (const option of conversionReasonOptions) {
+    assert.equal(getConversionReasonLabel(option.value), option.label);
   }
 });
 

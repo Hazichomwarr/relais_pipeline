@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import AdminShell from "@/component/dashboard/AdminShell";
+import AnalyticsNav from "@/component/analytics/AnalyticsNav";
 import CommercialOutcomeSummary from "@/component/analytics/funnel/CommercialOutcomeSummary";
 import CurrentPipelineDistribution from "@/component/analytics/funnel/CurrentPipelineDistribution";
 import FunnelAnalyticsEmptyState from "@/component/analytics/funnel/FunnelAnalyticsEmptyState";
@@ -56,6 +57,8 @@ export default async function FunnelAnalyticsPage({
             elles évoluent.
           </p>
         </div>
+
+        <AnalyticsNav />
 
         <div className="space-y-6">
           <FunnelAnalyticsFilters owners={owners} />

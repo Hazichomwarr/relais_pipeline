@@ -30,3 +30,20 @@ export const conversionReasonOptions = [
   { value: "COMPETITOR", label: "Choix d’un concurrent" },
   { value: "OTHER", label: "Autre" },
 ] as const;
+
+/**
+ * Lookup helpers so 20G's analytics never re-declare their own copy of
+ * these labels — the follow-up form and analytics must show identical
+ * French wording for the same enum value.
+ */
+export function getConversionOutcomeLabel(
+  value: (typeof conversionOutcomeOptions)[number]["value"],
+): string {
+  return conversionOutcomeOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+export function getConversionReasonLabel(
+  value: (typeof conversionReasonOptions)[number]["value"],
+): string {
+  return conversionReasonOptions.find((option) => option.value === value)?.label ?? value;
+}
