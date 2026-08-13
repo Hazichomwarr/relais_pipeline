@@ -142,6 +142,12 @@ export default async function CommercialProspectDetailPage({
           </div>
         </DetailSection>
 
+        <ProspectActionList actions={actions} viewer={user} />
+
+        <ProspectActionForm
+          prospectId={prospect.id}
+          assignableUsers={assignableUsers}
+        />
         <ProspectFollowUpMiniForm
           prospectId={prospect.id}
           initialValues={{
@@ -151,13 +157,6 @@ export default async function CommercialProspectDetailPage({
           openActions={actions
             .filter((action) => action.status === "OPEN")
             .map((action) => ({ id: action.id, title: action.title }))}
-          assignableUsers={assignableUsers}
-        />
-
-        <ProspectActionList actions={actions} viewer={user} />
-
-        <ProspectActionForm
-          prospectId={prospect.id}
           assignableUsers={assignableUsers}
         />
 
