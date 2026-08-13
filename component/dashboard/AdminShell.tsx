@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 type AdminShellProps = {
   activeItem?:
     | "dashboard"
+    | "actions"
     | "myProspects"
     | "followUps"
     | "users"

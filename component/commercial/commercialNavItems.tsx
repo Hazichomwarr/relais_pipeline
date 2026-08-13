@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Library,
   ListChecks,
+  ListTodo,
   Newspaper,
   StickyNote,
   UserPlus,
@@ -14,6 +15,7 @@ export type CommercialActiveItem =
   | "dashboard"
   | "updates"
   | "newProspect"
+  | "actions"
   | "prospects"
   | "products"
   | "followUps"
@@ -48,6 +50,12 @@ export const commercialNavItems: CommercialNavItem[] = [
     label: "Nouveau prospect",
     href: "/",
     icon: <UserPlus className="h-5 w-5" />,
+  },
+  {
+    key: "actions",
+    label: "Actions",
+    href: "/actions",
+    icon: <ListTodo className="h-5 w-5" />,
   },
   {
     key: "prospects",
@@ -120,6 +128,10 @@ export function resolveCommercialActiveItem(
 
   if (path === "/updates" || path.startsWith("/updates/")) {
     return "updates";
+  }
+
+  if (path === "/actions" || path.startsWith("/actions/")) {
+    return "actions";
   }
 
   if (path === "/products" || path.startsWith("/products/")) {

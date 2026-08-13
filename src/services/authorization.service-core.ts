@@ -35,6 +35,22 @@ export const SHARED_FEED_ROLES: UserRole[] = ["ADMIN", "MANAGER", "COMMERCIAL"];
  */
 export const DAILY_REPORT_MANAGEMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 20E — the /actions execution queue is visible company-wide to
+ * every current operational role. Identical to SHARED_FEED_ROLES today by
+ * coincidence, not by relationship — kept as its own constant so the two
+ * features' access lists can diverge independently later (e.g. a future
+ * role added to one on purpose, not both by accident). Visibility here
+ * never implies mutation rights: completing/canceling a ProspectAction
+ * still goes through canCompleteProspectAction/canCancelProspectAction
+ * (Ticket 20B), unchanged.
+ */
+export const PROSPECT_ACTION_QUEUE_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+  "COMMERCIAL",
+];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

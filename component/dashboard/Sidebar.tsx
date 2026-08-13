@@ -6,6 +6,7 @@ import {
   FileText,
   LayoutDashboard,
   Library,
+  ListTodo,
   Newspaper,
   Settings,
   StickyNote,
@@ -24,6 +25,7 @@ export default function Sidebar({
   activeItem?:
     | "dashboard"
     | "newProspect"
+    | "actions"
     | "myProspects"
     | "followUps"
     | "users"
@@ -87,6 +89,18 @@ export default function Sidebar({
         >
           <UserPlus className="h-5 w-5" />
           Nouveau prospect
+        </Link>
+
+        <Link
+          href="/actions"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "actions"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <ListTodo className="h-5 w-5" />
+          Actions
         </Link>
 
         {role === "ADMIN" && (

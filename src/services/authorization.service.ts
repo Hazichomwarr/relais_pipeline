@@ -7,6 +7,7 @@ import {
   assertCanChangePasswordCore,
   AuthorizationError,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  PROSPECT_ACTION_QUEUE_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   SHARED_FEED_ROLES,
@@ -59,4 +60,14 @@ export async function requireSharedFeedAccess() {
  */
 export async function requireDailyReportManagementAccess() {
   return requireRole(...DAILY_REPORT_MANAGEMENT_ROLES);
+}
+
+/**
+ * Read boundary for the company-wide /actions execution queue (Ticket
+ * 20E) — every current operational role. Visibility only: completing or
+ * canceling a specific ProspectAction is still gated separately by
+ * canCompleteProspectAction/canCancelProspectAction (Ticket 20B).
+ */
+export async function requireProspectActionQueueAccess() {
+  return requireRole(...PROSPECT_ACTION_QUEUE_ROLES);
 }

@@ -5,6 +5,7 @@ import {
   FileText,
   LayoutDashboard,
   Library,
+  ListTodo,
   Newspaper,
   Settings,
   StickyNote,
@@ -35,6 +36,11 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       label: "Nouveau prospect",
       href: "/",
       icon: <UserPlus className="h-5 w-5" />,
+    },
+    {
+      label: "Actions",
+      href: "/actions",
+      icon: <ListTodo className="h-5 w-5" />,
     },
     ...(role === "ADMIN"
       ? [
