@@ -3,18 +3,9 @@
 import { revalidatePath } from "next/cache";
 
 import { authorizeAction } from "@/src/actions/authorize-action";
-import {
-  prospectFollowUpSchema,
-  prospectSchema,
-} from "@/src/lib/validations/prospect.schema";
-import {
-  createProspect,
-  updateProspectFollowUp,
-} from "@/src/services/prospect.service";
-import {
-  requireAuthenticatedUser,
-  requireRole,
-} from "@/src/services/authorization.service";
+import { prospectSchema } from "@/src/lib/validations/prospect.schema";
+import { createProspect } from "@/src/services/prospect.service";
+import { requireAuthenticatedUser } from "@/src/services/authorization.service";
 
 export type CreateProspectActionResult =
   | {
@@ -76,54 +67,4 @@ export async function createProspectAction(
   revalidatePath("/admin");
 
   return result;
-}
-
-export type UpdateProspectFollowUpActionResult =
-  | {
-      success: true;
-      message: string;
-    }
-  | {
-      success: false;
-      message: string;
-      fieldErrors?: Record<string, string[] | undefined>;
-    };
-
-export async function updateProspectFollowUpAction(
-  values: unknown,
-): Promise<UpdateProspectFollowUpActionResult> {
-  const authorization = await authorizeAction(() =>
-    requireRole("ADMIN", "MANAGER"),
-  );
-
-  if (!authorization.ok) {
-    return { success: false, message: authorization.message };
-  }
-
-  const parsed = prospectFollowUpSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      message: "Certaines informations de suivi sont invalides.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const result = await updateProspectFollowUp(parsed.data, authorization.user);
-
-  if (!result.success) {
-    return {
-      success: false,
-      message: result.message,
-    };
-  }
-
-  revalidatePath("/admin");
-  revalidatePath(`/admin/prospects/${parsed.data.prospectId}`);
-
-  return {
-    success: true,
-    message: "Le suivi du prospect a été mis à jour.",
-  };
 }

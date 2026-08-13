@@ -13,13 +13,12 @@ import ProspectActionForm from "@/component/propects/prospect-action-form";
 import ProspectActionList from "@/component/propects/prospect-action-list";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
-import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
+import ProspectFollowUpMiniForm from "@/component/propects/prospect-follow-up-mini-form";
 import {
   Badge,
   DetailSection,
   InfoField,
   ProductDetailSection,
-  formatDateInput,
   formatDateTime,
   getInterestLabel,
   getInterestStyles,
@@ -27,10 +26,7 @@ import {
   getProductLabel,
   getStatusLabel,
 } from "@/component/propects/prospect-detail-sections";
-import {
-  createCommercialActivityAction,
-  updateCommercialProspectFollowUpAction,
-} from "@/src/actions/commercial-prospect.actions";
+import { createCommercialActivityAction } from "@/src/actions/commercial-prospect.actions";
 import { resolveSafeReturnTo } from "@/src/lib/callback-url";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
@@ -146,20 +142,17 @@ export default async function CommercialProspectDetailPage({
           </div>
         </DetailSection>
 
-        <DetailSection title="Suivi commercial">
-          <ProspectFollowUpForm
-            prospectId={prospect.id}
-            action={updateCommercialProspectFollowUpAction}
-            initialValues={{
-              interest: prospect.interest,
-              status: prospect.status,
-              nextAction: prospect.nextAction,
-              followUpDate: prospect.followUpDate
-                ? formatDateInput(prospect.followUpDate)
-                : "",
-            }}
-          />
-        </DetailSection>
+        <ProspectFollowUpMiniForm
+          prospectId={prospect.id}
+          initialValues={{
+            status: prospect.status,
+            interest: prospect.interest,
+          }}
+          openActions={actions
+            .filter((action) => action.status === "OPEN")
+            .map((action) => ({ id: action.id, title: action.title }))}
+          assignableUsers={assignableUsers}
+        />
 
         <ProspectActionList actions={actions} viewer={user} />
 

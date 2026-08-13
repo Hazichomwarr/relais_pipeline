@@ -18,11 +18,6 @@ const gatedActions = [
     serviceCall: "createProspect(",
   },
   {
-    file: "src/actions/prospect.actions.ts",
-    functionName: "updateProspectFollowUpAction",
-    serviceCall: "updateProspectFollowUp(",
-  },
-  {
     file: "src/actions/prospect-activity.actions.ts",
     functionName: "createProspectActivityAction",
     serviceCall: "createProspectActivity(",
@@ -49,11 +44,6 @@ const gatedActions = [
   },
   {
     file: "src/actions/commercial-prospect.actions.ts",
-    functionName: "updateCommercialProspectFollowUpAction",
-    serviceCall: "updateCommercialProspect(",
-  },
-  {
-    file: "src/actions/commercial-prospect.actions.ts",
     functionName: "createCommercialActivityAction",
     serviceCall: "createCommercialActivity(",
   },
@@ -71,6 +61,11 @@ const gatedActions = [
     file: "src/actions/prospect-action.actions.ts",
     functionName: "cancelProspectActionAction",
     serviceCall: "cancelProspectAction(",
+  },
+  {
+    file: "src/actions/prospect-follow-up.actions.ts",
+    functionName: "submitProspectFollowUpAction",
+    serviceCall: "submitProspectFollowUp(",
   },
   {
     file: "src/actions/personal-note.actions.ts",
@@ -225,20 +220,15 @@ test("createProspectAction never accepts an owner from client input — the Comm
   assert.match(functionBody, /createProspect\(authorization\.user, parsed\.data\)/);
 });
 
-for (const functionName of [
-  "updateCommercialProspectFollowUpAction",
-  "createCommercialActivityAction",
-]) {
-  test(`${functionName} authorizes via requireCommercial, not the admin role set`, () => {
-    const functionBody = extractFunctionBody(
-      "src/actions/commercial-prospect.actions.ts",
-      functionName,
-    );
+test("createCommercialActivityAction authorizes via requireCommercial, not the admin role set", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/commercial-prospect.actions.ts",
+    "createCommercialActivityAction",
+  );
 
-    assert.match(functionBody, /authorizeAction\(requireCommercial\)/);
-    assert.doesNotMatch(functionBody, /requireRole\(/);
-  });
-}
+  assert.match(functionBody, /authorizeAction\(requireCommercial\)/);
+  assert.doesNotMatch(functionBody, /requireRole\(/);
+});
 
 for (const functionName of [
   "createProspectActionAction",
@@ -289,6 +279,34 @@ test("cancelProspectActionAction never accepts a canceler id from client input �
   assert.doesNotMatch(functionBody, /parsed\.data\.canceledByUserId/);
   assert.doesNotMatch(functionBody, /values\.canceledByUserId/);
   assert.match(functionBody, /authorization\.user/);
+});
+
+test("submitProspectFollowUpAction authorizes via requireAuthenticatedUser — ownership scoping happens inside the service, keyed off the actor's role (Ticket 20C, following 20B/15H.1)", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-follow-up.actions.ts",
+    "submitProspectFollowUpAction",
+  );
+
+  assert.match(functionBody, /authorizeAction\(\(\) => requireAuthenticatedUser\(\)\)/);
+  assert.doesNotMatch(functionBody, /requireRole\(/);
+  assert.doesNotMatch(functionBody, /requireAdmin\(/);
+  assert.doesNotMatch(functionBody, /requireCommercial\(/);
+});
+
+test("submitProspectFollowUpAction never accepts an actor/creator/completer id from client input — it always comes from the authenticated session", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-follow-up.actions.ts",
+    "submitProspectFollowUpAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.actorUserId/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.createdByUserId/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.completedByUserId/);
+  assert.doesNotMatch(functionBody, /values\.actorUserId/);
+  assert.match(
+    functionBody,
+    /submitProspectFollowUp\(authorization\.user, parsed\.data\)/,
+  );
 });
 
 const selfServiceActions = [

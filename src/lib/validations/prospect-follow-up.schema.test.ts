@@ -1,0 +1,170 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import type { ProspectStatus } from "@prisma/client";
+
+import { prospectFollowUpWorkflowSchema } from "./prospect-follow-up.schema";
+
+function baseInput(overrides: Record<string, unknown> = {}) {
+  return {
+    prospectId: "prospect-1",
+    note: "Le directeur souhaite une démonstration.",
+    status: "QUALIFIED",
+    interest: "INTERESTED",
+    completedActionId: "",
+    nextActionTitle: "Faire une démonstration",
+    nextActionAssignedToUserId: "user-1",
+    nextActionDueAt: "2026-08-14T10:00",
+    ...overrides,
+  };
+}
+
+test("accepts a complete active-status submission", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(baseInput());
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.ok(result.data.nextActionDueAt instanceof Date);
+    assert.equal(result.data.completedActionId, undefined);
+  }
+});
+
+test("rejects a note that is missing or too short", () => {
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(baseInput({ note: "" })).success,
+    false,
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(baseInput({ note: "trop court" }))
+      .success,
+    true, // 10 chars exactly is the minimum — sanity check the boundary itself below
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(baseInput({ note: "trop" }))
+      .success,
+    false,
+  );
+});
+
+test("rejects a missing status or interest", () => {
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(baseInput({ status: undefined }))
+      .success,
+    false,
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(baseInput({ interest: undefined }))
+      .success,
+    false,
+  );
+});
+
+const activeStatuses: ProspectStatus[] = [
+  "NEW",
+  "TO_FOLLOW_UP",
+  "CONTACTED",
+  "QUALIFIED",
+  "PROPOSAL_SENT",
+];
+
+for (const status of activeStatuses) {
+  test(`requires a next action title, assignee, and due date for active status ${status}`, () => {
+    const missingTitle = prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ status, nextActionTitle: "" }),
+    );
+    assert.equal(missingTitle.success, false);
+    if (!missingTitle.success) {
+      const messages = missingTitle.error.flatten().fieldErrors;
+      assert.ok(messages.nextActionTitle?.includes("Indiquez la prochaine action."));
+    }
+
+    const missingAssignee = prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ status, nextActionAssignedToUserId: "" }),
+    );
+    assert.equal(missingAssignee.success, false);
+    if (!missingAssignee.success) {
+      const messages = missingAssignee.error.flatten().fieldErrors;
+      assert.ok(
+        messages.nextActionAssignedToUserId?.includes(
+          "Attribuez la prochaine action à un membre de l’équipe.",
+        ),
+      );
+    }
+
+    const missingDueAt = prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ status, nextActionDueAt: "" }),
+    );
+    assert.equal(missingDueAt.success, false);
+    if (!missingDueAt.success) {
+      const messages = missingDueAt.error.flatten().fieldErrors;
+      assert.ok(messages.nextActionDueAt?.includes("Indiquez une échéance."));
+    }
+  });
+}
+
+for (const status of ["WON", "LOST"] as ProspectStatus[]) {
+  test(`does not require a next action for terminal status ${status}`, () => {
+    const result = prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({
+        status,
+        nextActionTitle: "",
+        nextActionAssignedToUserId: "",
+        nextActionDueAt: "",
+      }),
+    );
+
+    assert.equal(result.success, true);
+    if (result.success) {
+      assert.equal(result.data.nextActionTitle, undefined);
+      assert.equal(result.data.nextActionAssignedToUserId, undefined);
+      assert.equal(result.data.nextActionDueAt, undefined);
+    }
+  });
+}
+
+test("switching from a terminal status back to active still requires the next action fields (no stale bypass)", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({
+      status: "CONTACTED",
+      nextActionTitle: "",
+      nextActionAssignedToUserId: "",
+      nextActionDueAt: "",
+    }),
+  );
+
+  assert.equal(result.success, false);
+});
+
+test("accepts an optional completedActionId when provided", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ completedActionId: "action-1" }),
+  );
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.data.completedActionId, "action-1");
+  }
+});
+
+test("never surfaces trusted actor/lifecycle fields even if a client submits them", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({
+      actorUserId: "someone-else",
+      createdByUserId: "someone-else",
+      completedByUserId: "someone-else",
+    }),
+  );
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.deepEqual(Object.keys(result.data).sort(), [
+      "completedActionId",
+      "interest",
+      "nextActionAssignedToUserId",
+      "nextActionDueAt",
+      "nextActionTitle",
+      "note",
+      "prospectId",
+      "status",
+    ]);
+  }
+});

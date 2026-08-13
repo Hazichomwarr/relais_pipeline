@@ -14,13 +14,12 @@ import ProspectActionForm from "@/component/propects/prospect-action-form";
 import ProspectActionList from "@/component/propects/prospect-action-list";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
-import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
+import ProspectFollowUpMiniForm from "@/component/propects/prospect-follow-up-mini-form";
 import {
   Badge,
   DetailSection,
   InfoField,
   ProductDetailSection,
-  formatDateInput,
   formatDateTime,
   getInterestLabel,
   getInterestStyles,
@@ -119,104 +118,89 @@ export default async function ProspectDetailPage({
               </div>
             </header>
 
-            <div className="mt-7 grid gap-7 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="space-y-7">
-                <DetailSection title="Informations générales">
-                  <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                    <InfoField
-                      icon={<UserRound className="h-5 w-5" />}
-                      label="Personne de contact"
-                      value={prospect.contactName}
-                    />
-                    <InfoField
-                      icon={<Phone className="h-5 w-5" />}
-                      label="Téléphone / WhatsApp"
-                      value={
-                        prospect.phone ? (
-                          <a
-                            href={`tel:${prospect.phone}`}
-                            className="text-blue-700 hover:underline"
-                          >
-                            {prospect.phone}
-                          </a>
-                        ) : null
-                      }
-                    />
-                    <InfoField
-                      icon={<MapPin className="h-5 w-5" />}
-                      label="Localisation"
-                      value={prospect.location}
-                    />
-                    <InfoField
-                      icon={<Building2 className="h-5 w-5" />}
-                      label="Type de prospect"
-                      value={prospect.prospectType}
-                    />
-                    <InfoField
-                      label="Présence en ligne"
-                      value={getOnlinePresenceLabel(prospect.onlinePresence)}
-                    />
-                    <InfoField
-                      label="Commercial assigné"
-                      value={getAssignedUserName(prospect)}
-                    />
-                  </div>
-                </DetailSection>
-
-                <ProductDetailSection prospect={prospect} />
-
-                <DetailSection title="Observation initiale du terrain">
-                  <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">
-                    {prospect.notes}
-                  </p>
-                  <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
-                    Cette observation est conservée telle qu’elle a été saisie
-                    pendant la prospection.
-                  </p>
-                </DetailSection>
-
-                <DetailSection title="Historique du dossier">
-                  <div className="grid gap-5 sm:grid-cols-2">
-                    <InfoField
-                      icon={<CalendarDays className="h-5 w-5" />}
-                      label="Prospect créé le"
-                      value={formatDateTime(prospect.createdAt)}
-                    />
-                    <InfoField
-                      icon={<Clock3 className="h-5 w-5" />}
-                      label="Dernière mise à jour"
-                      value={formatDateTime(prospect.updatedAt)}
-                    />
-                  </div>
-                </DetailSection>
-              </div>
-
-              <aside className="h-fit rounded-4xl border border-slate-200 bg-white p-6 shadow-sm xl:sticky xl:top-7">
-                <div className="mb-6">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
-                    Commande de suivi
-                  </p>
-                  <h2 className="mt-2 text-2xl font-bold text-[#0f2557]">
-                    Prochaine étape
-                  </h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    Ajustez uniquement le plan commercial actuel. L’observation
-                    terrain reste intacte.
-                  </p>
+            <div className="mt-7 space-y-7">
+              <DetailSection title="Informations générales">
+                <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                  <InfoField
+                    icon={<UserRound className="h-5 w-5" />}
+                    label="Personne de contact"
+                    value={prospect.contactName}
+                  />
+                  <InfoField
+                    icon={<Phone className="h-5 w-5" />}
+                    label="Téléphone / WhatsApp"
+                    value={
+                      prospect.phone ? (
+                        <a
+                          href={`tel:${prospect.phone}`}
+                          className="text-blue-700 hover:underline"
+                        >
+                          {prospect.phone}
+                        </a>
+                      ) : null
+                    }
+                  />
+                  <InfoField
+                    icon={<MapPin className="h-5 w-5" />}
+                    label="Localisation"
+                    value={prospect.location}
+                  />
+                  <InfoField
+                    icon={<Building2 className="h-5 w-5" />}
+                    label="Type de prospect"
+                    value={prospect.prospectType}
+                  />
+                  <InfoField
+                    label="Présence en ligne"
+                    value={getOnlinePresenceLabel(prospect.onlinePresence)}
+                  />
+                  <InfoField
+                    label="Commercial assigné"
+                    value={getAssignedUserName(prospect)}
+                  />
                 </div>
+              </DetailSection>
 
-                <ProspectFollowUpForm
-                  prospectId={prospect.id}
-                  initialValues={{
-                    interest: prospect.interest,
-                    status: prospect.status,
-                    nextAction: prospect.nextAction,
-                    followUpDate: prospect.followUpDate
-                      ? formatDateInput(prospect.followUpDate)
-                      : "",
-                  }}
-                />
-              </aside>
+              <ProductDetailSection prospect={prospect} />
+
+              <DetailSection title="Observation initiale du terrain">
+                <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">
+                  {prospect.notes}
+                </p>
+                <p className="mt-5 border-t border-slate-100 pt-4 text-xs text-slate-400">
+                  Cette observation est conservée telle qu’elle a été saisie
+                  pendant la prospection.
+                </p>
+              </DetailSection>
+
+              <DetailSection title="Historique du dossier">
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <InfoField
+                    icon={<CalendarDays className="h-5 w-5" />}
+                    label="Prospect créé le"
+                    value={formatDateTime(prospect.createdAt)}
+                  />
+                  <InfoField
+                    icon={<Clock3 className="h-5 w-5" />}
+                    label="Dernière mise à jour"
+                    value={formatDateTime(prospect.updatedAt)}
+                  />
+                </div>
+              </DetailSection>
+            </div>
+
+            <div className="mt-7">
+              <ProspectFollowUpMiniForm
+                prospectId={prospect.id}
+                initialValues={{
+                  status: prospect.status,
+                  interest: prospect.interest,
+                }}
+                openActions={actions
+                  .filter((action) => action.status === "OPEN")
+                  .map((action) => ({ id: action.id, title: action.title }))}
+                assignableUsers={assignableUsers}
+              />
             </div>
 
             <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
