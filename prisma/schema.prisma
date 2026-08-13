@@ -18,6 +18,11 @@ enum RelaisProduct {
   DIGITAL_SERVICES
 }
 
+// Ticket 20A — prospect receptiveness: "how open is this prospect to
+// RELAIS," independent of commercial progression. Set at creation and on
+// every follow-up/interaction update; never derived from `status`, and
+// `status` is never derived from it. See the domain map above `model
+// Prospect` for the full picture.
 enum InterestLevel {
   NOT_INTERESTED
   MAYBE
@@ -34,6 +39,25 @@ enum FollowUpAction {
   NO_ACTION
 }
 
+// Ticket 20A — the CRM's one commercial funnel/pipeline field ("where is
+// this opportunity in the process"), already relied on as such by the
+// Commercial dashboard's "Pipeline personnel" and its KPIs (qualified/
+// won/lost counts, conversion rate). NEW → CONTACTED → QUALIFIED →
+// PROPOSAL_SENT → WON/LOST is the intended forward progression; WON and
+// LOST are terminal. No transition between values is enforced — any
+// value may follow any other, including backward moves, because real
+// sales conversations don't always move forward.
+//
+// TO_FOLLOW_UP is the one non-sequential exception: an operational
+// "prioritize this in the queue" flag (see isFollowUpQueueCandidate),
+// not a stage of commercial progress. Setting it overwrites whatever
+// stage the prospect was actually at, which is a known, accepted
+// limitation of the single-field design, not a stage that sits between
+// NEW and CONTACTED. Do not reinterpret it as one.
+//
+// This is intentionally the CRM's only funnel-stage concept — do not add
+// a parallel `stage` / `pipelineStage` / `commercialStage` field. See the
+// domain map above `model Prospect`.
 enum ProspectStatus {
   NEW
   TO_FOLLOW_UP
@@ -257,6 +281,34 @@ model DailyReport {
   @@index([status, reportDate])
 }
 
+// ── Ticket 20A domain map — read this before touching interest, status,
+// nextAction/followUpDate, or ProspectActivity ──────────────────────────
+//
+// interest         → prospect receptiveness (enum above). Independent axis.
+// status           → commercial funnel/pipeline stage (enum above). WON
+//                     and LOST are terminal.
+// nextAction /
+// followUpDate     → the current single-slot "what's next, and when"
+//                     follow-up mechanism. Every write overwrites the
+//                     previous value with no history kept. Ticket 20B's
+//                     ProspectAction will add durable, assignable,
+//                     deadline-bearing tasks; until then this pair is the
+//                     CRM's only "what's next" signal.
+// ProspectActivity → append-only historical events (what actually
+//                     happened). WON_TRANSITION is the only durably
+//                     recorded status transition today (Ticket 18A).
+//                     LOST has no equivalent yet: LOST prospects are
+//                     representable, but the moment a prospect became
+//                     LOST is not captured anywhere durable. Identified
+//                     by the 20A audit, intentionally not built here —
+//                     future "time to LOST" / "why we lose" analytics
+//                     (20D/20G) cannot be reconstructed for LOST until
+//                     that gap is closed.
+//
+// 20A audited this domain and concluded `status` already serves as the
+// funnel field (see the shipped Commercial dashboard pipeline/KPIs) —
+// no parallel funnel-stage field was introduced, since that would split
+// one business concept into two competing representations.
 model Prospect {
   id String @id @default(cuid())
 
@@ -271,6 +323,8 @@ model Prospect {
   interest InterestLevel
   status   ProspectStatus @default(NEW)
 
+  // Current, single-slot follow-up mechanism — see the Ticket 20A domain
+  // map above `model Prospect`.
   nextAction   FollowUpAction?
   followUpDate DateTime?
 
