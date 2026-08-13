@@ -10,6 +10,8 @@ import { notFound } from "next/navigation";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 
 import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
+import ProspectActionForm from "@/component/propects/prospect-action-form";
+import ProspectActionList from "@/component/propects/prospect-action-list";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
 import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
@@ -29,9 +31,12 @@ import {
 import AdminShell from "@/component/dashboard/AdminShell";
 import { resolveSafeReturnTo } from "@/src/lib/callback-url";
 import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
+import { requireRole } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import { getAdjacentProspects } from "@/src/services/prospect-navigation.service";
+import { listProspectActionsForProspect } from "@/src/services/prospect-action.service";
 import { getProspectById } from "@/src/services/prospect.service";
+import { listActiveUsersForTaskAssignment } from "@/src/services/user.service";
 
 type ProspectDetailPageProps = {
   params: Promise<{
@@ -48,13 +53,18 @@ export default async function ProspectDetailPage({
 }: ProspectDetailPageProps) {
   const { prospectId } = await params;
   const { returnTo } = await searchParams;
+  const viewer = await requireRole("ADMIN", "MANAGER");
   const prospect = await getProspectById(prospectId);
 
   if (!prospect) {
     notFound();
   }
 
-  const activitiesResult = await getProspectActivities(prospect.id);
+  const [activitiesResult, actions, assignableUsers] = await Promise.all([
+    getProspectActivities(prospect.id),
+    listProspectActionsForProspect(prospect.id),
+    listActiveUsersForTaskAssignment(),
+  ]);
 
   if (!activitiesResult.success && activitiesResult.code === "NOT_FOUND") {
     notFound();
@@ -207,6 +217,14 @@ export default async function ProspectDetailPage({
                   }}
                 />
               </aside>
+            </div>
+
+            <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
+              <ProspectActionForm
+                prospectId={prospect.id}
+                assignableUsers={assignableUsers}
+              />
+              <ProspectActionList actions={actions} viewer={viewer} />
             </div>
 
             <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">

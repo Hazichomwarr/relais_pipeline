@@ -58,6 +58,21 @@ const gatedActions = [
     serviceCall: "createCommercialActivity(",
   },
   {
+    file: "src/actions/prospect-action.actions.ts",
+    functionName: "createProspectActionAction",
+    serviceCall: "createProspectAction(",
+  },
+  {
+    file: "src/actions/prospect-action.actions.ts",
+    functionName: "completeProspectActionAction",
+    serviceCall: "completeProspectAction(",
+  },
+  {
+    file: "src/actions/prospect-action.actions.ts",
+    functionName: "cancelProspectActionAction",
+    serviceCall: "cancelProspectAction(",
+  },
+  {
     file: "src/actions/personal-note.actions.ts",
     functionName: "createPersonalNoteAction",
     serviceCall: "createMyPersonalNote(",
@@ -224,6 +239,57 @@ for (const functionName of [
     assert.doesNotMatch(functionBody, /requireRole\(/);
   });
 }
+
+for (const functionName of [
+  "createProspectActionAction",
+  "completeProspectActionAction",
+  "cancelProspectActionAction",
+]) {
+  test(`${functionName} authorizes via requireAuthenticatedUser — ProspectAction participation is role-neutral (Ticket 20B, following 15H.1)`, () => {
+    const functionBody = extractFunctionBody(
+      "src/actions/prospect-action.actions.ts",
+      functionName,
+    );
+
+    assert.match(functionBody, /authorizeAction\(\(\) => requireAuthenticatedUser\(\)\)/);
+    assert.doesNotMatch(functionBody, /requireRole\(/);
+    assert.doesNotMatch(functionBody, /requireAdmin\(/);
+    assert.doesNotMatch(functionBody, /requireCommercial\(/);
+  });
+}
+
+test("createProspectActionAction never accepts a creator id from client input — it always comes from the authenticated session", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-action.actions.ts",
+    "createProspectActionAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.createdByUserId/);
+  assert.doesNotMatch(functionBody, /values\.createdByUserId/);
+  assert.match(functionBody, /createProspectAction\(authorization\.user, parsed\.data\)/);
+});
+
+test("completeProspectActionAction never accepts a completer id from client input — it always comes from the authenticated session", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-action.actions.ts",
+    "completeProspectActionAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.completedByUserId/);
+  assert.doesNotMatch(functionBody, /values\.completedByUserId/);
+  assert.match(functionBody, /authorization\.user/);
+});
+
+test("cancelProspectActionAction never accepts a canceler id from client input — it always comes from the authenticated session", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-action.actions.ts",
+    "cancelProspectActionAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.canceledByUserId/);
+  assert.doesNotMatch(functionBody, /values\.canceledByUserId/);
+  assert.match(functionBody, /authorization\.user/);
+});
 
 const selfServiceActions = [
   {

@@ -9,6 +9,8 @@ import {
 import { notFound } from "next/navigation";
 
 import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
+import ProspectActionForm from "@/component/propects/prospect-action-form";
+import ProspectActionList from "@/component/propects/prospect-action-list";
 import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
 import ProspectFollowUpForm from "@/component/propects/prospect-follow-up-form";
@@ -35,7 +37,9 @@ import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-na
 import { requireCommercial } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import { getAdjacentProspects } from "@/src/services/prospect-navigation.service";
+import { listProspectActionsForProspect } from "@/src/services/prospect-action.service";
 import { getCommercialProspectById } from "@/src/services/commercial-prospect.service";
+import { listActiveUsersForTaskAssignment } from "@/src/services/user.service";
 
 type CommercialProspectDetailPageProps = {
   params: Promise<{ prospectId: string }>;
@@ -56,7 +60,11 @@ export default async function CommercialProspectDetailPage({
     notFound();
   }
 
-  const activitiesResult = await getProspectActivities(prospect.id);
+  const [activitiesResult, actions, assignableUsers] = await Promise.all([
+    getProspectActivities(prospect.id),
+    listProspectActionsForProspect(prospect.id),
+    listActiveUsersForTaskAssignment(),
+  ]);
 
   if (!activitiesResult.success && activitiesResult.code === "NOT_FOUND") {
     notFound();
@@ -152,6 +160,13 @@ export default async function CommercialProspectDetailPage({
             }}
           />
         </DetailSection>
+
+        <ProspectActionList actions={actions} viewer={user} />
+
+        <ProspectActionForm
+          prospectId={prospect.id}
+          assignableUsers={assignableUsers}
+        />
 
         <ProductDetailSection prospect={prospect} />
 

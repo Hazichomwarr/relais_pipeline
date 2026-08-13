@@ -126,10 +126,32 @@ export async function listDashboardUserOptions() {
   });
 }
 
+/**
+ * Ticket 20B — role-neutral by design (any active User can receive a
+ * ProspectAction; see the domain-map comment on `model ProspectAction`).
+ * Deliberately not `listAssignableUsers`, whose COMMERCIAL-only filter is
+ * specific to Commercial prospect assignment, an unrelated concept.
+ */
+export async function listActiveUsersForTaskAssignment() {
+  return prisma.user.findMany({
+    where: { active: true },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+  });
+}
+
 export type UserListItem = Awaited<ReturnType<typeof listUsers>>[number];
 export type AssignableUser = Awaited<
   ReturnType<typeof listAssignableUsers>
 >[number];
 export type DashboardUserOption = Awaited<
   ReturnType<typeof listDashboardUserOptions>
+>[number];
+export type ActiveUserForTaskAssignment = Awaited<
+  ReturnType<typeof listActiveUsersForTaskAssignment>
 >[number];

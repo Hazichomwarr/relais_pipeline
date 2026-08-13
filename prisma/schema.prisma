@@ -92,6 +92,15 @@ enum ProspectActivityType {
   WON_TRANSITION
 }
 
+// Ticket 20B — deliberately small: OVERDUE is derived (status = OPEN and
+// dueAt in the past), never persisted. No IN_PROGRESS/URGENT/BLOCKED
+// either — add them only if real usage proves the lifecycle needs them.
+enum ProspectActionStatus {
+  OPEN
+  COMPLETED
+  CANCELED
+}
+
 enum UserStatusActivityType {
   ACTIVATED
   DEACTIVATED
@@ -187,6 +196,14 @@ model User {
 
   statusActivities      UserStatusActivity[] @relation("UserStatusActivityTarget")
   statusActivityActions UserStatusActivity[] @relation("UserStatusActivityActor")
+
+  // Ticket 20B — a User may appear in a ProspectAction in up to four
+  // distinct roles at once (assignee, creator, completer, canceler); each
+  // needs its own named relation since they all point back at User.
+  assignedProspectActions  ProspectAction[] @relation("ProspectActionAssignee")
+  createdProspectActions   ProspectAction[] @relation("ProspectActionCreator")
+  completedProspectActions ProspectAction[] @relation("ProspectActionCompleter")
+  canceledProspectActions  ProspectAction[] @relation("ProspectActionCanceler")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -363,6 +380,7 @@ model Prospect {
   updatedAt DateTime @updatedAt
 
   activities ProspectActivity[]
+  actions    ProspectAction[]
 
   @@index([product])
   @@index([interest])
@@ -393,6 +411,62 @@ model ProspectActivity {
   @@index([prospectId])
   @@index([prospectId, occurredAt])
   @@index([type])
+}
+
+// Ticket 20B — durable accountability: "what must happen, who must do
+// it, by when." Distinct from ProspectActivity ("what happened") and
+// from the legacy Prospect.nextAction/followUpDate pair (mutable,
+// single-slot, no history) — see the Ticket 20A domain map above `model
+// Prospect`. Coexists with that legacy pair; this ticket does not remove
+// or synchronize with it. No hard delete: terminal (COMPLETED/CANCELED)
+// actions stay queryable as operational history, hence `onDelete:
+// Restrict` on every User relation below. Prospect is never hard-deleted
+// today, so `onDelete: Restrict` on `prospect` is likewise a safe,
+// future-proofing default rather than a live constraint.
+model ProspectAction {
+  id String @id @default(cuid())
+
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+
+  // Exactly one assignee in V1 — no multi-assignee/team tasks yet. Any
+  // active User regardless of role (ADMIN/MANAGER/COMMERCIAL and future
+  // roles) may be assigned; see canCompleteProspectAction/
+  // canCancelProspectAction in prospect-action.service-core.ts for who
+  // may act on it afterward.
+  assignedToUserId String
+  assignedToUser   User   @relation("ProspectActionAssignee", fields: [assignedToUserId], references: [id], onDelete: Restrict)
+
+  // Always the authenticated actor who created the action — never
+  // client-supplied. See createProspectActionAction.
+  createdByUserId String
+  createdByUser   User   @relation("ProspectActionCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  status ProspectActionStatus @default(OPEN)
+
+  title       String
+  description String?
+
+  dueAt DateTime
+
+  // Set atomically together, once, only from OPEN. Terminal actions are
+  // immutable in V1 — no reopen, no edit, no changing who completed/
+  // canceled it or when.
+  completedAt       DateTime?
+  completedByUserId String?
+  completedByUser   User?     @relation("ProspectActionCompleter", fields: [completedByUserId], references: [id], onDelete: Restrict)
+
+  canceledAt         DateTime?
+  canceledByUserId   String?
+  canceledByUser     User?     @relation("ProspectActionCanceler", fields: [canceledByUserId], references: [id], onDelete: Restrict)
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([prospectId, status, dueAt])
+  @@index([assignedToUserId, status, dueAt])
+  @@index([createdByUserId, createdAt])
 }
 
 model LedgerEntry {
