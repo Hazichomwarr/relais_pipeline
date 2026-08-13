@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProspectActionStatus, ProspectStatus, UserRole } from "@prisma/client";
+import type {
+  ProspectActionStatus,
+  ProspectConversionReason,
+  ProspectStatus,
+  UserRole,
+} from "@prisma/client";
 
 import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
 import type { ProspectActionRow } from "@/src/services/prospect-action.service-core";
@@ -29,6 +34,9 @@ function baseInput(
     note: "Le directeur souhaite une démonstration.",
     status: "QUALIFIED",
     interest: "INTERESTED",
+    conversionOutcome: "ADVANCED",
+    conversionReason: "DEMO_CONVINCED",
+    conversionReasonNote: undefined,
     completedActionId: undefined,
     nextActionTitle: "Faire une démonstration",
     nextActionAssignedToUserId: "assignee-1",
@@ -80,6 +88,9 @@ function createFakeStore(options: FakeStoreOptions) {
     summary: string;
     occurredAt: Date;
     agentName: string | undefined;
+    conversionOutcome?: string;
+    conversionReason?: string;
+    conversionReasonNote?: string;
   }> = [];
   const updateCalls: Array<Record<string, unknown>> = [];
 
@@ -255,6 +266,8 @@ test("terminal follow-up leaves followUpDate untouched (no next action means no 
     actor(),
     baseInput({
       status: "WON",
+      conversionOutcome: "WON",
+      conversionReason: "GOOD_PRODUCT_FIT",
       nextActionTitle: undefined,
       nextActionAssignedToUserId: undefined,
       nextActionDueAt: undefined,
@@ -297,7 +310,16 @@ test("active status without any next action fields is rejected before any write 
   assert.deepEqual(store.getActions(), []);
 });
 
-for (const status of ["WON", "LOST"] as ProspectStatus[]) {
+const terminalOutcomeByStatus: Record<"WON" | "LOST", "WON" | "LOST"> = {
+  WON: "WON",
+  LOST: "LOST",
+};
+const terminalReasonByStatus: Record<"WON" | "LOST", ProspectConversionReason> = {
+  WON: "GOOD_PRODUCT_FIT",
+  LOST: "PRICE_TOO_HIGH",
+};
+
+for (const status of ["WON", "LOST"] as const) {
   test(`${status} follow-up requires no next action and creates none`, async () => {
     const store = createFakeStore({
       prospect: { id: "prospect-1", status: "PROPOSAL_SENT", followUpDate: null },
@@ -307,6 +329,8 @@ for (const status of ["WON", "LOST"] as ProspectStatus[]) {
       actor(),
       baseInput({
         status,
+        conversionOutcome: terminalOutcomeByStatus[status],
+        conversionReason: terminalReasonByStatus[status],
         nextActionTitle: undefined,
         nextActionAssignedToUserId: undefined,
         nextActionDueAt: undefined,
@@ -320,7 +344,7 @@ for (const status of ["WON", "LOST"] as ProspectStatus[]) {
   });
 }
 
-test("WON follow-up writes exactly one FOLLOW_UP and one WON_TRANSITION activity", async () => {
+test("WON follow-up writes exactly one FOLLOW_UP (carrying the structured outcome/reason) and one WON_TRANSITION activity", async () => {
   const store = createFakeStore({
     prospect: { id: "prospect-1", status: "PROPOSAL_SENT", followUpDate: null },
   });
@@ -329,6 +353,8 @@ test("WON follow-up writes exactly one FOLLOW_UP and one WON_TRANSITION activity
     actor(),
     baseInput({
       status: "WON",
+      conversionOutcome: "WON",
+      conversionReason: "GOOD_PRODUCT_FIT",
       nextActionTitle: undefined,
       nextActionAssignedToUserId: undefined,
       nextActionDueAt: undefined,
@@ -339,6 +365,13 @@ test("WON follow-up writes exactly one FOLLOW_UP and one WON_TRANSITION activity
   assert.deepEqual(
     store.getActivities().map((item) => item.type),
     ["FOLLOW_UP", "WON_TRANSITION"],
+  );
+  assert.equal(store.getActivities()[0].conversionOutcome, "WON");
+  assert.equal(store.getActivities()[0].conversionReason, "GOOD_PRODUCT_FIT");
+  assert.equal(
+    store.getActivities()[1].conversionOutcome,
+    undefined,
+    "WON_TRANSITION stays the canonical transition marker — it doesn't also carry outcome/reason",
   );
 });
 
@@ -352,6 +385,8 @@ test("repeat WON follow-up never duplicates WON_TRANSITION (Ticket 18A invariant
     baseInput({
       note: "Contrat signé et livré.",
       status: "WON",
+      conversionOutcome: "WON",
+      conversionReason: "GOOD_PRODUCT_FIT",
       nextActionTitle: undefined,
       nextActionAssignedToUserId: undefined,
       nextActionDueAt: undefined,
@@ -365,7 +400,7 @@ test("repeat WON follow-up never duplicates WON_TRANSITION (Ticket 18A invariant
   );
 });
 
-test("LOST follow-up records FOLLOW_UP but no durable transition marker (deferred to Ticket 20D)", async () => {
+test("LOST follow-up records a FOLLOW_UP with structured outcome/reason — this is now trustworthy durable LOST history", async () => {
   const store = createFakeStore({
     prospect: { id: "prospect-1", status: "PROPOSAL_SENT", followUpDate: null },
   });
@@ -374,6 +409,8 @@ test("LOST follow-up records FOLLOW_UP but no durable transition marker (deferre
     actor(),
     baseInput({
       status: "LOST",
+      conversionOutcome: "LOST",
+      conversionReason: "PRICE_TOO_HIGH",
       nextActionTitle: undefined,
       nextActionAssignedToUserId: undefined,
       nextActionDueAt: undefined,
@@ -385,6 +422,8 @@ test("LOST follow-up records FOLLOW_UP but no durable transition marker (deferre
     store.getActivities().map((item) => item.type),
     ["FOLLOW_UP"],
   );
+  assert.equal(store.getActivities()[0].conversionOutcome, "LOST");
+  assert.equal(store.getActivities()[0].conversionReason, "PRICE_TOO_HIGH");
 });
 
 test("unknown or inaccessible prospect rejects the whole submission", async () => {
@@ -539,6 +578,180 @@ for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as UserRole[]) {
     assert.equal(store.getProspect().status, "QUALIFIED");
   });
 }
+
+test("STALLED follow-up on an active prospect still requires a next action and persists the structured reason", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "QUALIFIED", followUpDate: null },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      status: "QUALIFIED",
+      conversionOutcome: "STALLED",
+      conversionReason: "DECISION_MAKER_UNAVAILABLE",
+    }),
+    store.dependencies,
+  );
+
+  assert.deepEqual(result, { success: true });
+  assert.equal(store.getProspect().status, "QUALIFIED");
+  assert.equal(store.getActivities()[0].conversionOutcome, "STALLED");
+  assert.equal(
+    store.getActivities()[0].conversionReason,
+    "DECISION_MAKER_UNAVAILABLE",
+  );
+  assert.ok(
+    store.getActions().some((a) => a.title === "Faire une démonstration"),
+    "STALLED does not exempt an active prospect from the Ticket 20C next-action rule",
+  );
+});
+
+test("rejects an outcome/reason pair that is commercially incompatible, before any write happens", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "QUALIFIED", followUpDate: null },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      conversionOutcome: "ADVANCED",
+      conversionReason: "NO_BUDGET",
+    }),
+    store.dependencies,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "CONVERSION_REASON_NOT_ALLOWED");
+  }
+  assert.deepEqual(store.getActivities(), []);
+  assert.equal(store.getProspect().status, "QUALIFIED");
+});
+
+test("rejects OTHER without an explanation, and accepts it once one is provided", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "QUALIFIED", followUpDate: null },
+  });
+
+  const rejected = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({ conversionReason: "OTHER", conversionReasonNote: undefined }),
+    store.dependencies,
+  );
+  assert.equal(rejected.success, false);
+  if (!rejected.success) {
+    assert.equal(rejected.code, "CONVERSION_REASON_NOTE_REQUIRED");
+  }
+  assert.deepEqual(store.getActivities(), []);
+
+  const accepted = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      conversionReason: "OTHER",
+      conversionReasonNote: "Le responsable quitte le pays pour trois mois.",
+    }),
+    store.dependencies,
+  );
+  assert.deepEqual(accepted, { success: true });
+  assert.equal(
+    store.getActivities()[0].conversionReasonNote,
+    "Le responsable quitte le pays pour trois mois.",
+  );
+});
+
+test("a non-OTHER reason never requires an explanation", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "QUALIFIED", followUpDate: null },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({ conversionReasonNote: undefined }),
+    store.dependencies,
+  );
+
+  assert.deepEqual(result, { success: true });
+});
+
+test("rejects status = WON with a non-WON outcome, and status = LOST with a non-LOST outcome", async () => {
+  const wonStatusStore = createFakeStore({
+    prospect: { id: "prospect-1", status: "PROPOSAL_SENT", followUpDate: null },
+  });
+  const wonMismatch = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      status: "WON",
+      conversionOutcome: "STALLED",
+      conversionReason: "NO_BUDGET",
+      nextActionTitle: undefined,
+      nextActionAssignedToUserId: undefined,
+      nextActionDueAt: undefined,
+    }),
+    wonStatusStore.dependencies,
+  );
+  assert.equal(wonMismatch.success, false);
+  if (!wonMismatch.success) {
+    assert.equal(wonMismatch.code, "CONVERSION_OUTCOME_STATUS_MISMATCH");
+  }
+  assert.deepEqual(wonStatusStore.getActivities(), []);
+
+  const lostStatusStore = createFakeStore({
+    prospect: { id: "prospect-1", status: "PROPOSAL_SENT", followUpDate: null },
+  });
+  const lostMismatch = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      status: "LOST",
+      conversionOutcome: "ADVANCED",
+      nextActionTitle: undefined,
+      nextActionAssignedToUserId: undefined,
+      nextActionDueAt: undefined,
+    }),
+    lostStatusStore.dependencies,
+  );
+  assert.equal(lostMismatch.success, false);
+  if (!lostMismatch.success) {
+    assert.equal(lostMismatch.code, "CONVERSION_OUTCOME_STATUS_MISMATCH");
+  }
+  assert.deepEqual(lostStatusStore.getActivities(), []);
+});
+
+test("rejects an active resulting status paired with a WON or LOST outcome", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "CONTACTED", followUpDate: null },
+  });
+
+  const wonOnActive = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      status: "QUALIFIED",
+      conversionOutcome: "WON",
+      conversionReason: "GOOD_PRODUCT_FIT",
+    }),
+    store.dependencies,
+  );
+  assert.equal(wonOnActive.success, false);
+  if (!wonOnActive.success) {
+    assert.equal(wonOnActive.code, "CONVERSION_OUTCOME_STATUS_MISMATCH");
+  }
+
+  const lostOnActive = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({
+      status: "QUALIFIED",
+      conversionOutcome: "LOST",
+      conversionReason: "PRICE_TOO_HIGH",
+    }),
+    store.dependencies,
+  );
+  assert.equal(lostOnActive.success, false);
+  if (!lostOnActive.success) {
+    assert.equal(lostOnActive.code, "CONVERSION_OUTCOME_STATUS_MISMATCH");
+  }
+
+  assert.deepEqual(store.getActivities(), []);
+});
 
 test("an unexpected error inside the transaction is reported as a controlled SUBMIT_FAILED result", async (context) => {
   context.mock.method(console, "error", () => undefined);

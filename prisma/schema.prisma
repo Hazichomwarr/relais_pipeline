@@ -92,6 +92,56 @@ enum ProspectActivityType {
   WON_TRANSITION
 }
 
+// Ticket 20D — the commercial effect of one follow-up interaction, not a
+// current Prospect field: a prospect accumulates many outcomes over its
+// life (see the conversionOutcome/conversionReason fields on
+// ProspectActivity below). Distinct from Prospect.status (current funnel
+// position) — a QUALIFIED prospect can legitimately have a STALLED
+// follow-up, or an ADVANCED one without its status changing yet (Ticket
+// 20A found no enforced transition state machine, and 20D does not add
+// one). WON/LOST here must match Prospect.status exactly when set — see
+// isConversionOutcomeConsistentWithStatus in
+// prospect-conversion.service-core.ts.
+enum ProspectConversionOutcome {
+  ADVANCED
+  STALLED
+  WON
+  LOST
+}
+
+// Ticket 20D — audited against real RELAIS ProspectActivity/Prospect.notes
+// text (not invented) before being frozen; see
+// prospect-conversion.service-core.ts for the outcome-compatibility
+// matrix and prospect-conversion-options.ts for labels. PROMOTIONAL_OFFER
+// names the commercial lever ("a promotion influenced the outcome"), not
+// any specific campaign — the specific offer (École Pilote, a discount
+// amount, a trial period, ...) belongs in conversionReasonNote / the
+// follow-up note, never in a dedicated enum value, so this taxonomy
+// survives campaigns coming and going. NEEDS_MORE_TIME and NO_URGENCY
+// were merged after the audit: real notes never distinguished them.
+enum ProspectConversionReason {
+  // Advancement / WON
+  PROMOTIONAL_OFFER
+  DEMO_CONVINCED
+  GOOD_PRODUCT_FIT
+  URGENT_NEED
+  PRICE_ACCEPTABLE
+  DECISION_MAKER_APPROVAL
+
+  // Stall / LOST
+  NO_BUDGET
+  PRICE_TOO_HIGH
+  DECISION_MAKER_UNAVAILABLE
+  ALREADY_EQUIPPED
+  NO_RESPONSE
+  NEEDS_MORE_TIME
+  BAD_FIT
+  COMPETITOR
+
+  // Universal escape hatch — requires conversionReasonNote (Ticket 20D).
+  OTHER
+}
+
 // Ticket 20B — deliberately small: OVERDUE is derived (status = OPEN and
 // dueAt in the past), never persisted. No IN_PROGRESS/URGENT/BLOCKED
 // either — add them only if real usage proves the lifecycle needs them.
@@ -405,6 +455,18 @@ model ProspectActivity {
   occurredAt DateTime
 
   agentName String?
+
+  // Ticket 20D — structured commercial outcome/reason for this
+  // interaction. Nullable: only the follow-up mini-form's FOLLOW_UP
+  // activities populate these going forward; every prior activity (and
+  // every future non-FOLLOW_UP type) legitimately has none. No backfill
+  // was performed — a null pair means "not recorded", never "neutral" or
+  // an inferred value. conversionReasonNote is required by application
+  // validation only when conversionReason = OTHER; the column itself
+  // stays optional so non-OTHER reasons don't need a redundant note.
+  conversionOutcome    ProspectConversionOutcome?
+  conversionReason     ProspectConversionReason?
+  conversionReasonNote String?
 
   createdAt DateTime @default(now())
 

@@ -10,6 +10,8 @@ function baseInput(overrides: Record<string, unknown> = {}) {
     note: "Le directeur souhaite une démonstration.",
     status: "QUALIFIED",
     interest: "INTERESTED",
+    conversionOutcome: "ADVANCED",
+    conversionReason: "DEMO_CONVINCED",
     completedActionId: "",
     nextActionTitle: "Faire une démonstration",
     nextActionAssignedToUserId: "user-1",
@@ -101,11 +103,18 @@ for (const status of activeStatuses) {
   });
 }
 
-for (const status of ["WON", "LOST"] as ProspectStatus[]) {
+const terminalReasonByStatus: Record<"WON" | "LOST", string> = {
+  WON: "GOOD_PRODUCT_FIT",
+  LOST: "PRICE_TOO_HIGH",
+};
+
+for (const status of ["WON", "LOST"] as const) {
   test(`does not require a next action for terminal status ${status}`, () => {
     const result = prospectFollowUpWorkflowSchema.safeParse(
       baseInput({
         status,
+        conversionOutcome: status,
+        conversionReason: terminalReasonByStatus[status],
         nextActionTitle: "",
         nextActionAssignedToUserId: "",
         nextActionDueAt: "",
@@ -158,6 +167,8 @@ test("never surfaces trusted actor/lifecycle fields even if a client submits the
   if (result.success) {
     assert.deepEqual(Object.keys(result.data).sort(), [
       "completedActionId",
+      "conversionOutcome",
+      "conversionReason",
       "interest",
       "nextActionAssignedToUserId",
       "nextActionDueAt",
@@ -167,4 +178,117 @@ test("never surfaces trusted actor/lifecycle fields even if a client submits the
       "status",
     ]);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 20D — conversion outcome/reason
+// ---------------------------------------------------------------------------
+
+test("rejects a missing conversion outcome or reason", () => {
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ conversionOutcome: "" }),
+    ).success,
+    false,
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ conversionReason: "" }),
+    ).success,
+    false,
+  );
+});
+
+test("rejects a reason incompatible with the chosen outcome", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ conversionOutcome: "ADVANCED", conversionReason: "NO_BUDGET" }),
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    const messages = result.error.flatten().fieldErrors;
+    assert.ok(
+      messages.conversionReason?.includes(
+        "Cette raison ne correspond pas au résultat sélectionné.",
+      ),
+    );
+  }
+});
+
+test("accepts a reason compatible with the chosen outcome", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ conversionOutcome: "STALLED", conversionReason: "NO_BUDGET" }),
+  );
+
+  assert.equal(result.success, true);
+});
+
+test("OTHER requires an explanation; other reasons do not", () => {
+  const missingNote = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ conversionReason: "OTHER" }),
+  );
+  assert.equal(missingNote.success, false);
+  if (!missingNote.success) {
+    const messages = missingNote.error.flatten().fieldErrors;
+    assert.ok(messages.conversionReasonNote?.includes("Précisez la raison."));
+  }
+
+  const withNote = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({
+      conversionReason: "OTHER",
+      conversionReasonNote: "Le responsable quitte le pays pour trois mois.",
+    }),
+  );
+  assert.equal(withNote.success, true);
+
+  const nonOtherWithoutNote = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ conversionReason: "DEMO_CONVINCED" }),
+  );
+  assert.equal(nonOtherWithoutNote.success, true);
+});
+
+test("rejects status = WON paired with a non-WON outcome, and status = LOST paired with a non-LOST outcome", () => {
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({
+        status: "WON",
+        conversionOutcome: "ADVANCED",
+        nextActionTitle: "",
+        nextActionAssignedToUserId: "",
+        nextActionDueAt: "",
+      }),
+    ).success,
+    false,
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({
+        status: "LOST",
+        conversionOutcome: "STALLED",
+        nextActionTitle: "",
+        nextActionAssignedToUserId: "",
+        nextActionDueAt: "",
+      }),
+    ).success,
+    false,
+  );
+});
+
+test("rejects a WON or LOST outcome on an active resulting status", () => {
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({ status: "QUALIFIED", conversionOutcome: "WON" }),
+    ).success,
+    false,
+  );
+  assert.equal(
+    prospectFollowUpWorkflowSchema.safeParse(
+      baseInput({
+        status: "QUALIFIED",
+        conversionOutcome: "LOST",
+        conversionReason: "PRICE_TOO_HIGH",
+      }),
+    ).success,
+    false,
+  );
 });

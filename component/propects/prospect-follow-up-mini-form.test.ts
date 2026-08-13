@@ -48,12 +48,15 @@ test("watches status reactively via useWatch, not the raw watch() function (Reac
   assert.doesNotMatch(source, /\bwatch\("status"\)/);
 });
 
-test("never lets the client supply a trusted actor/creator/lifecycle field — only prospectId, note, status, interest, completedActionId, and next-action fields are registered", () => {
+test("never lets the client supply a trusted actor/creator/lifecycle field — only prospectId, note, status, interest, conversion outcome/reason, completedActionId, and next-action fields are registered", () => {
   for (const field of [
     "prospectId",
     "note",
     "status",
     "interest",
+    "conversionOutcome",
+    "conversionReason",
+    "conversionReasonNote",
     "completedActionId",
     "nextActionTitle",
     "nextActionAssignedToUserId",
@@ -80,4 +83,48 @@ test("the assignee dropdown is populated from the assignableUsers prop, never a 
 test("the completed-action dropdown offers an explicit no-op option and is built from the openActions prop, not a second task list implementation", () => {
   assert.match(source, /Aucune action à terminer/);
   assert.match(source, /openActions\.map\(/);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 20D
+// ---------------------------------------------------------------------------
+
+test("filters the reason dropdown from the shared compatibility core, never a hardcoded per-outcome list", () => {
+  assert.match(
+    source,
+    /import\s*\{[^}]*listConversionReasonsForOutcome[^}]*\}\s*from\s*"@\/src\/services\/prospect-conversion\.service-core"/,
+  );
+  assert.match(source, /listConversionReasonsForOutcome\(selectedOutcome\)/);
+});
+
+test("clears a now-incompatible reason when the outcome changes, using the same compatibility predicate the server enforces", () => {
+  assert.match(
+    source,
+    /import\s*\{[^}]*isConversionReasonAllowedForOutcome[^}]*\}\s*from\s*"@\/src\/services\/prospect-conversion\.service-core"/,
+  );
+  assert.match(source, /isConversionReasonAllowedForOutcome\(selectedOutcome, selectedReason\)/);
+  assert.match(source, /setValue\("conversionReason", ""\)/);
+});
+
+test("WON/LOST outcome sets the matching status for convenience, without bypassing server validation", () => {
+  assert.match(source, /selectedOutcome === "WON" \|\| selectedOutcome === "LOST"/);
+  assert.match(source, /setValue\("status", selectedOutcome\)/);
+});
+
+test("shows the OTHER explanation field only when the selected reason requires one, driven by the shared core helper", () => {
+  assert.match(
+    source,
+    /import\s*\{[^}]*conversionReasonRequiresNote[^}]*\}\s*from\s*"@\/src\/services\/prospect-conversion\.service-core"/,
+  );
+  assert.match(source, /conversionReasonRequiresNote\(selectedReason\)/);
+  assert.match(source, /reasonRequiresNote &&/);
+});
+
+test("outcome and reason option lists come from the centralized options file, never inline hardcoded labels", () => {
+  assert.match(
+    source,
+    /import\s*\{[^}]*conversionOutcomeOptions[^}]*conversionReasonOptions[^}]*\}\s*from\s*"@\/src\/lib\/prospect-conversion-options"/,
+  );
+  assert.match(source, /conversionOutcomeOptions\.map\(/);
+  assert.doesNotMatch(source, /value: "ADVANCED", label:/);
 });

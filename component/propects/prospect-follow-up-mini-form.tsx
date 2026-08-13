@@ -3,10 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CheckCircle2, Save } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 
 import { submitProspectFollowUpAction } from "@/src/actions/prospect-follow-up.actions";
+import {
+  conversionOutcomeOptions,
+  conversionReasonOptions,
+} from "@/src/lib/prospect-conversion-options";
 import {
   interestOptions,
   prospectStatusOptions,
@@ -16,6 +20,11 @@ import {
   type ProspectFollowUpWorkflowFormInput,
   type ValidatedProspectFollowUpWorkflowInput,
 } from "@/src/lib/validations/prospect-follow-up.schema";
+import {
+  conversionReasonRequiresNote,
+  isConversionReasonAllowedForOutcome,
+  listConversionReasonsForOutcome,
+} from "@/src/services/prospect-conversion.service-core";
 import { isTerminalProspectStatus } from "@/src/services/prospect-status.service-core";
 
 type OpenActionOption = {
@@ -61,6 +70,7 @@ export default function ProspectFollowUpMiniForm({
     control,
     reset,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<
     ProspectFollowUpWorkflowFormInput,
@@ -75,6 +85,42 @@ export default function ProspectFollowUpMiniForm({
   const isActiveStatus = !isTerminalProspectStatus(
     selectedStatus as ValidatedProspectFollowUpWorkflowInput["status"],
   );
+
+  const selectedOutcome = useWatch({ control, name: "conversionOutcome" }) as
+    | ValidatedProspectFollowUpWorkflowInput["conversionOutcome"]
+    | undefined;
+  const selectedReason = useWatch({ control, name: "conversionReason" }) as
+    | ValidatedProspectFollowUpWorkflowInput["conversionReason"]
+    | undefined;
+  const compatibleReasons = selectedOutcome
+    ? listConversionReasonsForOutcome(selectedOutcome)
+    : [];
+  const reasonOptionsForOutcome = conversionReasonOptions.filter((option) =>
+    compatibleReasons.includes(option.value),
+  );
+  const reasonRequiresNote =
+    selectedReason !== undefined && conversionReasonRequiresNote(selectedReason);
+
+  // Ticket 20D — never submit a stale, now-incompatible reason after the
+  // outcome changes (same pattern as Ticket 20C's terminal next-action
+  // handling: the UI must not let hidden/stale values reach the server).
+  useEffect(() => {
+    if (
+      selectedOutcome &&
+      selectedReason &&
+      !isConversionReasonAllowedForOutcome(selectedOutcome, selectedReason)
+    ) {
+      setValue("conversionReason", "");
+    }
+  }, [selectedOutcome, selectedReason, setValue]);
+
+  // Ticket 20D — a WON/LOST outcome sets the matching status for
+  // convenience; server validation remains authoritative regardless.
+  useEffect(() => {
+    if (selectedOutcome === "WON" || selectedOutcome === "LOST") {
+      setValue("status", selectedOutcome);
+    }
+  }, [selectedOutcome, setValue]);
 
   async function onSubmit(values: ValidatedProspectFollowUpWorkflowInput) {
     setFeedback(null);
@@ -133,6 +179,62 @@ export default function ProspectFollowUpMiniForm({
             {...register("note")}
           />
         </FormField>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <FormField
+            label="Résultat commercial"
+            error={errors.conversionOutcome?.message}
+          >
+            <select
+              className={inputClassName}
+              {...register("conversionOutcome")}
+            >
+              <option value="">Sélectionnez un résultat</option>
+              {conversionOutcomeOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField
+            label="Pourquoi ?"
+            error={errors.conversionReason?.message}
+          >
+            <select
+              className={inputClassName}
+              disabled={!selectedOutcome}
+              {...register("conversionReason")}
+            >
+              <option value="">
+                {selectedOutcome
+                  ? "Sélectionnez une raison"
+                  : "Choisissez d’abord un résultat"}
+              </option>
+              {reasonOptionsForOutcome.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+
+        {reasonRequiresNote && (
+          <FormField
+            label="Autre raison"
+            error={errors.conversionReasonNote?.message}
+          >
+            <input
+              type="text"
+              maxLength={500}
+              placeholder="Ex. Le responsable quitte le pays pour trois mois."
+              className={inputClassName}
+              {...register("conversionReasonNote")}
+            />
+          </FormField>
+        )}
 
         <div className="grid gap-5 sm:grid-cols-2">
           <FormField label="Statut" error={errors.status?.message}>
@@ -294,6 +396,9 @@ function getDefaultValues(
     note: "",
     status: initialValues.status,
     interest: initialValues.interest,
+    conversionOutcome: "",
+    conversionReason: "",
+    conversionReasonNote: "",
     completedActionId: "",
     nextActionTitle: "",
     nextActionAssignedToUserId: "",

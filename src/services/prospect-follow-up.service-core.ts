@@ -1,4 +1,9 @@
-import type { ProspectActivityType, ProspectStatus } from "@prisma/client";
+import type {
+  ProspectActivityType,
+  ProspectConversionOutcome,
+  ProspectConversionReason,
+  ProspectStatus,
+} from "@prisma/client";
 
 import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
 import type { ValidatedProspectFollowUpWorkflowInput } from "@/src/lib/validations/prospect-follow-up.schema";
@@ -7,6 +12,11 @@ import {
   isWonTransition,
 } from "@/src/services/prospect-won-transition.service-core";
 import { isTerminalProspectStatus } from "@/src/services/prospect-status.service-core";
+import {
+  conversionReasonRequiresNote,
+  isConversionOutcomeConsistentWithStatus,
+  isConversionReasonAllowedForOutcome,
+} from "@/src/services/prospect-conversion.service-core";
 import {
   completeProspectActionCore,
   createProspectActionCore,
@@ -18,6 +28,9 @@ import {
 export type ProspectFollowUpErrorCode =
   | "PROSPECT_NOT_FOUND"
   | "NEXT_ACTION_REQUIRED"
+  | "CONVERSION_OUTCOME_STATUS_MISMATCH"
+  | "CONVERSION_REASON_NOT_ALLOWED"
+  | "CONVERSION_REASON_NOTE_REQUIRED"
   | "SUBMIT_FAILED"
   | ProspectActionErrorCode;
 
@@ -31,6 +44,9 @@ type FollowUpActivityData = {
   summary: string;
   occurredAt: Date;
   agentName: string | undefined;
+  conversionOutcome?: ProspectConversionOutcome;
+  conversionReason?: ProspectConversionReason;
+  conversionReasonNote?: string;
 };
 
 type ProspectFollowUpStateUpdates = {
@@ -111,6 +127,49 @@ function assertNextActionPresentWhenActive(
 }
 
 /**
+ * Ticket 20D's status/outcome/reason consistency rules, enforced here as
+ * well as by prospectFollowUpWorkflowSchema's superRefine — the same
+ * "domain, not just UI" guarantee as assertNextActionPresentWhenActive.
+ */
+function assertConversionConsistency(
+  input: ValidatedProspectFollowUpWorkflowInput,
+): void {
+  if (
+    !isConversionOutcomeConsistentWithStatus(
+      input.conversionOutcome,
+      input.status,
+    )
+  ) {
+    throw new ProspectFollowUpWorkflowFailure(
+      "CONVERSION_OUTCOME_STATUS_MISMATCH",
+      "Le résultat commercial ne correspond pas au statut sélectionné.",
+    );
+  }
+
+  if (
+    !isConversionReasonAllowedForOutcome(
+      input.conversionOutcome,
+      input.conversionReason,
+    )
+  ) {
+    throw new ProspectFollowUpWorkflowFailure(
+      "CONVERSION_REASON_NOT_ALLOWED",
+      "Cette raison ne correspond pas au résultat sélectionné.",
+    );
+  }
+
+  if (
+    conversionReasonRequiresNote(input.conversionReason) &&
+    !input.conversionReasonNote
+  ) {
+    throw new ProspectFollowUpWorkflowFailure(
+      "CONVERSION_REASON_NOTE_REQUIRED",
+      "Précisez la raison.",
+    );
+  }
+}
+
+/**
  * One commercial follow-up, applied atomically: complete a selected
  * existing action, update status/interest (+ WON_TRANSITION if crossing
  * into WON), record the FOLLOW_UP activity, and — for an active resulting
@@ -124,6 +183,7 @@ export async function submitProspectFollowUpCore(
 ): Promise<SubmitProspectFollowUpResult> {
   try {
     assertNextActionPresentWhenActive(input);
+    assertConversionConsistency(input);
 
     await dependencies.runTransaction(async (tx) => {
       const prospect = await tx.findProspect(input.prospectId);
@@ -197,6 +257,9 @@ export async function submitProspectFollowUpCore(
         summary: input.note,
         occurredAt,
         agentName,
+        conversionOutcome: input.conversionOutcome,
+        conversionReason: input.conversionReason,
+        conversionReasonNote: input.conversionReasonNote,
       });
 
       if (isWonTransition(prospect.status, input.status)) {

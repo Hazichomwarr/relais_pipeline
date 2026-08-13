@@ -23,6 +23,9 @@ test("renders an activity with its French label, summary, details, and agent", (
     details: "Une réunion sera organisée après lecture.",
     occurredAt: new Date("2026-08-03T16:30:00.000Z"),
     agentName: "Koane Amidou",
+    conversionOutcome: null,
+    conversionReason: null,
+    conversionReasonNote: null,
     createdAt: new Date("2026-08-03T20:00:00.000Z"),
   };
   const html = renderToStaticMarkup(

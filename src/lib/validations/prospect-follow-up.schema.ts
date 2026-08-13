@@ -2,6 +2,36 @@ import { z } from "zod";
 
 import { interestLevels, prospectStatuses } from "./prospect.schema";
 import { isTerminalProspectStatus } from "@/src/services/prospect-status.service-core";
+import {
+  conversionReasonRequiresNote,
+  isConversionOutcomeConsistentWithStatus,
+  isConversionReasonAllowedForOutcome,
+} from "@/src/services/prospect-conversion.service-core";
+
+export const conversionOutcomes = [
+  "ADVANCED",
+  "STALLED",
+  "WON",
+  "LOST",
+] as const;
+
+export const conversionReasons = [
+  "PROMOTIONAL_OFFER",
+  "DEMO_CONVINCED",
+  "GOOD_PRODUCT_FIT",
+  "URGENT_NEED",
+  "PRICE_ACCEPTABLE",
+  "DECISION_MAKER_APPROVAL",
+  "NO_BUDGET",
+  "PRICE_TOO_HIGH",
+  "DECISION_MAKER_UNAVAILABLE",
+  "ALREADY_EQUIPPED",
+  "NO_RESPONSE",
+  "NEEDS_MORE_TIME",
+  "BAD_FIT",
+  "COMPETITOR",
+  "OTHER",
+] as const;
 
 const optionalText = (maximum: number, message: string) =>
   z.preprocess(
@@ -59,6 +89,23 @@ export const prospectFollowUpWorkflowSchema = z
       error: "Sélectionnez un niveau d’intérêt valide.",
     }),
 
+    conversionOutcome: z
+      .string()
+      .min(1, "Sélectionnez un résultat commercial.")
+      .pipe(z.enum(conversionOutcomes, {
+        error: "Sélectionnez un résultat commercial valide.",
+      })),
+    conversionReason: z
+      .string()
+      .min(1, "Sélectionnez une raison.")
+      .pipe(z.enum(conversionReasons, {
+        error: "Sélectionnez une raison valide.",
+      })),
+    conversionReasonNote: optionalText(
+      500,
+      "L’explication ne peut pas dépasser 500 caractères.",
+    ),
+
     completedActionId: optionalText(
       100,
       "L’identifiant de l’action est invalide.",
@@ -75,6 +122,51 @@ export const prospectFollowUpWorkflowSchema = z
     nextActionDueAt: optionalDate,
   })
   .superRefine((data, context) => {
+    // Guard: if conversionOutcome/conversionReason failed their own
+    // enum validation above, `data.conversionOutcome`/`conversionReason`
+    // is undefined here — the field-level "required" issue already
+    // covers it, and the cross-field checks below assume a real enum
+    // value (isConversionReasonAllowedForOutcome indexes a lookup table
+    // keyed by outcome, which would throw on undefined).
+    if (data.conversionOutcome && data.conversionReason) {
+      // Ticket 20D — status/outcome consistency (WON⇄WON, LOST⇄LOST,
+      // ADVANCED/STALLED only for an active status).
+      if (!isConversionOutcomeConsistentWithStatus(data.conversionOutcome, data.status)) {
+        context.addIssue({
+          code: "custom",
+          path: ["conversionOutcome"],
+          message:
+            data.conversionOutcome === "WON" || data.conversionOutcome === "LOST"
+              ? `Un résultat « ${data.conversionOutcome === "WON" ? "Gagné" : "Perdu"} » exige que le statut soit ${data.conversionOutcome === "WON" ? "Gagné" : "Perdu"}.`
+              : "Ce résultat ne s’applique qu’à un prospect encore actif.",
+        });
+      }
+
+      // Ticket 20D — reason must be commercially compatible with the
+      // chosen outcome (never enforced only by UI filtering).
+      if (!isConversionReasonAllowedForOutcome(data.conversionOutcome, data.conversionReason)) {
+        context.addIssue({
+          code: "custom",
+          path: ["conversionReason"],
+          message: "Cette raison ne correspond pas au résultat sélectionné.",
+        });
+      }
+
+      // Ticket 20D — OTHER requires a written explanation.
+      if (
+        conversionReasonRequiresNote(data.conversionReason) &&
+        !data.conversionReasonNote
+      ) {
+        context.addIssue({
+          code: "custom",
+          path: ["conversionReasonNote"],
+          message: "Précisez la raison.",
+        });
+      }
+    }
+
+    // Ticket 20C — an active resulting status requires a concrete next
+    // action.
     if (isTerminalProspectStatus(data.status)) {
       return;
     }

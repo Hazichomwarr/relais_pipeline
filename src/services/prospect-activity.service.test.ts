@@ -37,6 +37,9 @@ function activity(
     details: null,
     occurredAt: new Date(occurredAt),
     agentName: "Aminata",
+    conversionOutcome: null,
+    conversionReason: null,
+    conversionReasonNote: null,
     createdAt: new Date(createdAt),
   };
 }
