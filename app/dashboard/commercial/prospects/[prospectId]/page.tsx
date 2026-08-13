@@ -148,6 +148,9 @@ export default async function CommercialProspectDetailPage({
           prospectId={prospect.id}
           assignableUsers={assignableUsers}
         />
+
+        <ProductDetailSection prospect={prospect} />
+
         <ProspectFollowUpMiniForm
           prospectId={prospect.id}
           initialValues={{
@@ -159,8 +162,6 @@ export default async function CommercialProspectDetailPage({
             .map((action) => ({ id: action.id, title: action.title }))}
           assignableUsers={assignableUsers}
         />
-
-        <ProductDetailSection prospect={prospect} />
 
         <DetailSection title="Observation initiale du terrain">
           <p className="whitespace-pre-wrap text-[15px] leading-7 text-slate-700">
