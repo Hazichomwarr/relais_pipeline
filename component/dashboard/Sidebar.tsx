@@ -1,5 +1,6 @@
 import type { UserRole } from "@prisma/client";
 import {
+  BarChart3,
   ChevronDown,
   ClipboardCheck,
   ClipboardList,
@@ -26,6 +27,7 @@ export default function Sidebar({
     | "dashboard"
     | "newProspect"
     | "actions"
+    | "analytics"
     | "myProspects"
     | "followUps"
     | "users"
@@ -151,6 +153,18 @@ export default function Sidebar({
         >
           <Wallet className="h-5 w-5" />
           Finances
+        </Link>
+
+        <Link
+          href="/admin/analytics/funnel"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "analytics"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <BarChart3 className="h-5 w-5" />
+          Analyses
         </Link>
 
         <Link

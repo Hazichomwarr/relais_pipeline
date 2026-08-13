@@ -6,6 +6,7 @@ type AdminShellProps = {
   activeItem?:
     | "dashboard"
     | "actions"
+    | "analytics"
     | "myProspects"
     | "followUps"
     | "users"

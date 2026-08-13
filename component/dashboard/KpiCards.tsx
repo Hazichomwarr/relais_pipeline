@@ -1,5 +1,6 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
+import { isInterestedProspect } from "@/src/services/prospect-status.service-core";
 import { Flame, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
@@ -23,7 +24,7 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
   ).size;
 
   const interested = prospects.filter((prospect) =>
-    ["INTERESTED", "READY_TO_DISCUSS"].includes(prospect.interest),
+    isInterestedProspect(prospect.interest),
   ).length;
 
   const won = prospects.filter((prospect) => prospect.status === "WON").length;

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProspectStatus } from "@prisma/client";
+import type { InterestLevel, ProspectStatus } from "@prisma/client";
 
-import { isTerminalProspectStatus } from "./prospect-status.service-core";
+import { isInterestedProspect, isTerminalProspectStatus } from "./prospect-status.service-core";
 
 test("WON and LOST are terminal", () => {
   assert.equal(isTerminalProspectStatus("WON"), true);
@@ -24,5 +24,19 @@ test("every other current ProspectStatus value is active (non-terminal)", () => 
       false,
       `${status} should be active, not terminal`,
     );
+  }
+});
+
+test("isInterestedProspect matches the Ticket 15H.4 Admin dashboard definition exactly: INTERESTED and READY_TO_DISCUSS only", () => {
+  assert.equal(isInterestedProspect("INTERESTED"), true);
+  assert.equal(isInterestedProspect("READY_TO_DISCUSS"), true);
+
+  const notInterested: InterestLevel[] = [
+    "NOT_INTERESTED",
+    "MAYBE",
+    "NEEDS_INFORMATION",
+  ];
+  for (const level of notInterested) {
+    assert.equal(isInterestedProspect(level), false, `${level} should not count as interested`);
   }
 });

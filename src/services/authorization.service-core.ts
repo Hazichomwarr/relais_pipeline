@@ -51,6 +51,16 @@ export const PROSPECT_ACTION_QUEUE_ROLES: UserRole[] = [
   "COMMERCIAL",
 ];
 
+/**
+ * Ticket 20F — company-wide sales analytics (funnel, and later 20G's
+ * "why" analytics) are management-only in V1, unlike the /actions queue.
+ * Identical to DAILY_REPORT_MANAGEMENT_ROLES today by coincidence, kept
+ * as its own constant for the same reason PROSPECT_ACTION_QUEUE_ROLES is
+ * its own constant — each feature's access list is its own deliberate
+ * decision, not an accidental alias of an unrelated one.
+ */
+export const SALES_ANALYTICS_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

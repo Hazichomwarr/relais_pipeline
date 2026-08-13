@@ -1,5 +1,6 @@
 import type { UserRole } from "@prisma/client";
 import {
+  BarChart3,
   ClipboardCheck,
   ClipboardList,
   FileText,
@@ -65,6 +66,11 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       label: "Finances",
       href: "/finances",
       icon: <Wallet className="h-5 w-5" />,
+    },
+    {
+      label: "Analyses",
+      href: "/admin/analytics/funnel",
+      icon: <BarChart3 className="h-5 w-5" />,
     },
     {
       label: "Mes notes",

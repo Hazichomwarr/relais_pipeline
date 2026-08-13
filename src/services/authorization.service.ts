@@ -10,6 +10,7 @@ import {
   PROSPECT_ACTION_QUEUE_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
+  SALES_ANALYTICS_ROLES,
   SHARED_FEED_ROLES,
 } from "@/src/services/authorization.service-core";
 
@@ -70,4 +71,13 @@ export async function requireDailyReportManagementAccess() {
  */
 export async function requireProspectActionQueueAccess() {
   return requireRole(...PROSPECT_ACTION_QUEUE_ROLES);
+}
+
+/**
+ * Read boundary for company-wide sales analytics (Ticket 20F) —
+ * ADMIN/MANAGER only. COMMERCIAL never sees company-wide funnel numbers
+ * in V1, even though they can see the company-wide action queue.
+ */
+export async function requireSalesAnalyticsAccess() {
+  return requireRole(...SALES_ANALYTICS_ROLES);
 }
