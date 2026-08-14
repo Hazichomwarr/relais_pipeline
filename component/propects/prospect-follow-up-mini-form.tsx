@@ -46,6 +46,8 @@ type ProspectFollowUpMiniFormProps = {
   };
   openActions: OpenActionOption[];
   assignableUsers: AssignableUser[];
+  /** Ticket 22C — lets the on-demand composer wrapper close itself after a successful submission. Never called on failure. */
+  onSuccess?: () => void;
 };
 
 const inputClassName =
@@ -58,6 +60,7 @@ export default function ProspectFollowUpMiniForm({
   initialValues,
   openActions,
   assignableUsers,
+  onSuccess,
 }: ProspectFollowUpMiniFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -148,6 +151,7 @@ export default function ProspectFollowUpMiniForm({
     reset(getDefaultValues(prospectId, initialValues));
     setFeedback({ type: "success", message: "Suivi enregistré avec succès." });
     router.refresh();
+    onSuccess?.();
   }
 
   return (

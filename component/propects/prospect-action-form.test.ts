@@ -44,3 +44,20 @@ test("the assignee dropdown is populated from the assignableUsers prop, never a 
   assert.match(source, /assignableUsers\.map\(/);
   assert.doesNotMatch(source, /role === "COMMERCIAL"/);
 });
+
+// Ticket 22C — lets the on-demand composer wrapper close itself without
+// touching this form's own validation/submission logic.
+test("calls the optional onSuccess callback only after a successful creation, never on a validation/server error", () => {
+  assert.match(
+    source,
+    /router\.refresh\(\);\s*\n\s*onSuccess\?\.\(\);/,
+  );
+  // The only early return in onSubmit is the failure path — onSuccess must
+  // not appear before it.
+  const failureReturnIndex = source.indexOf(
+    'setFeedback({ type: "error", message: result.message });',
+  );
+  const onSuccessCallIndex = source.indexOf("onSuccess?.();");
+  assert.ok(failureReturnIndex > 0);
+  assert.ok(onSuccessCallIndex > failureReturnIndex);
+});

@@ -128,3 +128,20 @@ test("outcome and reason option lists come from the centralized options file, ne
   assert.match(source, /conversionOutcomeOptions\.map\(/);
   assert.doesNotMatch(source, /value: "ADVANCED", label:/);
 });
+
+// ---------------------------------------------------------------------------
+// Ticket 22C
+// ---------------------------------------------------------------------------
+
+test("calls the optional onSuccess callback only after a successful submission, never on a validation/server error", () => {
+  assert.match(
+    source,
+    /router\.refresh\(\);\s*\n\s*onSuccess\?\.\(\);/,
+  );
+  const failureReturnIndex = source.indexOf(
+    'setFeedback({ type: "error", message: result.message });',
+  );
+  const onSuccessCallIndex = source.indexOf("onSuccess?.();");
+  assert.ok(failureReturnIndex > 0);
+  assert.ok(onSuccessCallIndex > failureReturnIndex);
+});

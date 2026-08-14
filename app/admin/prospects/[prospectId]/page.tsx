@@ -10,11 +10,8 @@ import { notFound } from "next/navigation";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 
 import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
-import ProspectActionForm from "@/component/propects/prospect-action-form";
-import ProspectActionList from "@/component/propects/prospect-action-list";
-import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
-import ProspectFollowUpMiniForm from "@/component/propects/prospect-follow-up-mini-form";
+import ProspectWorkflowSections from "@/component/propects/prospect-workflow-sections";
 import {
   Badge,
   DetailSection,
@@ -190,29 +187,19 @@ export default async function ProspectDetailPage({
             </div>
 
             <div className="mt-7">
-              <ProspectFollowUpMiniForm
+              <ProspectWorkflowSections
                 prospectId={prospect.id}
-                initialValues={{
+                viewer={viewer}
+                actions={actions}
+                assignableUsers={assignableUsers}
+                followUpInitialValues={{
                   status: prospect.status,
                   interest: prospect.interest,
                 }}
-                openActions={actions
-                  .filter((action) => action.status === "OPEN")
-                  .map((action) => ({ id: action.id, title: action.title }))}
-                assignableUsers={assignableUsers}
               />
             </div>
 
-            <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
-              <ProspectActionForm
-                prospectId={prospect.id}
-                assignableUsers={assignableUsers}
-              />
-              <ProspectActionList actions={actions} viewer={viewer} />
-            </div>
-
-            <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
-              <ProspectActivityForm prospectId={prospect.id} />
+            <div className="mt-7">
               <ProspectActivityTimeline
                 activities={
                   activitiesResult.success ? activitiesResult.activities : []

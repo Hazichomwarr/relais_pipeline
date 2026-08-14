@@ -60,3 +60,20 @@ test("shows the cancellation reason for canceled actions and the completion mome
 test("never performs a Prisma call directly — reads flow through the service layer's props only", () => {
   assert.doesNotMatch(source, /prisma\./);
 });
+
+// Ticket 22C — the "+ Nouvelle action" composer trigger and its collapsible
+// form live in this same section header/footer instead of a separate,
+// permanently-visible card competing with the list.
+test("exposes optional headerAction and footer slots for the on-demand composer, defaulting to nothing so existing usage is unaffected", () => {
+  assert.match(source, /headerAction\?: ReactNode/);
+  assert.match(source, /footer\?: ReactNode/);
+  assert.match(source, /\{headerAction\}/);
+  assert.match(source, /\{footer\}/);
+});
+
+test("the footer slot renders after the action lists, never gating whether the lists themselves are shown", () => {
+  const listsIndex = source.indexOf("Aucune action pour ce prospect");
+  const footerIndex = source.lastIndexOf("{footer}");
+  assert.ok(listsIndex > 0);
+  assert.ok(footerIndex > listsIndex);
+});

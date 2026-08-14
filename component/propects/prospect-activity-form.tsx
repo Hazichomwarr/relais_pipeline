@@ -21,6 +21,8 @@ type ProspectActivityFormProps = {
   prospectId: string;
   /** Defaults to the admin action; the commercial detail page passes its own ownership-scoped action. */
   action?: (values: unknown) => Promise<CreateProspectActivityActionResult>;
+  /** Ticket 22C — lets the on-demand composer wrapper close itself after a successful creation. Never called on failure. */
+  onSuccess?: () => void;
 };
 
 const inputClassName =
@@ -31,6 +33,7 @@ const textAreaClassName =
 export default function ProspectActivityForm({
   prospectId,
   action = createProspectActivityAction,
+  onSuccess,
 }: ProspectActivityFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -81,6 +84,7 @@ export default function ProspectActivityForm({
       message: "L’interaction a été ajoutée à l’historique.",
     });
     router.refresh();
+    onSuccess?.();
   }
 
   return (

@@ -25,6 +25,8 @@ type AssignableUser = {
 type ProspectActionFormProps = {
   prospectId: string;
   assignableUsers: AssignableUser[];
+  /** Ticket 22C — lets the on-demand composer wrapper close itself after a successful creation. Never called on failure. */
+  onSuccess?: () => void;
 };
 
 const inputClassName =
@@ -35,6 +37,7 @@ const textAreaClassName =
 export default function ProspectActionForm({
   prospectId,
   assignableUsers,
+  onSuccess,
 }: ProspectActionFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<{
@@ -83,6 +86,7 @@ export default function ProspectActionForm({
     reset(getDefaultValues(prospectId));
     setFeedback({ type: "success", message: "L’action a été créée." });
     router.refresh();
+    onSuccess?.();
   }
 
   return (

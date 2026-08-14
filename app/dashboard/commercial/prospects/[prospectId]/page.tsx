@@ -9,11 +9,8 @@ import {
 import { notFound } from "next/navigation";
 
 import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
-import ProspectActionForm from "@/component/propects/prospect-action-form";
-import ProspectActionList from "@/component/propects/prospect-action-list";
-import ProspectActivityForm from "@/component/propects/prospect-activity-form";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
-import ProspectFollowUpMiniForm from "@/component/propects/prospect-follow-up-mini-form";
+import ProspectWorkflowSections from "@/component/propects/prospect-workflow-sections";
 import {
   Badge,
   DetailSection,
@@ -142,25 +139,18 @@ export default async function CommercialProspectDetailPage({
           </div>
         </DetailSection>
 
-        <ProspectActionList actions={actions} viewer={user} />
-
-        <ProspectActionForm
-          prospectId={prospect.id}
-          assignableUsers={assignableUsers}
-        />
-
         <ProductDetailSection prospect={prospect} />
 
-        <ProspectFollowUpMiniForm
+        <ProspectWorkflowSections
           prospectId={prospect.id}
-          initialValues={{
+          viewer={user}
+          actions={actions}
+          assignableUsers={assignableUsers}
+          followUpInitialValues={{
             status: prospect.status,
             interest: prospect.interest,
           }}
-          openActions={actions
-            .filter((action) => action.status === "OPEN")
-            .map((action) => ({ id: action.id, title: action.title }))}
-          assignableUsers={assignableUsers}
+          activityAction={createCommercialActivityAction}
         />
 
         <DetailSection title="Observation initiale du terrain">
@@ -183,11 +173,6 @@ export default async function CommercialProspectDetailPage({
             />
           </div>
         </DetailSection>
-
-        <ProspectActivityForm
-          prospectId={prospect.id}
-          action={createCommercialActivityAction}
-        />
 
         <ProspectActivityTimeline
           activities={

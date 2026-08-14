@@ -1,5 +1,6 @@
 import type { UserRole } from "@prisma/client";
 import { CheckCircle2, ListTodo, XCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { ProspectActionListItem } from "@/src/services/prospect-action.service";
 import {
@@ -13,27 +14,36 @@ import ProspectActionRowActions from "./prospect-action-row-actions";
 type ProspectActionListProps = {
   actions: ProspectActionListItem[];
   viewer: { id: string; role: UserRole };
+  /** Ticket 22C — the "+ Nouvelle action" composer trigger, rendered in this section's own header instead of as a separate competing card. */
+  headerAction?: ReactNode;
+  /** Ticket 22C — the collapsible ProspectActionForm, rendered inside this same card below the lists when open. */
+  footer?: ReactNode;
 };
 
 export default function ProspectActionList({
   actions,
   viewer,
+  headerAction,
+  footer,
 }: ProspectActionListProps) {
   const open = actions.filter((action) => action.status === "OPEN");
   const history = actions.filter((action) => action.status !== "OPEN");
 
   return (
     <section className="rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-7">
-      <div className="mb-6 flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-          <ListTodo className="h-5 w-5" />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+            <ListTodo className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-[#0f2557]">Actions</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-500">
+              Ce qui doit se passer ensuite sur ce dossier, et qui s’en charge.
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-bold text-[#0f2557]">Actions</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            Ce qui doit se passer ensuite sur ce dossier, et qui s’en charge.
-          </p>
-        </div>
+        {headerAction}
       </div>
 
       {actions.length === 0 ? (
@@ -131,6 +141,8 @@ export default function ProspectActionList({
           )}
         </div>
       )}
+
+      {footer}
     </section>
   );
 }
