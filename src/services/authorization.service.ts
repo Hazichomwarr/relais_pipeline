@@ -7,6 +7,7 @@ import {
   assertCanChangePasswordCore,
   AuthorizationError,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  MY_PROSPECTS_ROLES,
   PROSPECT_ACTION_QUEUE_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
@@ -80,4 +81,13 @@ export async function requireProspectActionQueueAccess() {
  */
 export async function requireSalesAnalyticsAccess() {
   return requireRole(...SALES_ANALYTICS_ROLES);
+}
+
+/**
+ * Read boundary for the ADMIN/MANAGER "Mes prospects" personal-ownership
+ * page (Ticket 21B) — COMMERCIAL reaches the same underlying ownership
+ * concept through /dashboard/commercial instead, not this boundary.
+ */
+export async function requireMyProspectsAccess() {
+  return requireRole(...MY_PROSPECTS_ROLES);
 }

@@ -64,19 +64,19 @@ test("ADMIN mobile navigation includes an active Mes prospects entry pointing to
   assert.doesNotMatch(myProspectsEntryMatch![0], /disabled: true/);
 });
 
-test("Mes prospects is only added for ADMIN, mirroring the existing Utilisateurs role gate (Ticket 15H.2)", () => {
+test("Mes prospects is added for ADMIN and MANAGER (Ticket 21B — MANAGER's personal portfolio must remain reachable after a promotion), unlike the ADMIN-only Utilisateurs gate", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
     "utf8",
   );
 
   const myProspectsBlockMatch = source.match(
-    /role === "ADMIN"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Mes prospects",/,
+    /role === "ADMIN" \|\| role === "MANAGER"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Mes prospects",/,
   );
 
   assert.ok(
     myProspectsBlockMatch,
-    "expected the Mes prospects entry to be gated behind role === \"ADMIN\"",
+    "expected the Mes prospects entry to be gated behind role === \"ADMIN\" || role === \"MANAGER\"",
   );
 });
 

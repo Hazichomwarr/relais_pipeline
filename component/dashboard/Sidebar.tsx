@@ -105,7 +105,7 @@ export default function Sidebar({
           Actions
         </Link>
 
-        {role === "ADMIN" && (
+        {(role === "ADMIN" || role === "MANAGER") && (
           <Link
             href="/admin/my-prospects"
             className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${

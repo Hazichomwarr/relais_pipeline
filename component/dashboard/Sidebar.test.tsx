@@ -129,11 +129,11 @@ test("ADMIN sidebar includes a Mes prospects link to /admin/my-prospects (Ticket
   assert.match(html, /href="\/admin\/my-prospects"/);
 });
 
-test("MANAGER sidebar never exposes the ADMIN-only Mes prospects link (Ticket 15H.2)", () => {
+test("MANAGER sidebar includes a Mes prospects link to /admin/my-prospects (Ticket 21B — MANAGER's personal portfolio must remain reachable after a promotion, unlike the ADMIN-only Ticket 15H.2 original)", () => {
   const html = renderToStaticMarkup(<Sidebar role="MANAGER" />);
 
-  assert.doesNotMatch(html, /Mes prospects/);
-  assert.doesNotMatch(html, /href="\/admin\/my-prospects"/);
+  assert.match(html, /Mes prospects/);
+  assert.match(html, /href="\/admin\/my-prospects"/);
 });
 
 test("the Mes prospects link is highlighted when activeItem is myProspects", () => {

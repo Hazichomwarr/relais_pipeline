@@ -43,7 +43,7 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/actions",
       icon: <ListTodo className="h-5 w-5" />,
     },
-    ...(role === "ADMIN"
+    ...(role === "ADMIN" || role === "MANAGER"
       ? [
           {
             label: "Mes prospects",

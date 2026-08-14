@@ -61,6 +61,17 @@ export const PROSPECT_ACTION_QUEUE_ROLES: UserRole[] = [
  */
 export const SALES_ANALYTICS_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 21B — "Mes prospects" (/admin/my-prospects) is the ADMIN/MANAGER
+ * personal-ownership view inside the shared admin shell. COMMERCIAL has
+ * an equivalent personal-ownership experience at /dashboard/commercial
+ * instead of this route, so it is deliberately excluded here rather than
+ * folded into a single three-role list. Identical to SALES_ANALYTICS_ROLES
+ * today by coincidence, kept as its own constant for the same reason that
+ * one is its own constant.
+ */
+export const MY_PROSPECTS_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

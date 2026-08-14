@@ -7,7 +7,7 @@ import AdminShell from "@/component/dashboard/AdminShell";
 import { buildReturnToPath } from "@/src/lib/return-to";
 import {
   AuthorizationError,
-  requireAdmin,
+  requireMyProspectsAccess,
 } from "@/src/services/authorization.service";
 import {
   getAdminMyProspects,
@@ -32,10 +32,10 @@ export default async function AdminMyProspectsPage({
   let admin;
 
   try {
-    admin = await requireAdmin();
+    admin = await requireMyProspectsAccess();
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
+      redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/dashboard");
     }
     throw error;
   }
