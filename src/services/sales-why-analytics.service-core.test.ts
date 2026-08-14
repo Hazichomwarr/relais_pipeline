@@ -181,6 +181,25 @@ test("byOwner is sorted alphabetically, never by volume", () => {
   );
 });
 
+test("a follow-up owned by a since-promoted Commercial (now MANAGER) still appears attributed to that owner — SalesWhyOutcomeRow carries no role field, so a role transition cannot affect this aggregation (Ticket 21A)", () => {
+  const rows = [
+    row({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+    row({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+  ];
+  const analytics = buildSalesWhyAnalytics(PERIOD, rows);
+  const amidou = analytics.byOwner.find((entry) => entry.ownerUserId === "amidou");
+
+  assert.ok(amidou, "Amidou's follow-ups must still be attributed to him after his role changed");
+  assert.equal(amidou?.total, 2);
+  assert.equal(amidou?.ownerName, "Amidou Sawadogo");
+});
+
+test("SalesWhyOutcomeRow has no role field to misuse as an owner-eligibility filter", () => {
+  const testRow = row();
+  assert.equal("role" in testRow, false);
+  assert.equal(testRow.assignedUser === null || !("role" in testRow.assignedUser), true);
+});
+
 test("owner grouping uses assignedUserId regardless of formal role, including an unassigned bucket", () => {
   const rows = [
     row({ assignedUserId: "owner-1", assignedUser: { firstName: "A", lastName: "B" } }),

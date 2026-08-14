@@ -171,6 +171,26 @@ test("byOwner is sorted alphabetically by name, never by volume — no ranking i
   );
 });
 
+test("a prospect owned by a since-promoted Commercial (now MANAGER) still appears attributed to that owner — SalesFunnelProspectRow carries no role field, so a role transition cannot affect this aggregation (Ticket 21A)", () => {
+  const prospects = [
+    prospectRow({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+    prospectRow({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+    prospectRow({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+  ];
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, []);
+  const amidou = analytics.byOwner.find((entry) => entry.ownerUserId === "amidou");
+
+  assert.ok(amidou, "Amidou's 3 prospects must still be attributed to him after his role changed");
+  assert.equal(amidou?.total, 3);
+  assert.equal(amidou?.ownerName, "Amidou Sawadogo");
+});
+
+test("SalesFunnelProspectRow has no role field to misuse as an owner-eligibility filter", () => {
+  const row = prospectRow();
+  assert.equal("role" in row, false);
+  assert.equal(row.assignedUser === null || !("role" in row.assignedUser), true);
+});
+
 // ---------------------------------------------------------------------------
 // Interest semantics — must match Ticket 15H.4's Admin dashboard exactly
 // ---------------------------------------------------------------------------
