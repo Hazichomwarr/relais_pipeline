@@ -10,11 +10,6 @@ function validInput() {
     summary: "Appel avec le directeur",
     details: "Une démonstration est demandée.",
     occurredAt: "2026-08-03T10:30",
-    agentName: "Aminata",
-    interest: "READY_TO_DISCUSS",
-    status: "QUALIFIED",
-    nextAction: "SEND_DEMO",
-    followUpDate: "2026-08-05",
   };
 }
 
@@ -50,23 +45,13 @@ test("requires a concise summary", () => {
   assert.equal(tooLong.success, false);
 });
 
-test("normalizes empty optional values", () => {
+test("normalizes empty optional details", () => {
   const result = prospectActivitySchema.parse({
     ...validInput(),
     details: "  ",
-    agentName: "",
-    interest: "",
-    status: "",
-    nextAction: "",
-    followUpDate: "",
   });
 
   assert.equal(result.details, undefined);
-  assert.equal(result.agentName, undefined);
-  assert.equal(result.interest, undefined);
-  assert.equal(result.status, undefined);
-  assert.equal(result.nextAction, undefined);
-  assert.equal(result.followUpDate, undefined);
 });
 
 test("accepts valid optional details and occurred date-time", () => {
@@ -103,4 +88,40 @@ test("rejects an unknown activity enum value", () => {
   });
 
   assert.equal(result.success, false);
+});
+
+// Ticket 22B — FOLLOW_UP is the structured follow-up workflow's exclusive
+// checkpoint type; the generic interaction path must never be able to
+// create one. See prospect-follow-up.schema.ts for the authoritative path.
+test("rejects FOLLOW_UP as a generic interaction type", () => {
+  const result = prospectActivitySchema.safeParse({
+    ...validInput(),
+    type: "FOLLOW_UP",
+  });
+
+  assert.equal(result.success, false);
+});
+
+// Ticket 22B — commercial-state mutation and free-text actor attribution
+// were removed from this schema entirely. Submitting them is harmless
+// (zod silently drops unrecognized keys) precisely because the schema no
+// longer defines fields for them — there is nothing left to validate or
+// forward to the service layer.
+test("ignores legacy commercial-state and actor fields if still submitted", () => {
+  const result = prospectActivitySchema.parse({
+    ...validInput(),
+    agentName: "Aminata",
+    interest: "READY_TO_DISCUSS",
+    status: "QUALIFIED",
+    nextAction: "SEND_DEMO",
+    followUpDate: "2026-08-05",
+  });
+
+  assert.deepEqual(Object.keys(result).sort(), [
+    "details",
+    "occurredAt",
+    "prospectId",
+    "summary",
+    "type",
+  ]);
 });

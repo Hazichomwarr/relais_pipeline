@@ -39,7 +39,7 @@ export async function createProspectActivityAction(
     };
   }
 
-  const result = await createProspectActivity(parsed.data);
+  const result = await createProspectActivity(parsed.data, authorization.user);
 
   if (!result.success) {
     return {

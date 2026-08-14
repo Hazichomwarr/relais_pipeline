@@ -187,7 +187,6 @@ export default async function CommercialProspectDetailPage({
         <ProspectActivityForm
           prospectId={prospect.id}
           action={createCommercialActivityAction}
-          initialAgentName={getAssignedUserName(prospect)}
         />
 
         <ProspectActivityTimeline

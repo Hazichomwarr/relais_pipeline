@@ -1,16 +1,7 @@
-import type {
-  FollowUpAction,
-  InterestLevel,
-  ProspectActivity,
-  ProspectActivityType,
-  ProspectStatus,
-} from "@prisma/client";
+import type { ProspectActivity, ProspectActivityType } from "@prisma/client";
 
+import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
 import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
-import {
-  buildWonTransitionActivityData,
-  isWonTransition,
-} from "@/src/services/prospect-won-transition.service-core";
 
 export type ProspectActivityReadResult =
   | {
@@ -34,20 +25,13 @@ export type ProspectActivityCreateResult =
       message: string;
     };
 
-export type ProspectStateUpdates = {
-  interest?: InterestLevel;
-  status?: ProspectStatus;
-  nextAction?: FollowUpAction;
-  followUpDate?: Date;
-};
-
 type ActivityCreateData = {
   prospectId: string;
   type: ProspectActivityType;
   summary: string;
   details?: string;
   occurredAt: Date;
-  agentName?: string;
+  agentName: string;
 };
 
 export type ProspectActivityReadDependencies = {
@@ -55,17 +39,14 @@ export type ProspectActivityReadDependencies = {
   findActivities: (prospectId: string) => Promise<ProspectActivity[]>;
 };
 
+// Ticket 22B — narrowed to "find the prospect, write one append-only
+// activity." This path never reads/writes Prospect.status/interest/
+// nextAction/followUpDate and never creates a ProspectAction or
+// WON_TRANSITION — that capability lives solely in
+// prospect-follow-up.service-core.ts's submitProspectFollowUpCore.
 export type ProspectActivityTransaction = {
-  findProspect: (
-    prospectId: string,
-  ) => Promise<{ id: string; status: ProspectStatus } | null>;
-  createActivity: (
-    data: ActivityCreateData,
-  ) => Promise<{ id: string }>;
-  updateProspect: (
-    prospectId: string,
-    data: ProspectStateUpdates,
-  ) => Promise<void>;
+  findProspect: (prospectId: string) => Promise<{ id: string } | null>;
+  createActivity: (data: ActivityCreateData) => Promise<{ id: string }>;
 };
 
 export type ProspectActivityCreateDependencies = {
@@ -109,8 +90,14 @@ export async function getProspectActivitiesCore(
   }
 }
 
+/**
+ * Ticket 22B — attribution is always the authenticated actor, never
+ * client-supplied, matching the trust boundary submitProspectFollowUpCore
+ * already uses for its own `agentName`.
+ */
 export async function createProspectActivityCore(
   input: ValidatedProspectActivityInput,
+  actor: AuthenticatedUser,
   dependencies: ProspectActivityCreateDependencies,
 ): Promise<ProspectActivityCreateResult> {
   try {
@@ -131,24 +118,8 @@ export async function createProspectActivityCore(
         summary: input.summary,
         details: input.details,
         occurredAt: input.occurredAt,
-        agentName: input.agentName,
+        agentName: `${actor.firstName} ${actor.lastName}`,
       });
-
-      const prospectUpdates = buildProspectUpdates(input);
-
-      if (Object.keys(prospectUpdates).length > 0) {
-        await transaction.updateProspect(input.prospectId, prospectUpdates);
-
-        if (isWonTransition(prospect.status, prospectUpdates.status)) {
-          await transaction.createActivity(
-            buildWonTransitionActivityData({
-              prospectId: input.prospectId,
-              occurredAt: input.occurredAt,
-              agentName: input.agentName,
-            }),
-          );
-        }
-      }
 
       return {
         success: true as const,
@@ -164,25 +135,4 @@ export async function createProspectActivityCore(
       message: "L’interaction n’a pas pu être enregistrée. Veuillez réessayer.",
     };
   }
-}
-
-export function buildProspectUpdates(
-  input: ValidatedProspectActivityInput,
-): ProspectStateUpdates {
-  const data: ProspectStateUpdates = {};
-
-  if (input.interest !== undefined) {
-    data.interest = input.interest;
-  }
-  if (input.status !== undefined) {
-    data.status = input.status;
-  }
-  if (input.nextAction !== undefined) {
-    data.nextAction = input.nextAction;
-  }
-  if (input.followUpDate !== undefined) {
-    data.followUpDate = input.followUpDate;
-  }
-
-  return data;
 }

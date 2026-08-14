@@ -5,6 +5,5 @@ export const prospectActivityTypeOptions = [
   { value: "MEETING", label: "Réunion" },
   { value: "DEMO", label: "Démonstration" },
   { value: "DOCUMENT_SENT", label: "Document envoyé" },
-  { value: "FOLLOW_UP", label: "Relance" },
   { value: "INTERNAL_NOTE", label: "Note interne" },
 ] as const;

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProspectActivity, ProspectStatus } from "@prisma/client";
+import type { ProspectActivity } from "@prisma/client";
 
 import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
+import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
 import {
   createProspectActivityCore,
   getProspectActivitiesCore,
   type ProspectActivityCreateDependencies,
-  type ProspectStateUpdates,
 } from "./prospect-activity.service-core";
 
 function validInput(
@@ -19,7 +19,16 @@ function validInput(
     summary: "Appel avec le directeur",
     details: "Il demande une démonstration.",
     occurredAt: new Date("2026-08-03T10:30:00.000Z"),
-    agentName: "Aminata",
+    ...overrides,
+  };
+}
+
+function actor(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser {
+  return {
+    id: "user-1",
+    firstName: "Aminata",
+    lastName: "Traoré",
+    role: "ADMIN",
     ...overrides,
   };
 }
@@ -36,7 +45,7 @@ function activity(
     summary: `Interaction ${id}`,
     details: null,
     occurredAt: new Date(occurredAt),
-    agentName: "Aminata",
+    agentName: "Aminata Traoré",
     conversionOutcome: null,
     conversionReason: null,
     conversionReasonNote: null,
@@ -73,6 +82,7 @@ test("returns a controlled not-found result for an unknown prospect", async () =
   const state = createTransactionalState(false);
   const createResult = await createProspectActivityCore(
     validInput({ prospectId: "missing" }),
+    actor(),
     state.dependencies,
   );
 
@@ -90,10 +100,12 @@ test("creates multiple append-only activities without changing original notes", 
 
   const first = await createProspectActivityCore(
     validInput({ summary: "Premier appel" }),
+    actor(),
     state.dependencies,
   );
   const second = await createProspectActivityCore(
     validInput({ summary: "Deuxième appel" }),
+    actor(),
     state.dependencies,
   );
 
@@ -103,168 +115,99 @@ test("creates multiple append-only activities without changing original notes", 
     state.activities.map((item) => item.summary),
     ["Premier appel", "Deuxième appel"],
   );
-  assert.equal(state.prospect.notes, "Observation terrain originale");
 });
 
-test("updates only explicitly supplied current follow-up fields", async () => {
+// Ticket 22B — the generic interaction path no longer accepts or persists
+// any commercial-state mutation. There is no `updateProspect` dependency
+// left in ProspectActivityCreateDependencies for it to call — this test
+// documents that guarantee at the behavioral level, not just the type
+// level, by asserting the only thing that ever happens is one activity
+// row appearing.
+test("creating a generic interaction never mutates prospect commercial state", async () => {
   const state = createTransactionalState(true);
-  const followUpDate = new Date("2026-08-05T12:00:00.000Z");
 
-  const result = await createProspectActivityCore(
-    validInput({
-      interest: "READY_TO_DISCUSS",
-      status: "QUALIFIED",
-      nextAction: "SEND_DEMO",
-      followUpDate,
-    }),
-    state.dependencies,
-  );
-
-  assert.equal(result.success, true);
-  assert.deepEqual(state.lastUpdate, {
-    interest: "READY_TO_DISCUSS",
-    status: "QUALIFIED",
-    nextAction: "SEND_DEMO",
-    followUpDate,
-  });
-  assert.equal(state.prospect.notes, "Observation terrain originale");
-});
-
-test("leaves current state unchanged when optional updates are omitted", async () => {
-  const state = createTransactionalState(true);
   const result = await createProspectActivityCore(
     validInput(),
+    actor(),
     state.dependencies,
   );
 
   assert.equal(result.success, true);
-  assert.equal(state.lastUpdate, undefined);
-  assert.equal(state.prospect.status, "NEW");
+  assert.deepEqual(
+    state.activities.map((item) => item.type),
+    ["PHONE_CALL"],
+  );
+  assert.equal(state.activities.length, 1);
 });
 
-test("rolls back activity creation when the prospect update fails", async (context) => {
-  context.mock.method(console, "error", () => undefined);
-  const state = createTransactionalState(true, true);
+test("rolls back activity creation when the prospect is not found", async () => {
+  const state = createTransactionalState(false);
 
   const result = await createProspectActivityCore(
-    validInput({ status: "QUALIFIED" }),
+    validInput(),
+    actor(),
     state.dependencies,
   );
 
   assert.deepEqual(result, {
     success: false,
-    code: "CREATE_FAILED",
-    message: "L’interaction n’a pas pu être enregistrée. Veuillez réessayer.",
+    code: "NOT_FOUND",
+    message: "Ce prospect n’existe plus.",
   });
   assert.equal(state.activities.length, 0);
-  assert.equal(state.prospect.status, "NEW");
 });
 
-test("appends a WON_TRANSITION activity when this submission moves the prospect into WON", async () => {
+// Ticket 22B — attribution always derives from the authenticated actor.
+// The input type has no agentName field anymore, so this also proves any
+// stray client-supplied value can't reach the persisted row even if a
+// caller forced one through with a type assertion.
+test("interaction author derives from the authenticated actor, never client input", async () => {
   const state = createTransactionalState(true);
 
+  const spoofed = {
+    ...validInput(),
+    agentName: "Quelqu'un d'autre",
+  } as ValidatedProspectActivityInput;
+
   const result = await createProspectActivityCore(
-    validInput({ status: "WON", agentName: "Julbert Serme" }),
+    spoofed,
+    actor({ firstName: "Julbert", lastName: "Sermé" }),
     state.dependencies,
   );
 
   assert.equal(result.success, true);
   assert.deepEqual(
-    state.activities.map((item) => ({ type: item.type, summary: item.summary })),
-    [
-      { type: "PHONE_CALL", summary: "Appel avec le directeur" },
-      {
-        type: "WON_TRANSITION",
-        summary: "Le prospect est devenu client (statut WON).",
-      },
-    ],
+    state.activities.map((item) => item.agentName),
+    ["Julbert Sermé"],
   );
 });
 
-test("does not append a WON_TRANSITION activity when the prospect is already WON", async () => {
-  const state = createTransactionalState(true);
-  state.prospect.status = "WON";
-
-  const result = await createProspectActivityCore(
-    validInput({ status: "WON" }),
-    state.dependencies,
-  );
-
-  assert.equal(result.success, true);
-  assert.deepEqual(
-    state.activities.map((item) => item.type),
-    ["PHONE_CALL"],
-  );
-});
-
-test("does not append a WON_TRANSITION activity for a status change that isn't WON", async () => {
-  const state = createTransactionalState(true);
-
-  const result = await createProspectActivityCore(
-    validInput({ status: "QUALIFIED" }),
-    state.dependencies,
-  );
-
-  assert.equal(result.success, true);
-  assert.deepEqual(
-    state.activities.map((item) => item.type),
-    ["PHONE_CALL"],
-  );
-});
-
-function createTransactionalState(prospectExists: boolean, failUpdate = false) {
+function createTransactionalState(prospectExists: boolean) {
   const activities: Array<{
     id: string;
     type: string;
     summary: string;
+    agentName: string;
   }> = [];
-  const prospect: { id: string; status: ProspectStatus; notes: string } = {
-    id: "prospect-1",
-    status: "NEW",
-    notes: "Observation terrain originale",
-  };
-  let lastUpdate: ProspectStateUpdates | undefined;
   let nextId = 1;
 
   const dependencies: ProspectActivityCreateDependencies = {
-    runTransaction: async (work) => {
-      const stagedActivities = activities.map((item) => ({ ...item }));
-      const stagedProspect = { ...prospect };
-      let stagedUpdate: ProspectStateUpdates | undefined;
-
-      const result = await work({
+    runTransaction: async (work) =>
+      work({
         findProspect: async () =>
-          prospectExists ? { id: prospect.id, status: prospect.status } : null,
+          prospectExists ? { id: "prospect-1" } : null,
         createActivity: async (data) => {
           const id = `activity-${nextId++}`;
-          stagedActivities.push({ id, type: data.type, summary: data.summary });
+          activities.push({
+            id,
+            type: data.type,
+            summary: data.summary,
+            agentName: data.agentName,
+          });
           return { id };
         },
-        updateProspect: async (_prospectId, data) => {
-          if (failUpdate) {
-            throw new Error("Simulated update failure");
-          }
-
-          stagedUpdate = data;
-          if (data.status) {
-            stagedProspect.status = data.status;
-          }
-        },
-      });
-
-      activities.splice(0, activities.length, ...stagedActivities);
-      Object.assign(prospect, stagedProspect);
-      lastUpdate = stagedUpdate;
-      return result;
-    },
+      }),
   };
 
-  return {
-    activities,
-    prospect,
-    dependencies,
-    get lastUpdate() {
-      return lastUpdate;
-    },
-  };
+  return { activities, dependencies };
 }

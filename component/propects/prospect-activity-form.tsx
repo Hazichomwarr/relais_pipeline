@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, History, Plus } from "lucide-react";
+import { CheckCircle2, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,11 +12,6 @@ import {
 } from "@/src/actions/prospect-activity.actions";
 import { prospectActivityTypeOptions } from "@/src/lib/constants/prospect-activity-options";
 import {
-  followUpActionOptions,
-  interestOptions,
-  prospectStatusOptions,
-} from "@/src/lib/constants/prospect-options";
-import {
   prospectActivitySchema,
   type ProspectActivityFormInput,
   type ValidatedProspectActivityInput,
@@ -24,7 +19,6 @@ import {
 
 type ProspectActivityFormProps = {
   prospectId: string;
-  initialAgentName?: string;
   /** Defaults to the admin action; the commercial detail page passes its own ownership-scoped action. */
   action?: (values: unknown) => Promise<CreateProspectActivityActionResult>;
 };
@@ -36,7 +30,6 @@ const textAreaClassName =
 
 export default function ProspectActivityForm({
   prospectId,
-  initialAgentName,
   action = createProspectActivityAction,
 }: ProspectActivityFormProps) {
   const router = useRouter();
@@ -56,7 +49,7 @@ export default function ProspectActivityForm({
     ValidatedProspectActivityInput
   >({
     resolver: zodResolver(prospectActivitySchema),
-    defaultValues: getDefaultValues(prospectId, initialAgentName),
+    defaultValues: getDefaultValues(prospectId),
   });
 
   async function onSubmit(values: ValidatedProspectActivityInput) {
@@ -82,7 +75,7 @@ export default function ProspectActivityForm({
       return;
     }
 
-    reset(getDefaultValues(prospectId, initialAgentName));
+    reset(getDefaultValues(prospectId));
     setFeedback({
       type: "success",
       message: "L’interaction a été ajoutée à l’historique.",
@@ -98,11 +91,10 @@ export default function ProspectActivityForm({
         </div>
         <div>
           <h2 className="text-xl font-bold text-[#0f2557]">
-            Ajouter une interaction
+            Ajouter une note d’interaction
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            Chaque entrée est ajoutée à l’historique et ne remplace aucune
-            interaction précédente.
+            Appel, message, visite ou échange à conserver dans l’historique.
           </p>
         </div>
       </div>
@@ -147,102 +139,16 @@ export default function ProspectActivityForm({
           />
         </FormField>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <FormField
-            label="Date et heure de l’interaction"
-            error={errors.occurredAt?.message}
-          >
-            <input
-              type="datetime-local"
-              className={inputClassName}
-              {...register("occurredAt")}
-            />
-          </FormField>
-
-          <FormField
-            label="Nom du commercial"
-            error={errors.agentName?.message}
-          >
-            <input
-              type="text"
-              maxLength={100}
-              placeholder="Optionnel"
-              className={inputClassName}
-              {...register("agentName")}
-            />
-          </FormField>
-        </div>
-
-        <details className="group rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <summary className="flex cursor-pointer list-none items-center gap-3 font-semibold text-slate-700">
-            <History className="h-4 w-4 text-blue-600" />
-            Mettre aussi à jour l’état actuel
-            <span className="ml-auto text-xs font-normal text-slate-400 group-open:hidden">
-              Optionnel
-            </span>
-          </summary>
-
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Laissez un champ vide pour conserver sa valeur actuelle. Ces
-            changements seront enregistrés dans la même transaction que
-            l’interaction.
-          </p>
-
-          <div className="mt-5 grid gap-5 sm:grid-cols-2">
-            <FormField
-              label="Nouvel intérêt"
-              error={errors.interest?.message}
-            >
-              <select className={inputClassName} {...register("interest")}>
-                <option value="">Ne pas modifier</option>
-                {interestOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField
-              label="Nouveau statut"
-              error={errors.status?.message}
-            >
-              <select className={inputClassName} {...register("status")}>
-                <option value="">Ne pas modifier</option>
-                {prospectStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField
-              label="Prochaine action"
-              error={errors.nextAction?.message}
-            >
-              <select className={inputClassName} {...register("nextAction")}>
-                <option value="">Ne pas modifier</option>
-                {followUpActionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </FormField>
-
-            <FormField
-              label="Date de suivi"
-              error={errors.followUpDate?.message}
-            >
-              <input
-                type="date"
-                className={inputClassName}
-                {...register("followUpDate")}
-              />
-            </FormField>
-          </div>
-        </details>
+        <FormField
+          label="Date et heure de l’interaction"
+          error={errors.occurredAt?.message}
+        >
+          <input
+            type="datetime-local"
+            className={inputClassName}
+            {...register("occurredAt")}
+          />
+        </FormField>
 
         {feedback && (
           <div
@@ -295,21 +201,13 @@ function FormField({
   );
 }
 
-function getDefaultValues(
-  prospectId: string,
-  initialAgentName?: string,
-): ProspectActivityFormInput {
+function getDefaultValues(prospectId: string): ProspectActivityFormInput {
   return {
     prospectId,
     type: "",
     summary: "",
     details: "",
     occurredAt: formatDateTimeLocal(new Date()),
-    agentName: initialAgentName ?? "",
-    interest: "",
-    status: "",
-    nextAction: "",
-    followUpDate: "",
   };
 }
 

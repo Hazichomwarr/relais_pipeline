@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import {
-  followUpActions,
-  interestLevels,
-  prospectStatuses,
-} from "./prospect.schema";
-
+// Ticket 22B — FOLLOW_UP deliberately excluded. That type, and every
+// commercial-state mutation (status/interest/next action), belong solely to
+// the structured follow-up workflow (prospectFollowUpWorkflowSchema) — see
+// prospect-follow-up.service-core.ts's invariants (next action required
+// while active, outcome/reason consistency), none of which this generic
+// interaction path enforces or should attempt to duplicate.
 export const prospectActivityTypes = [
   "FIELD_VISIT",
   "PHONE_CALL",
@@ -13,7 +13,6 @@ export const prospectActivityTypes = [
   "MEETING",
   "DEMO",
   "DOCUMENT_SENT",
-  "FOLLOW_UP",
   "INTERNAL_NOTE",
 ] as const;
 
@@ -29,28 +28,6 @@ const optionalText = (maximum: number, message: string) =>
     },
     z.string().max(maximum, message).optional(),
   );
-
-const optionalEnum = <T extends readonly [string, ...string[]]>(values: T) =>
-  z.preprocess(
-    (value) => (value === "" || value === null ? undefined : value),
-    z.enum(values).optional(),
-  );
-
-const optionalDate = z.preprocess((value) => {
-  if (value === "" || value === null || value === undefined) {
-    return undefined;
-  }
-
-  if (value instanceof Date) {
-    return value;
-  }
-
-  if (typeof value === "string") {
-    return new Date(`${value}T12:00:00`);
-  }
-
-  return value;
-}, z.date({ error: "Sélectionnez une date de suivi valide." }).optional());
 
 export const prospectActivitySchema = z.object({
   prospectId: z.string().trim().min(1, "Le prospect est requis.").max(100),
@@ -90,14 +67,6 @@ export const prospectActivitySchema = z.object({
       (date) => date.getTime() <= Date.now() + 24 * 60 * 60 * 1000,
       "La date de l’interaction est trop éloignée dans le futur.",
     ),
-  agentName: optionalText(
-    100,
-    "Le nom du commercial ne peut pas dépasser 100 caractères.",
-  ),
-  interest: optionalEnum(interestLevels),
-  status: optionalEnum(prospectStatuses),
-  nextAction: optionalEnum(followUpActions),
-  followUpDate: optionalDate,
 });
 
 export type ProspectActivityFormInput = z.input<

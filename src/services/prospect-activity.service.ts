@@ -2,6 +2,7 @@ import "server-only";
 
 import { prisma } from "@/src/lib/prisma";
 import type { ValidatedProspectActivityInput } from "@/src/lib/validations/prospect-activity.schema";
+import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
 import {
   createProspectActivityCore,
   getProspectActivitiesCore,
@@ -37,27 +38,22 @@ export type CreateProspectActivityResult = ProspectActivityCreateResult;
 
 export async function createProspectActivity(
   input: ValidatedProspectActivityInput,
+  actor: AuthenticatedUser,
 ): Promise<CreateProspectActivityResult> {
-  return createProspectActivityCore(input, {
+  return createProspectActivityCore(input, actor, {
     runTransaction: (work) =>
       prisma.$transaction((transaction) =>
         work({
           findProspect: (id) =>
             transaction.prospect.findUnique({
               where: { id },
-              select: { id: true, status: true },
+              select: { id: true },
             }),
           createActivity: (data) =>
             transaction.prospectActivity.create({
               data,
               select: { id: true },
             }),
-          updateProspect: async (id, data) => {
-            await transaction.prospect.update({
-              where: { id },
-              data,
-            });
-          },
         }),
       ),
   });

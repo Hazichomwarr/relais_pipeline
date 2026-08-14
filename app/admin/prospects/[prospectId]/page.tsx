@@ -212,10 +212,7 @@ export default async function ProspectDetailPage({
             </div>
 
             <div className="mt-7 grid items-start gap-7 2xl:grid-cols-[minmax(360px,0.8fr)_minmax(0,1.2fr)]">
-              <ProspectActivityForm
-                prospectId={prospect.id}
-                initialAgentName={getAssignedUserName(prospect)}
-              />
+              <ProspectActivityForm prospectId={prospect.id} />
               <ProspectActivityTimeline
                 activities={
                   activitiesResult.success ? activitiesResult.activities : []

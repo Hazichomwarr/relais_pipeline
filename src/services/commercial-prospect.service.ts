@@ -57,26 +57,20 @@ export async function createCommercialActivity(
 ) {
   const commercial = await assertCommercialAccess(userId);
 
-  return createProspectActivityCore(input, {
+  return createProspectActivityCore(input, commercial, {
     runTransaction: (work) =>
       prisma.$transaction((transaction) =>
         work({
           findProspect: (id) =>
             transaction.prospect.findFirst({
               where: buildCommercialProspectByIdWhere(id, commercial.id),
-              select: { id: true, status: true },
+              select: { id: true },
             }),
           createActivity: (data) =>
             transaction.prospectActivity.create({
               data,
               select: { id: true },
             }),
-          updateProspect: async (id, data) => {
-            await transaction.prospect.update({
-              where: buildCommercialProspectByIdWhere(id, commercial.id),
-              data,
-            });
-          },
         }),
       ),
   });
