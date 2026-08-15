@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { ProspectActionStatus, UserRole } from "@prisma/client";
+import type {
+  ProspectActionStatus,
+  ProspectStatus,
+  UserRole,
+} from "@prisma/client";
 
 import {
   cancelProspectActionCore,
@@ -9,10 +13,12 @@ import {
   compareProspectActionsForListing,
   completeProspectActionCore,
   createProspectActionCore,
+  createProspectActionWithAutoProgressionCore,
   isOverdueProspectAction,
   type CancelProspectActionDependencies,
   type CompleteProspectActionDependencies,
   type CreateProspectActionDependencies,
+  type CreateProspectActionWithAutoProgressionDependencies,
   type ProspectActionActor,
   type ProspectActionRow,
 } from "./prospect-action.service-core";
@@ -316,6 +322,187 @@ test("createProspectActionCore reports a controlled failure when the underlying 
   if (!result.success) {
     assert.equal(result.code, "CREATE_FAILED");
   }
+});
+
+// ---------------------------------------------------------------------------
+// createProspectActionWithAutoProgressionCore — Ticket 22D
+// ---------------------------------------------------------------------------
+
+function autoProgressionDependencies(
+  prospect: { id: string; status: ProspectStatus } | null,
+  overrides: Partial<CreateProspectActionWithAutoProgressionDependencies> = {},
+): {
+  dependencies: CreateProspectActionWithAutoProgressionDependencies;
+  progressionCalls: string[];
+} {
+  const progressionCalls: string[] = [];
+
+  return {
+    progressionCalls,
+    dependencies: {
+      findProspect: async () => prospect,
+      findAssignee: async () => ({ id: "assignee-1", active: true }),
+      create: async (createdByUserId, fields) => {
+        void createdByUserId;
+        void fields;
+        return { id: "action-1" };
+      },
+      progressNewProspectToFollowUp: async (prospectId) => {
+        progressionCalls.push(prospectId);
+        return { count: 1 };
+      },
+      ...overrides,
+    },
+  };
+}
+
+test("createProspectActionWithAutoProgressionCore progresses a NEW prospect to TO_FOLLOW_UP after a successful action creation", async () => {
+  const { dependencies, progressionCalls } = autoProgressionDependencies({
+    id: "prospect-1",
+    status: "NEW",
+  });
+
+  const result = await createProspectActionWithAutoProgressionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.deepEqual(result, { success: true, actionId: "action-1" });
+  assert.deepEqual(progressionCalls, ["prospect-1"]);
+});
+
+const nonNewStatuses: ProspectStatus[] = [
+  "TO_FOLLOW_UP",
+  "CONTACTED",
+  "QUALIFIED",
+  "PROPOSAL_SENT",
+  "WON",
+  "LOST",
+];
+
+for (const status of nonNewStatuses) {
+  test(`createProspectActionWithAutoProgressionCore leaves a ${status} prospect unchanged after action creation`, async () => {
+    const { dependencies, progressionCalls } = autoProgressionDependencies({
+      id: "prospect-1",
+      status,
+    });
+
+    const result = await createProspectActionWithAutoProgressionCore(
+      "creator-1",
+      validCreateInput(),
+      dependencies,
+    );
+
+    assert.equal(result.success, true);
+    assert.deepEqual(
+      progressionCalls,
+      [],
+      "the guarded update must never even be called for a non-NEW prospect",
+    );
+  });
+}
+
+test("createProspectActionWithAutoProgressionCore never progresses status when the action creation itself fails", async () => {
+  const { dependencies, progressionCalls } = autoProgressionDependencies(
+    { id: "prospect-1", status: "NEW" },
+    {
+      findAssignee: async () => ({ id: "assignee-1", active: false }),
+    },
+  );
+
+  const result = await createProspectActionWithAutoProgressionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.equal(result.success, false);
+  assert.deepEqual(
+    progressionCalls,
+    [],
+    "no status change may accompany a failed action creation",
+  );
+});
+
+test("createProspectActionWithAutoProgressionCore reports PROSPECT_NOT_FOUND without ever touching progression or assignee lookup", async () => {
+  const { dependencies, progressionCalls } = autoProgressionDependencies(null, {
+    findAssignee: async () => {
+      throw new Error("must not check the assignee before the prospect");
+    },
+  });
+
+  const result = await createProspectActionWithAutoProgressionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.deepEqual(result, {
+    success: false,
+    code: "PROSPECT_NOT_FOUND",
+    message: "Ce prospect n’existe pas ou n’est pas accessible.",
+  });
+  assert.deepEqual(progressionCalls, []);
+});
+
+test("createProspectActionWithAutoProgressionCore only issues a single findProspect lookup — the resolved prospect is reused, not re-fetched", async () => {
+  let findProspectCalls = 0;
+  const dependencies: CreateProspectActionWithAutoProgressionDependencies = {
+    findProspect: async () => {
+      findProspectCalls += 1;
+      return { id: "prospect-1", status: "NEW" };
+    },
+    findAssignee: async () => ({ id: "assignee-1", active: true }),
+    create: async () => ({ id: "action-1" }),
+    progressNewProspectToFollowUp: async () => ({ count: 1 }),
+  };
+
+  await createProspectActionWithAutoProgressionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.equal(findProspectCalls, 1);
+});
+
+test("createProspectActionWithAutoProgressionCore: a stale/concurrent guarded update (count 0) does not fail the overall creation — the newer status wins silently", async () => {
+  const { dependencies } = autoProgressionDependencies(
+    { id: "prospect-1", status: "NEW" },
+    {
+      progressNewProspectToFollowUp: async () => ({ count: 0 }),
+    },
+  );
+
+  const result = await createProspectActionWithAutoProgressionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.deepEqual(result, { success: true, actionId: "action-1" });
+});
+
+test("createProspectActionWithAutoProgressionCore propagates a thrown progression error instead of swallowing it, so a wrapping prisma.$transaction rolls back the action too", async () => {
+  const { dependencies } = autoProgressionDependencies(
+    { id: "prospect-1", status: "NEW" },
+    {
+      progressNewProspectToFollowUp: async () => {
+        throw new Error("simulated database failure during guarded update");
+      },
+    },
+  );
+
+  await assert.rejects(
+    () =>
+      createProspectActionWithAutoProgressionCore(
+        "creator-1",
+        validCreateInput(),
+        dependencies,
+      ),
+    /simulated database failure/,
+  );
 });
 
 // ---------------------------------------------------------------------------

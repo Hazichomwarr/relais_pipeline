@@ -310,6 +310,28 @@ test("active status without any next action fields is rejected before any write 
   assert.deepEqual(store.getActions(), []);
 });
 
+// ---------------------------------------------------------------------------
+// Ticket 22D — a NEW prospect may skip TO_FOLLOW_UP entirely through an
+// explicit structured follow-up; the automatic NEW -> TO_FOLLOW_UP
+// inference is authorized only for standalone action creation
+// (prospect-action.service-core.ts), never as a side effect here.
+// ---------------------------------------------------------------------------
+
+test("a NEW prospect's structured follow-up may land directly on another explicit status, bypassing TO_FOLLOW_UP", async () => {
+  const store = createFakeStore({
+    prospect: { id: "prospect-1", status: "NEW", followUpDate: null },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor(),
+    baseInput({ status: "QUALIFIED" }),
+    store.dependencies,
+  );
+
+  assert.deepEqual(result, { success: true });
+  assert.equal(store.getProspect().status, "QUALIFIED");
+});
+
 const terminalOutcomeByStatus: Record<"WON" | "LOST", "WON" | "LOST"> = {
   WON: "WON",
   LOST: "LOST",

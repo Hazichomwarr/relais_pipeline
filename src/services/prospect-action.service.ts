@@ -11,7 +11,7 @@ import {
   cancelProspectActionCore,
   completeProspectActionCore,
   compareProspectActionsForListing,
-  createProspectActionCore,
+  createProspectActionWithAutoProgressionCore,
   type ProspectActionActor,
 } from "@/src/services/prospect-action.service-core";
 
@@ -79,33 +79,57 @@ async function cancelAtomically(
  * role alone (never client input): ADMIN/MANAGER may create on any
  * prospect, COMMERCIAL only on a prospect they own — enforced by which
  * `findProspect` query runs, exactly like createCommercialActivity.
+ *
+ * Ticket 22D — wrapped in a transaction because a successful creation may
+ * also progress a still-NEW prospect to TO_FOLLOW_UP: the action write and
+ * the conditional status write must commit or roll back together (a
+ * failed status guard must not leave an orphaned action, and a failed
+ * action must never touch prospect status at all).
  */
 export async function createProspectAction(
   actor: { id: string; role: UserRole },
   input: ValidatedCreateProspectActionInput,
 ) {
-  const findProspect =
-    actor.role === "COMMERCIAL"
-      ? (id: string) =>
-          prisma.prospect.findFirst({
-            where: buildCommercialProspectByIdWhere(id, actor.id),
-            select: { id: true },
-          })
-      : (id: string) =>
-          prisma.prospect.findUnique({ where: { id }, select: { id: true } });
+  return prisma.$transaction((tx) => {
+    const findProspect =
+      actor.role === "COMMERCIAL"
+        ? (id: string) =>
+            tx.prospect.findFirst({
+              where: buildCommercialProspectByIdWhere(id, actor.id),
+              select: { id: true, status: true },
+            })
+        : (id: string) =>
+            tx.prospect.findUnique({
+              where: { id },
+              select: { id: true, status: true },
+            });
 
-  return createProspectActionCore(actor.id, input, {
-    findProspect,
-    findAssignee: (userId) =>
-      prisma.user.findUnique({
-        where: { id: userId },
-        select: { id: true, active: true },
-      }),
-    create: (createdByUserId, fields) =>
-      prisma.prospectAction.create({
-        data: { ...fields, createdByUserId },
-        select: { id: true },
-      }),
+    return createProspectActionWithAutoProgressionCore(actor.id, input, {
+      findProspect,
+      findAssignee: (userId) =>
+        tx.user.findUnique({
+          where: { id: userId },
+          select: { id: true, active: true },
+        }),
+      create: (createdByUserId, fields) =>
+        tx.prospectAction.create({
+          data: { ...fields, createdByUserId },
+          select: { id: true },
+        }),
+      progressNewProspectToFollowUp: async (prospectId) => {
+        const result = await tx.prospect.updateMany({
+          where:
+            actor.role === "COMMERCIAL"
+              ? {
+                  ...buildCommercialProspectByIdWhere(prospectId, actor.id),
+                  status: "NEW",
+                }
+              : { id: prospectId, status: "NEW" },
+          data: { status: "TO_FOLLOW_UP" },
+        });
+        return { count: result.count };
+      },
+    });
   });
 }
 

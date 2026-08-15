@@ -1,4 +1,8 @@
-import type { ProspectActionStatus, UserRole } from "@prisma/client";
+import type {
+  ProspectActionStatus,
+  ProspectStatus,
+  UserRole,
+} from "@prisma/client";
 
 import type { ValidatedCreateProspectActionInput } from "@/src/lib/validations/prospect-action.schema";
 
@@ -187,6 +191,59 @@ export async function createProspectActionCore(
       message: "L’action n’a pas pu être créée. Veuillez réessayer.",
     };
   }
+}
+
+export type CreateProspectActionWithAutoProgressionDependencies = {
+  findProspect: (
+    prospectId: string,
+  ) => Promise<{ id: string; status: ProspectStatus } | null>;
+  findAssignee: CreateProspectActionDependencies["findAssignee"];
+  create: CreateProspectActionDependencies["create"];
+  /**
+   * Ticket 22D — guarded update: must only flip a prospect that is still
+   * NEW at write time (e.g. `updateMany({ where: { id, status: "NEW" },
+   * data: { status: "TO_FOLLOW_UP" } })`), never a blind write based on
+   * the findProspect read above, so a concurrent legitimate transition
+   * away from NEW is never overwritten back to TO_FOLLOW_UP.
+   */
+  progressNewProspectToFollowUp: (
+    prospectId: string,
+  ) => Promise<{ count: number }>;
+};
+
+/**
+ * Ticket 22D — successful standalone "Nouvelle action" creation may
+ * additionally progress a still-NEW prospect to TO_FOLLOW_UP, atomically
+ * with the action write (the caller must wire both dependencies against
+ * the same transaction). The prospect is read once here and handed to
+ * createProspectActionCore as an already-resolved lookup, exactly like
+ * submitProspectFollowUpCore's `findProspect: async () => prospect`
+ * pattern — one query, not two.
+ *
+ * Deliberately NOT reused by the structured follow-up workflow's internal
+ * next-action creation (prospect-follow-up.service-core.ts calls
+ * createProspectActionCore directly) — this inference is authorized only
+ * for standalone action creation, never as a side effect of an explicit
+ * follow-up that already asks the user for the resulting status.
+ */
+export async function createProspectActionWithAutoProgressionCore(
+  createdByUserId: string,
+  input: ValidatedCreateProspectActionInput,
+  dependencies: CreateProspectActionWithAutoProgressionDependencies,
+): Promise<CreateProspectActionResult> {
+  const prospect = await dependencies.findProspect(input.prospectId);
+
+  const creation = await createProspectActionCore(createdByUserId, input, {
+    findProspect: async () => prospect,
+    findAssignee: dependencies.findAssignee,
+    create: dependencies.create,
+  });
+
+  if (creation.success && prospect?.status === "NEW") {
+    await dependencies.progressNewProspectToFollowUp(input.prospectId);
+  }
+
+  return creation;
 }
 
 export type CompleteProspectActionResult =

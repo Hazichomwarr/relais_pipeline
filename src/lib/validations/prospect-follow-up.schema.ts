@@ -82,9 +82,20 @@ export const prospectFollowUpWorkflowSchema = z
       .min(10, "Décrivez ce qui s’est passé lors du suivi.")
       .max(2000, "La description ne peut pas dépasser 2 000 caractères."),
 
-    status: z.enum(prospectStatuses, {
-      error: "Sélectionnez un statut valide.",
-    }),
+    // Ticket 22D — mandatory but never preselected in the UI: the
+    // employee must consciously choose the resulting status, even when
+    // it happens to equal the current one. z.string().min(1).pipe(enum)
+    // (same shape as conversionOutcome/conversionReason below) so an
+    // empty client default fails validation instead of silently
+    // resolving to the first enum member.
+    status: z
+      .string()
+      .min(1, "Sélectionnez le statut après ce suivi.")
+      .pipe(
+        z.enum(prospectStatuses, {
+          error: "Sélectionnez un statut valide.",
+        }),
+      ),
     interest: z.enum(interestLevels, {
       error: "Sélectionnez un niveau d’intérêt valide.",
     }),

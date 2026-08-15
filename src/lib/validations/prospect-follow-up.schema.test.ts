@@ -247,6 +247,39 @@ test("OTHER requires an explanation; other reasons do not", () => {
   assert.equal(nonOtherWithoutNote.success, true);
 });
 
+// ---------------------------------------------------------------------------
+// Ticket 22D — the resulting status is mandatory and never preselected
+// ---------------------------------------------------------------------------
+
+test("rejects an empty resulting status — the employee must explicitly choose one", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({ status: "" }),
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    const messages = result.error.flatten().fieldErrors;
+    assert.ok(
+      messages.status?.includes("Sélectionnez le statut après ce suivi."),
+    );
+  }
+});
+
+test("accepts an explicit resulting status equal to the current status — a same-status confirmation is a legitimate follow-up", () => {
+  const result = prospectFollowUpWorkflowSchema.safeParse(
+    baseInput({
+      status: "CONTACTED",
+      conversionOutcome: "STALLED",
+      conversionReason: "NEEDS_MORE_TIME",
+    }),
+  );
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.data.status, "CONTACTED");
+  }
+});
+
 test("rejects status = WON paired with a non-WON outcome, and status = LOST paired with a non-LOST outcome", () => {
   assert.equal(
     prospectFollowUpWorkflowSchema.safeParse(

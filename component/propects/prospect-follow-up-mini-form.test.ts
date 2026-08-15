@@ -19,10 +19,34 @@ test("validates through prospectFollowUpWorkflowSchema and submits through submi
   assert.doesNotMatch(source, /prisma\./);
 });
 
-test("initializes status and interest from the prospect's current values, never defaulting to NEW", () => {
-  assert.match(source, /status: initialValues\.status/);
+test("initializes interest from the prospect's current value, never defaulting to NEW", () => {
   assert.match(source, /interest: initialValues\.interest/);
   assert.doesNotMatch(source, /status: "NEW"/);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 22D — the resulting status is mandatory and never preselected
+// ---------------------------------------------------------------------------
+
+test("never preselects the resulting status with the prospect's current status — the default is empty", () => {
+  assert.match(source, /status: "",/);
+  assert.doesNotMatch(source, /status: initialValues\.status/);
+});
+
+test("the status select opens on an explicit unselected placeholder, not the first real option", () => {
+  assert.match(
+    source,
+    /<option value="">Sélectionner le statut…<\/option>/,
+  );
+});
+
+test("labels the resulting-status field as required and distinct from the current status", () => {
+  assert.match(source, /Statut après ce suivi \*/);
+});
+
+test("shows the prospect's current status as separate read-only context, not as the field's value", () => {
+  assert.match(source, /Statut actuel : \{currentStatusLabel\}/);
+  assert.match(source, /currentStatusLabel =\s*prospectStatusOptions\.find\(/);
 });
 
 test("derives the terminal/active split from the shared core helper, never a hand-rolled WON/LOST check", () => {

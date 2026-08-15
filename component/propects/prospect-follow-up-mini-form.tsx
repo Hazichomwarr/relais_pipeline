@@ -89,6 +89,11 @@ export default function ProspectFollowUpMiniForm({
     selectedStatus as ValidatedProspectFollowUpWorkflowInput["status"],
   );
 
+  const currentStatusLabel =
+    prospectStatusOptions.find(
+      (option) => option.value === initialValues.status,
+    )?.label ?? initialValues.status;
+
   const selectedOutcome = useWatch({ control, name: "conversionOutcome" }) as
     | ValidatedProspectFollowUpWorkflowInput["conversionOutcome"]
     | undefined;
@@ -241,14 +246,21 @@ export default function ProspectFollowUpMiniForm({
         )}
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <FormField label="Statut" error={errors.status?.message}>
+          <FormField
+            label="Statut après ce suivi *"
+            error={errors.status?.message}
+          >
             <select className={inputClassName} {...register("status")}>
+              <option value="">Sélectionner le statut…</option>
               {prospectStatusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            <p className="mt-2 text-xs text-slate-500">
+              Statut actuel : {currentStatusLabel}
+            </p>
           </FormField>
 
           <FormField label="Intérêt" error={errors.interest?.message}>
@@ -398,7 +410,10 @@ function getDefaultValues(
   return {
     prospectId,
     note: "",
-    status: initialValues.status,
+    // Ticket 22D — deliberately never preselected: the employee must
+    // consciously choose the resulting status. initialValues.status is
+    // shown separately as read-only context (see "Statut actuel" above).
+    status: "",
     interest: initialValues.interest,
     conversionOutcome: "",
     conversionReason: "",

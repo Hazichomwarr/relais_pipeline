@@ -93,3 +93,21 @@ test("does not reintroduce a CommercialActivity domain model — this is present
   assert.doesNotMatch(source, /CommercialActivity/);
   assert.doesNotMatch(source, /prisma\./);
 });
+
+// ---------------------------------------------------------------------------
+// Ticket 22D — "+ Nouvelle action" is promoted to the primary CTA style
+// ---------------------------------------------------------------------------
+
+test("+ Nouvelle action uses the same primary CTA treatment as the rest of the app, not a bespoke understated header style", () => {
+  assert.match(source, /className=\{primaryCtaClassName\}[^]*?Nouvelle action/);
+  assert.doesNotMatch(source, /headerCtaClassName/);
+});
+
+test("does not invent a special color for the promoted CTA — it reuses the exact primary class shared with Ajouter un suivi", () => {
+  const primaryCtaUses = source.match(/className=\{primaryCtaClassName\}/g);
+  assert.equal(
+    primaryCtaUses?.length,
+    2,
+    "both Nouvelle action and Ajouter un suivi should share the one primaryCtaClassName definition",
+  );
+});

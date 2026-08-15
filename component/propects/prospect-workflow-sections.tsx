@@ -37,9 +37,6 @@ type OpenComposer = "ACTION" | "FOLLOW_UP" | "INTERACTION" | null;
 const cancelButtonClassName =
   "h-8 shrink-0 rounded-lg px-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100";
 
-const headerCtaClassName =
-  "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-[#0f2557] transition hover:bg-slate-50";
-
 const primaryCtaClassName =
   "inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0f2557] px-4 text-sm font-semibold text-white transition hover:bg-[#18366f] sm:w-auto";
 
@@ -74,7 +71,7 @@ export default function ProspectWorkflowSections({
             type="button"
             onClick={() => toggle("ACTION")}
             aria-expanded={openComposer === "ACTION"}
-            className={headerCtaClassName}
+            className={primaryCtaClassName}
           >
             {openComposer === "ACTION" ? (
               <X className="h-4 w-4" />
