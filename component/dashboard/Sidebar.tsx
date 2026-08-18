@@ -40,7 +40,7 @@ export default function Sidebar({
   role?: UserRole;
 }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
+    <aside className="sticky top-0 hidden h-dvh w-65 flex-col border-r border-slate-200 bg-white px-4 py-6 lg:flex">
       {/* LOGO */}
       <div className="mb-5 flex flex-col items-center">
         <Image
@@ -57,7 +57,7 @@ export default function Sidebar({
       </div>
 
       {/* NAV */}
-      <nav className="space-y-2">
+      <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
         <Link
           href="/admin"
           className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
@@ -226,7 +226,7 @@ export default function Sidebar({
       </nav>
 
       {/* USER */}
-      <form action="/logout" method="POST" className="mt-auto">
+      <form action="/logout" method="POST" className="mt-4 shrink-0">
         <button
           type="submit"
           className="flex w-full items-center justify-between rounded-3xl border border-slate-200 bg-white p-4 text-left transition hover:bg-slate-50"
