@@ -7,7 +7,8 @@ import type {
 
 import { formatBusinessIsoDate } from "@/src/lib/financial-report-period";
 import {
-  computeFinancialLedgerSummaryCore,
+  computeEffectiveFinancialLedgerSummaryCore,
+  isEffectiveLedgerMovement,
   type FinancialLedgerSummary,
   type LedgerEntryRow,
 } from "@/src/services/financial-ledger.service-core";
@@ -97,7 +98,10 @@ export function computeFinancialReportPercentChange(
 /**
  * Product revenue means INFLOW + CLIENT_PAYMENT + a non-null product
  * (Ticket 17C) — capital contributions, loans, and generic refunds never
- * count here even though they're also inflows.
+ * count here even though they're also inflows. Only effective movements
+ * count (Ticket 23B): a reversed CLIENT_PAYMENT contributes 0, and its
+ * compensating reversal row (typed OUTFLOW) never reaches this loop in
+ * the first place since it fails the INFLOW check too.
  */
 function buildProductRevenue(
   entries: LedgerEntryRow[],
@@ -109,6 +113,7 @@ function buildProductRevenue(
 
   for (const entry of entries) {
     if (
+      !isEffectiveLedgerMovement(entry) ||
       entry.type !== "INFLOW" ||
       entry.category !== "CLIENT_PAYMENT" ||
       !entry.product
@@ -142,9 +147,13 @@ function buildProductRevenue(
     .sort((a, b) => new Prisma.Decimal(b.amount).comparedTo(a.amount));
 }
 
-/** Every OUTFLOW entry belongs to exactly one category, so the category
- * totals always partition — and sum to exactly — the period's total
- * outflows; no separate "total outflows" query is needed here. */
+/** Every effective OUTFLOW entry belongs to exactly one category, so the
+ * category totals always partition — and sum to exactly — the period's
+ * effective total outflows; no separate "total outflows" query is
+ * needed here. Only effective movements count (Ticket 23B): a reversed
+ * outflow contributes 0 to its category, and its compensating reversal
+ * row (typed INFLOW) never reaches this loop since it fails the
+ * OUTFLOW check too. */
 function buildExpenseCategories(
   entries: LedgerEntryRow[],
 ): FinancialReportExpenseCategory[] {
@@ -154,7 +163,7 @@ function buildExpenseCategories(
   >();
 
   for (const entry of entries) {
-    if (entry.type !== "OUTFLOW") {
+    if (!isEffectiveLedgerMovement(entry) || entry.type !== "OUTFLOW") {
       continue;
     }
 
@@ -253,23 +262,28 @@ function buildDailyMovement(
 }
 
 /**
- * Every entry in `entries` — including a REVERSED original and the
- * reversal that offsets it — contributes to every breakdown here, the
- * exact same rule computeFinancialLedgerSummaryCore already applies to
- * the top-level totals (Ticket 17A). A reversed CLIENT_PAYMENT still
- * shows as product revenue and its reversal shows separately under
- * "Autre sortie" — reports never invent a netting rule the ledger
- * itself doesn't apply.
+ * The top-line summary, the expense-category breakdown, and the
+ * product-revenue breakdown all report effective business movement, not
+ * raw ledger volume (Ticket 23B — the same isEffectiveLedgerMovement
+ * rule 23A established for /finances): a REVERSED original and its
+ * compensating reversal row both contribute 0 CFA, wherever in time
+ * each of the pair falls, so a reversal dated in a later period never
+ * masquerades as new revenue or expense in that later period's report.
+ * The payment-method breakdown and the daily-movement chart are
+ * deliberately left as raw/gross figures — they represent processing
+ * volume through a channel and a day-by-day activity trace, not a
+ * business revenue/expense total, and 23B does not touch them.
  */
 export function computeFinancialReportCore(params: {
   period: FinancialReportPeriodDto;
   entries: LedgerEntryRow[];
   previousSummary: FinancialLedgerSummary;
 }): FinancialReport {
-  const summaryCore = computeFinancialLedgerSummaryCore(
+  const summaryCore = computeEffectiveFinancialLedgerSummaryCore(
     params.entries.map((entry) => ({
       type: entry.type,
       status: entry.status,
+      reversalOfId: entry.reversalOfId,
       amount: entry.amount,
     })),
   );

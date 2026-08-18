@@ -633,7 +633,7 @@ test("regression: production reversal fixture reconciles Entrées − Sorties = 
   assert.equal(summary.balance, "214387.00");
 });
 
-test("getEffectiveFinancialLedgerSummaryCore reads the whole ledger, unfiltered", async () => {
+test("getEffectiveFinancialLedgerSummaryCore reads the whole ledger when called unfiltered", async () => {
   const store = createLedgerStore([
     makeEntry("in-1", { type: "INFLOW", amount: "500000.00" }),
     makeEntry("out-1", { type: "OUTFLOW", amount: "355613.00" }),
@@ -644,11 +644,58 @@ test("getEffectiveFinancialLedgerSummaryCore reads the whole ledger, unfiltered"
     store.dependencies,
   );
 
-  const summary = await getEffectiveFinancialLedgerSummaryCore(store.dependencies);
+  const summary = await getEffectiveFinancialLedgerSummaryCore({}, store.dependencies);
 
   assert.equal(summary.totalInflows, "0.00");
   assert.equal(summary.totalOutflows, "355613.00");
   assert.equal(summary.balance, "-355613.00");
+});
+
+test("getEffectiveFinancialLedgerSummaryCore, date-scoped: a cross-period reversal nets to 0 in both the origination and the reversal period (Ticket 23B)", async () => {
+  const store = createLedgerStore([
+    makeEntry("july-inflow", {
+      type: "INFLOW",
+      amount: "100000.00",
+      occurredAt: new Date("2026-07-20T10:00:00Z"),
+    }),
+  ]);
+
+  await store.dependencies.reverseAtomically({
+    originalId: "july-inflow",
+    reversalFields: {
+      type: "OUTFLOW",
+      category: "OTHER_OUTFLOW",
+      amount: "100000.00",
+      currencyCode: "XOF",
+      product: null,
+      counterpartyName: "École Horizon",
+      reason: "Annulation de l’écriture july-inflow.",
+      paymentMethod: "CASH",
+      reference: null,
+      occurredAt: new Date("2026-08-05T10:00:00Z"),
+    },
+    reversedByUserId: "admin-1",
+  });
+
+  const julySummary = await getEffectiveFinancialLedgerSummaryCore(
+    { dateFrom: new Date("2026-07-01T00:00:00Z"), dateTo: new Date("2026-07-31T23:59:59Z") },
+    store.dependencies,
+  );
+  const augustSummary = await getEffectiveFinancialLedgerSummaryCore(
+    { dateFrom: new Date("2026-08-01T00:00:00Z"), dateTo: new Date("2026-08-31T23:59:59Z") },
+    store.dependencies,
+  );
+
+  assert.equal(
+    julySummary.totalInflows,
+    "0.00",
+    "the REVERSED July original no longer counts, regardless of when it was reversed",
+  );
+  assert.equal(
+    augustSummary.totalOutflows,
+    "0.00",
+    "the August reversal row is bookkeeping, not a new August Sortie",
+  );
 });
 
 // --- Reversal ---------------------------------------------------------

@@ -4,7 +4,7 @@ import { resolveFinancialReportPeriod } from "@/src/lib/financial-report-period"
 import type { FinancialReportFilter } from "@/src/lib/validations/financial-report-filter.schema";
 import { computeFinancialReportCore } from "@/src/services/financial-report.service-core";
 import {
-  getFinancialLedgerSummary,
+  getEffectiveFinancialLedgerSummary,
   listLedgerEntries,
 } from "@/src/services/financial-ledger.service";
 
@@ -12,8 +12,10 @@ import {
  * Query strategy: exactly two bounded, date-range-scoped DB reads — the
  * current period's full entry rows (reused for every breakdown below,
  * via the pure aggregators in financial-report.service-core.ts) and the
- * previous period's lightweight {type,status,amount} summary (17A's
- * listForSummary path). No per-product/per-category/per-day queries.
+ * previous period's lightweight {type,status,reversalOfId,amount}
+ * effective summary (23A/23B's listForSummary path — see
+ * getEffectiveFinancialLedgerSummary). No per-product/per-category/
+ * per-day queries.
  */
 export async function getFinancialReport(
   filter: FinancialReportFilter,
@@ -25,7 +27,7 @@ export async function getFinancialReport(
 
   const [entries, previousSummary] = await Promise.all([
     listLedgerEntries({ dateFrom: period.from, dateTo }),
-    getFinancialLedgerSummary({
+    getEffectiveFinancialLedgerSummary({
       dateFrom: period.previousFrom,
       dateTo: previousDateTo,
     }),

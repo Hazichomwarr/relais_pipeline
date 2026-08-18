@@ -249,15 +249,18 @@ export async function getFinancialLedgerSummary(
 }
 
 /**
- * The all-time effective summary for the /finances dashboard (Ticket
- * 23A) — Entrées/Sorties exclude reversed originals and their
+ * The effective summary shared by the /finances dashboard (unfiltered,
+ * Ticket 23A) and /finances/reports (date-scoped per period, Ticket
+ * 23B) — Entrées/Sorties exclude reversed originals and their
  * compensating reversal rows, so a fully annulled transaction
- * contributes 0 CFA to either direction. Deliberately unfiltered: see
- * isEffectiveLedgerMovement's doc comment for why a date-scoped variant
- * is not offered here.
+ * contributes 0 CFA to either direction, in whichever period(s) it and
+ * its reversal fall into. See isEffectiveLedgerMovement's doc comment
+ * for the cross-period read-time policy this relies on.
  */
-export async function getEffectiveFinancialLedgerSummary() {
-  return getEffectiveFinancialLedgerSummaryCore(dependencies);
+export async function getEffectiveFinancialLedgerSummary(
+  filters: LedgerSummaryFilters = {},
+) {
+  return getEffectiveFinancialLedgerSummaryCore(filters, dependencies);
 }
 
 export type LedgerEntryListItem = Awaited<

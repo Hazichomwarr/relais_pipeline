@@ -385,22 +385,28 @@ export function isEffectiveLedgerMovement(entry: {
 }
 
 /**
- * Effective totals for the all-time dashboard (Ticket 23A). Unlike
- * computeFinancialLedgerSummaryCore above — which sums every row ever
- * posted and is kept as-is for period-scoped financial reports, see
- * financial-report.service-core.ts — this excludes both sides of a
- * reversal pair from Entrées/Sorties: the REVERSED original (its
- * business effect has been annulled) and the compensating reversal row
- * (bookkeeping, not new business activity, even though its `type` is
- * the opposite direction). postedEntryCount keeps the same lifecycle
- * rule as the gross summary — a reversal row is a legitimate, currently
- * registered écriture, only a REVERSED original is excluded.
+ * Effective totals — the single rule shared by /finances (Ticket 23A)
+ * and /finances/reports (Ticket 23B). Unlike
+ * computeFinancialLedgerSummaryCore above, which sums every row ever
+ * posted, this excludes both sides of a reversal pair from
+ * Entrées/Sorties: the REVERSED original (its business effect has been
+ * annulled) and the compensating reversal row (bookkeeping, not new
+ * business activity, even though its `type` is the opposite direction).
+ * postedEntryCount keeps the same lifecycle rule as the gross summary —
+ * a reversal row is a legitimate, currently registered écriture, only a
+ * REVERSED original is excluded.
  *
- * This is only valid for an unscoped (all-time) read. A date-filtered
- * variant would have to decide whether a reversal dated outside the
- * queried period should still cancel an original dated inside it —
- * that policy question is unresolved (Ticket 23A audit) and deliberately
- * out of scope here.
+ * Cross-period policy (Ticket 23B): when `entries` has already been
+ * scoped to a report period by occurredAt (the caller's date-range
+ * query, unchanged by this function), a reversal dated in a later
+ * period is never part of `entries` for the earlier period — so the
+ * earlier period's original still gets excluded (it is REVERSED,
+ * regardless of when it was reversed) while the later period's
+ * reversal row is excluded there too (reversalOfId is set). Both sides
+ * of a cross-period reversal net to 0 in every period they touch. This
+ * is read-time management-reporting policy, not a rewrite of history —
+ * both rows stay visible in ledger history for the period they
+ * occurred in.
  */
 export function computeEffectiveFinancialLedgerSummaryCore(
   entries: {
@@ -442,8 +448,9 @@ export function computeEffectiveFinancialLedgerSummaryCore(
 }
 
 export async function getEffectiveFinancialLedgerSummaryCore(
+  filters: LedgerSummaryFilters,
   dependencies: Pick<LedgerEntryServiceDependencies, "listForSummary">,
 ): Promise<FinancialLedgerSummary> {
-  const entries = await dependencies.listForSummary({});
+  const entries = await dependencies.listForSummary(filters);
   return computeEffectiveFinancialLedgerSummaryCore(entries);
 }

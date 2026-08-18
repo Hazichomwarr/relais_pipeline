@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FinancialLedgerSummary, LedgerEntryRow } from "./financial-ledger.service-core";
+import {
+  computeEffectiveFinancialLedgerSummaryCore,
+  type FinancialLedgerSummary,
+  type LedgerEntryRow,
+} from "./financial-ledger.service-core";
 import {
   computeFinancialReportCore,
   computeFinancialReportPercentChange,
@@ -92,7 +96,7 @@ test("summary reuses the exact 17A Decimal arithmetic (inflows, outflows, net, e
   assert.equal(report.summary.entryCount, 2);
 });
 
-test("reversal regression: a REVERSED original and its reversal both contribute, exactly like /finances", () => {
+test("reversal regression (Ticket 23B — supersedes the old gross-parity expectation): /finances/reports uses the same effective movement semantics as /finances, not raw ledger volume", () => {
   const report = computeFinancialReportCore({
     period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
     entries: [
@@ -105,7 +109,8 @@ test("reversal regression: a REVERSED original and its reversal both contribute,
         amount: "25000.00",
         status: "REVERSED",
       }),
-      // The reversal itself: an INFLOW that offsets it.
+      // The reversal itself: an INFLOW that offsets it — bookkeeping,
+      // not new revenue.
       entry({
         id: "reversal",
         type: "INFLOW",
@@ -118,12 +123,204 @@ test("reversal regression: a REVERSED original and its reversal both contribute,
     previousSummary: zeroSummary,
   });
 
-  assert.equal(report.summary.outflows, "25000.00");
-  assert.equal(report.summary.inflows, "25000.00");
+  assert.equal(
+    report.summary.outflows,
+    "0.00",
+    "the REVERSED original no longer counts as a Sortie",
+  );
+  assert.equal(
+    report.summary.inflows,
+    "0.00",
+    "the compensating reversal row never counts as a new Entrée",
+  );
   assert.equal(report.summary.net, "0.00");
   // entryCount only counts currently-POSTED rows (excludes the reversed
-  // original, includes the reversal) — same rule as /finances.
+  // original, includes the reversal) — unchanged rule, same as /finances.
   assert.equal(report.summary.entryCount, 1);
+});
+
+test("same-period reversal fixture reconciles Entrées − Sorties = Mouvement net (Ticket 23B production case)", () => {
+  const report = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
+    entries: [
+      entry({ id: "e1", type: "INFLOW", amount: "500000.00" }),
+      entry({ id: "e2", type: "INFLOW", amount: "70000.00" }),
+      entry({
+        id: "reversed-entree",
+        type: "INFLOW",
+        amount: "70000.00",
+        status: "REVERSED",
+      }),
+      entry({
+        id: "reversed-entree-reversal",
+        type: "OUTFLOW",
+        category: "OTHER_OUTFLOW",
+        product: null,
+        amount: "70000.00",
+        reversalOfId: "reversed-entree",
+      }),
+      entry({
+        id: "e3",
+        type: "OUTFLOW",
+        category: "SALARY",
+        product: null,
+        amount: "355613.00",
+      }),
+      entry({
+        id: "reversed-sortie",
+        type: "OUTFLOW",
+        category: "FUEL",
+        product: null,
+        amount: "70000.00",
+        status: "REVERSED",
+      }),
+      entry({
+        id: "reversed-sortie-reversal",
+        type: "INFLOW",
+        product: null,
+        amount: "70000.00",
+        reversalOfId: "reversed-sortie",
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(report.summary.inflows, "570000.00");
+  assert.equal(report.summary.outflows, "355613.00");
+  assert.equal(report.summary.net, "214387.00");
+});
+
+test("Écritures (Ticket 23B audit): the report count stays status-based — POSTED rows are counted, including a reversal bookkeeping row, only a REVERSED original is excluded", () => {
+  const report = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
+    entries: [
+      entry({ id: "normal-1", type: "INFLOW", amount: "500000.00" }),
+      entry({ id: "normal-2", type: "OUTFLOW", category: "SALARY", product: null, amount: "100000.00" }),
+      entry({
+        id: "reversed-original",
+        type: "INFLOW",
+        amount: "70000.00",
+        status: "REVERSED",
+      }),
+      entry({
+        id: "reversal-row",
+        type: "OUTFLOW",
+        category: "OTHER_OUTFLOW",
+        product: null,
+        amount: "70000.00",
+        reversalOfId: "reversed-original",
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  // 4 rows total, 1 REVERSED original excluded -> 3 currently-registered
+  // écritures (the 2 normal rows plus the reversal bookkeeping row,
+  // which is itself a legitimate, currently POSTED entry).
+  assert.equal(report.summary.entryCount, 3);
+});
+
+test("cross-period reversal fixture: a July original reversed in August contributes 0 to both periods' reports (Ticket 23B)", () => {
+  // The July report only ever sees the July original — the date-range
+  // query (financial-report.service.ts) never fetches the August
+  // reversal row for a July-scoped report in the first place.
+  const julyReport = computeFinancialReportCore({
+    period: { from: "2026-07-01", to: "2026-07-31", label: "Juillet" },
+    entries: [
+      entry({
+        id: "july-original",
+        type: "INFLOW",
+        category: "CLIENT_PAYMENT",
+        product: "KARMDA",
+        amount: "100000.00",
+        status: "REVERSED",
+        occurredAt: new Date("2026-07-20T10:00:00Z"),
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(
+    julyReport.summary.inflows,
+    "0.00",
+    "the July report reopened after the August reversal excludes the now-REVERSED original",
+  );
+  assert.deepEqual(
+    julyReport.productRevenue,
+    [],
+    "a reversed CLIENT_PAYMENT no longer appears as product revenue",
+  );
+
+  // The August report only ever sees the August reversal row — the
+  // July original falls outside its date range entirely.
+  const augustReport = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Août" },
+    entries: [
+      entry({
+        id: "august-reversal",
+        type: "OUTFLOW",
+        category: "OTHER_OUTFLOW",
+        product: null,
+        amount: "100000.00",
+        reversalOfId: "july-original",
+        occurredAt: new Date("2026-08-05T10:00:00Z"),
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(
+    augustReport.summary.outflows,
+    "0.00",
+    "the August bookkeeping reversal never appears as new August Sortie",
+  );
+});
+
+test("parity: the effective summary agrees between /finances (getEffectiveFinancialLedgerSummaryCore) and /finances/reports (computeFinancialReportCore) over the same dataset (Ticket 23B)", () => {
+  const entries = [
+    entry({ id: "e1", type: "INFLOW", amount: "500000.00" }),
+    entry({ id: "e2", type: "INFLOW", amount: "70000.00" }),
+    entry({
+      id: "reversed-entree",
+      type: "INFLOW",
+      amount: "70000.00",
+      status: "REVERSED",
+    }),
+    entry({
+      id: "reversed-entree-reversal",
+      type: "OUTFLOW",
+      category: "OTHER_OUTFLOW",
+      product: null,
+      amount: "70000.00",
+      reversalOfId: "reversed-entree",
+    }),
+    entry({
+      id: "e3",
+      type: "OUTFLOW",
+      category: "SALARY",
+      product: null,
+      amount: "355613.00",
+    }),
+  ];
+
+  const dashboardSummary = computeEffectiveFinancialLedgerSummaryCore(
+    entries.map((e) => ({
+      type: e.type,
+      status: e.status,
+      reversalOfId: e.reversalOfId,
+      amount: e.amount,
+    })),
+  );
+
+  const report = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
+    entries,
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(report.summary.inflows, dashboardSummary.totalInflows);
+  assert.equal(report.summary.outflows, dashboardSummary.totalOutflows);
+  assert.equal(report.summary.net, dashboardSummary.balance);
 });
 
 test("product revenue only counts INFLOW + CLIENT_PAYMENT + a non-null product", () => {
@@ -174,6 +371,41 @@ test("product revenue only counts INFLOW + CLIENT_PAYMENT + a non-null product",
   assert.equal(report.productRevenue[0].product, "KARMDA");
 });
 
+test("effective revenue (Ticket 23B): a reversed KARMDA payment and its reversal row are excluded from Revenus par produit", () => {
+  const report = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
+    entries: [
+      // Posted KARMDA inflow: counted.
+      entry({ id: "posted", product: "KARMDA", amount: "300000.00" }),
+      // Reversed KARMDA inflow: excluded.
+      entry({
+        id: "reversed",
+        product: "KARMDA",
+        amount: "150000.00",
+        status: "REVERSED",
+      }),
+      // Its reversal bookkeeping row: typed OUTFLOW, so it already fails
+      // the INFLOW check, but reversalOfId also excludes it explicitly.
+      entry({
+        id: "reversal",
+        type: "OUTFLOW",
+        category: "OTHER_OUTFLOW",
+        product: null,
+        amount: "150000.00",
+        reversalOfId: "reversed",
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(report.productRevenue.length, 1);
+  const karmda = report.productRevenue.find((row) => row.product === "KARMDA");
+  assert.ok(karmda);
+  assert.equal(karmda!.amount, "300000.00");
+  assert.equal(karmda!.entryCount, 1);
+  assert.equal(karmda!.percentOfClientRevenue, "100.00");
+});
+
 test("expense categories group outflows only, highest amount first, with correct percentOfOutflows", () => {
   const report = computeFinancialReportCore({
     period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
@@ -213,6 +445,55 @@ test("expense categories group outflows only, highest amount first, with correct
   assert.equal(report.expenseCategories[1].amount, "100000.00");
   assert.equal(report.expenseCategories[1].entryCount, 2);
   assert.equal(report.expenseCategories[1].percentOfOutflows, "25.00");
+});
+
+test("Sorties par catégorie (Ticket 23B): a reversed Équipement outflow and its reversal row don't affect the total, the category amount, its count, or its percentage", () => {
+  const report = computeFinancialReportCore({
+    period: { from: "2026-08-01", to: "2026-08-31", label: "Ce mois" },
+    entries: [
+      entry({
+        id: "posted",
+        type: "OUTFLOW",
+        category: "PRINTING",
+        product: null,
+        amount: "50000.00",
+      }),
+      // Reversed outflow: must not add to PRINTING's total, count, or
+      // percentage.
+      entry({
+        id: "reversed-outflow",
+        type: "OUTFLOW",
+        category: "PRINTING",
+        product: null,
+        amount: "70000.00",
+        status: "REVERSED",
+      }),
+      // Its compensating reversal: typed INFLOW, must not appear as
+      // product revenue or otherwise leak into another category's
+      // outflow total.
+      entry({
+        id: "reversal",
+        type: "INFLOW",
+        category: "OTHER_INFLOW",
+        product: null,
+        amount: "70000.00",
+        reversalOfId: "reversed-outflow",
+      }),
+    ],
+    previousSummary: zeroSummary,
+  });
+
+  assert.equal(report.summary.outflows, "50000.00");
+  assert.equal(report.expenseCategories.length, 1);
+  assert.equal(report.expenseCategories[0].category, "PRINTING");
+  assert.equal(report.expenseCategories[0].amount, "50000.00");
+  assert.equal(report.expenseCategories[0].entryCount, 1);
+  assert.equal(report.expenseCategories[0].percentOfOutflows, "100.00");
+  assert.deepEqual(
+    report.productRevenue,
+    [],
+    "the reversal row is not a CLIENT_PAYMENT, so it never appears as product revenue anyway",
+  );
 });
 
 test("payment methods combine inflow and outflow magnitudes as volume, never netted", () => {
