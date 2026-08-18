@@ -78,7 +78,7 @@ export default async function CommercialProspectDetailPage({
   });
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+    <div className="mx-auto max-w-5xl">
       <ProspectRecordNavigation {...navProps} />
 
       <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
@@ -183,6 +183,6 @@ export default async function CommercialProspectDetailPage({
           }
         />
       </div>
-    </main>
+    </div>
   );
 }

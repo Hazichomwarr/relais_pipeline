@@ -123,7 +123,7 @@ export default function UserTable({
 
       {/* Desktop: full data table */}
       <div className="hidden overflow-x-auto lg:block">
-        <table className="w-full min-w-245 border-collapse">
+        <table className="w-full border-collapse">
           <thead className="border-b border-slate-200 bg-slate-50/80 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-6 py-4">Nom</th>

@@ -50,7 +50,7 @@ export default async function AdminReportsPage({
     });
 
     return (
-      <div className="mx-auto max-w-5xl space-y-8">
+      <div className="space-y-8">
         <PageHeader />
         <DailyReportManagementFilters filters={filters} employees={employees} />
 
@@ -84,7 +84,7 @@ export default async function AdminReportsPage({
   });
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10">
+    <div className="space-y-10">
       <header>
         <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
           Rapports quotidiens

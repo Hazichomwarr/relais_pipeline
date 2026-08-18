@@ -59,7 +59,7 @@ export default async function KarmdaDirectoryPage({
   if (user.role === "COMMERCIAL") {
     return (
       <CommercialShell firstName={user.firstName} lastName={user.lastName}>
-        <main className="px-4 py-6 sm:px-6 sm:py-8">{content}</main>
+        {content}
       </CommercialShell>
     );
   }

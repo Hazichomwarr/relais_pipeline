@@ -1,7 +1,7 @@
 export default function AdminMyProspectsLoading() {
   return (
     <div className="min-h-screen bg-[#f5f7fb] px-6 py-8 lg:px-10">
-      <div className="mx-auto max-w-6xl animate-pulse space-y-6">
+      <div className="animate-pulse space-y-6">
         <div>
           <div className="h-9 w-64 rounded-2xl bg-slate-200" />
           <div className="mt-3 h-5 w-96 rounded bg-slate-200" />

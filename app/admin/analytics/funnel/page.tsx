@@ -47,7 +47,7 @@ export default async function FunnelAnalyticsPage({
 
   return (
     <AdminShell activeItem="analytics">
-      <div className="mx-auto max-w-6xl">
+      <div>
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-[#0f2557] md:text-4xl">
             Analyse du pipeline

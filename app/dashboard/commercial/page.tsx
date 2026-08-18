@@ -63,7 +63,7 @@ export default async function CommercialDashboardPage({
   const returnTo = buildReturnToPath("/dashboard/commercial", params);
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
+    <div className="flex flex-col gap-6">
       <CommercialHeader firstName={dashboard.commercial.firstName} />
 
       <CommercialKpiCards kpis={dashboard.kpis} />
@@ -85,6 +85,6 @@ export default async function CommercialDashboardPage({
         hasActiveFilters={hasActiveFilters}
         returnTo={returnTo}
       />
-    </main>
+    </div>
   );
 }

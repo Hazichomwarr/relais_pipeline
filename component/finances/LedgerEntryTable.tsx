@@ -33,9 +33,24 @@ export default function LedgerEntryTable({
         ))}
       </div>
 
-      {/* Desktop: full history table */}
+      {/* Desktop: full history table. table-fixed + colgroup gives every
+          column a deliberate share of the available width instead of
+          letting long content force the table past the viewport (Ticket
+          24B) — columns wrap rather than pushing the table wider. */}
       <div className="hidden overflow-x-auto p-6 lg:block">
-        <table className="w-full min-w-300 border-separate border-spacing-y-3">
+        <table className="w-full table-fixed border-separate border-spacing-y-3">
+          <colgroup>
+            <col className="w-[8%]" />
+            <col className="w-[5%]" />
+            <col className="w-[19%]" />
+            <col className="w-[11%]" />
+            <col className="w-[8%]" />
+            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+            <col className="w-[7%]" />
+            <col className="w-[13%]" />
+            <col className="w-[8%]" />
+          </colgroup>
           <thead>
             <tr className="text-left text-sm font-medium text-slate-500">
               <th className="pb-2">Date</th>
@@ -53,10 +68,10 @@ export default function LedgerEntryTable({
           <tbody>
             {entries.map((entry) => (
               <tr key={entry.id} className="bg-[#fafbff] shadow-sm">
-                <td className="rounded-l-2xl px-4 py-5 whitespace-nowrap">
+                <td className="rounded-l-2xl px-3 py-4">
                   {formatLedgerOccurredDate(entry.occurredAt)}
                 </td>
-                <td className="px-4 py-5">
+                <td className="px-3 py-4">
                   <span className="sr-only">
                     {getLedgerTypeLabel(entry.type)}
                   </span>
@@ -68,29 +83,29 @@ export default function LedgerEntryTable({
                   </span>
                 </td>
                 <td
-                  className={`px-4 py-5 font-semibold whitespace-nowrap ${entry.type === "INFLOW" ? "text-emerald-700" : "text-red-700"}`}
+                  className={`px-3 py-4 font-semibold whitespace-nowrap ${entry.type === "INFLOW" ? "text-emerald-700" : "text-red-700"}`}
                 >
                   {formatSignedXofAmount(entry.type, entry.amount)}
                 </td>
-                <td className="px-4 py-5">
+                <td className="px-3 py-4">
                   <LedgerEntryCategoryBadge category={entry.category} />
                 </td>
-                <td className="px-4 py-5">
+                <td className="px-3 py-4">
                   {entry.product ? getRelaisProductLabel(entry.product) : "—"}
                 </td>
-                <td className="max-w-50 truncate px-4 py-5">
+                <td className="px-3 py-4 break-words">
                   {entry.counterpartyName}
                 </td>
-                <td className="px-4 py-5 whitespace-nowrap">
+                <td className="px-3 py-4 break-words">
                   {getPaymentMethodLabel(entry.paymentMethod)}
                 </td>
-                <td className="px-4 py-5">
+                <td className="px-3 py-4">
                   <LedgerEntryStatusBadge status={entry.status} />
                 </td>
-                <td className="max-w-40 truncate px-4 py-5">
+                <td className="px-3 py-4 break-words">
                   {entry.createdByUserDisplayName}
                 </td>
-                <td className="rounded-r-2xl px-4 py-5">
+                <td className="rounded-r-2xl px-3 py-4">
                   <div className="flex justify-center">
                     <Link
                       href={`/finances/ledger/${entry.id}`}

@@ -55,7 +55,7 @@ export default async function WhyAnalyticsPage({
 
   return (
     <AdminShell activeItem="analytics">
-      <div className="mx-auto max-w-6xl">
+      <div>
         <AnalyticsNav />
 
         <div className="mb-8">

@@ -40,6 +40,20 @@ test("renders user columns, French role, status, edit, and deactivate actions", 
   assert.match(html, /Désactiver Aminata Ouédraogo/);
 });
 
+test("the desktop table has no oversized fixed min-width forcing horizontal overflow (Ticket 24B)", () => {
+  const html = renderToStaticMarkup(
+    <UserTable
+      users={[makeUser("user-1")]}
+      onCreate={noOp}
+      onEdit={noOp}
+      onDeactivate={noOp}
+    />,
+  );
+
+  assert.match(html, /<table/);
+  assert.doesNotMatch(html, /min-w-245/);
+});
+
 test("keeps inactive users visible without offering another deactivate action", () => {
   const html = renderToStaticMarkup(
     <UserTable

@@ -1,6 +1,6 @@
 export default function FinancesLoading() {
   return (
-    <div className="mx-auto max-w-6xl animate-pulse">
+    <div className="animate-pulse">
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="h-9 w-40 rounded-xl bg-slate-200" />

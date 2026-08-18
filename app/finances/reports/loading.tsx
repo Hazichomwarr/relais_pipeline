@@ -1,6 +1,6 @@
 export default function FinancialReportsLoading() {
   return (
-    <div className="mx-auto max-w-6xl animate-pulse">
+    <div className="animate-pulse">
       <div className="mb-6 h-5 w-40 rounded bg-slate-200" />
 
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">

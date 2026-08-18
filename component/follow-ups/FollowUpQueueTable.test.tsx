@@ -49,3 +49,37 @@ test("renders a populated queue with commercial and detail link", () => {
   assert.match(html, /En retard de 2 jours/);
   assert.match(html, /\/admin\/prospects\/prospect-1/);
 });
+
+test("the desktop table has no oversized fixed min-width forcing horizontal overflow (Ticket 24B)", () => {
+  const html = renderToStaticMarkup(
+    <FollowUpQueueTable
+      returnTo="/admin/follow-ups"
+      items={[
+        {
+          id: "prospect-1",
+          name: "École Horizon",
+          prospectType: "École privée",
+          product: "KARMDA",
+          phone: "+22670000000",
+          interest: "READY_TO_DISCUSS",
+          nextAction: "SEND_DEMO",
+          followUpDate: new Date("2026-08-01T10:00:00"),
+          overdueDays: 2,
+          followUpLabel: "En retard de 2 jours",
+          createdAt: new Date("2026-07-30T10:00:00"),
+          latestActivityAt: new Date("2026-08-01T08:00:00"),
+          assignedUser: {
+            id: "user-1",
+            firstName: "Awa",
+            lastName: "Traoré",
+            active: true,
+          },
+          commercialName: "Awa Traoré",
+        },
+      ]}
+    />,
+  );
+
+  assert.match(html, /<table/);
+  assert.doesNotMatch(html, /min-w-300/);
+});

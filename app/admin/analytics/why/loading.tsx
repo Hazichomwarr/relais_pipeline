@@ -1,6 +1,6 @@
 export default function WhyAnalyticsLoading() {
   return (
-    <div className="mx-auto max-w-6xl animate-pulse">
+    <div className="animate-pulse">
       <div className="mb-6 h-14 rounded-2xl bg-slate-100" />
 
       <div className="mb-8 space-y-3">

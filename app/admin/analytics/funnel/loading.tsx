@@ -1,6 +1,6 @@
 export default function FunnelAnalyticsLoading() {
   return (
-    <div className="mx-auto max-w-6xl animate-pulse">
+    <div className="animate-pulse">
       <div className="mb-8 space-y-3">
         <div className="h-9 w-72 rounded-xl bg-slate-200" />
         <div className="h-5 w-96 max-w-full rounded-lg bg-slate-100" />

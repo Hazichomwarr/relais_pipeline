@@ -1,6 +1,6 @@
 export default function AdminReportsLoading() {
   return (
-    <div className="mx-auto max-w-5xl animate-pulse space-y-10">
+    <div className="animate-pulse space-y-10">
       <div>
         <div className="h-4 w-40 rounded bg-slate-200" />
         <div className="mt-3 h-9 w-64 rounded-xl bg-slate-200" />

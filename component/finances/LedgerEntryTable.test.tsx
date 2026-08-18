@@ -77,3 +77,74 @@ test("links each row to its detail page", () => {
 
   assert.match(html, /href="\/finances\/ledger\/entry-42"/);
 });
+
+// --- Viewport-safe desktop table layout (Ticket 24B) -------------------
+
+/**
+ * Scoped to the <table>...</table> markup only — the mobile card view
+ * (LedgerEntryCard) legitimately uses min-w-0/truncate for its own
+ * narrow-viewport layout and is out of scope for the desktop table fix.
+ */
+function extractDesktopTableHtml(html: string): string {
+  const start = html.indexOf("<table");
+  const end = html.indexOf("</table>") + "</table>".length;
+  return html.slice(start, end);
+}
+
+test("the desktop table has no oversized fixed min-width forcing horizontal overflow", () => {
+  const html = renderToStaticMarkup(<LedgerEntryTable entries={[entry()]} />);
+  const tableHtml = extractDesktopTableHtml(html);
+
+  assert.doesNotMatch(
+    tableHtml,
+    /\bmin-w-(?!0\b)\S+/,
+    "a fixed min-width on the table defeats table-fixed's proportional column sizing and forces desktop scrolling",
+  );
+});
+
+test("the desktop table uses table-fixed with a colgroup distributing width across all 10 columns", () => {
+  const html = renderToStaticMarkup(<LedgerEntryTable entries={[entry()]} />);
+  const tableHtml = extractDesktopTableHtml(html);
+
+  assert.match(tableHtml, /table-fixed/);
+  const colMatches = tableHtml.match(/<col\b[^>]*>/g) ?? [];
+  assert.equal(
+    colMatches.length,
+    10,
+    "Date, Type, Montant, Catégorie, Produit, Tiers, Mode, Statut, Enregistré par, Voir",
+  );
+});
+
+test("Tiers and Enregistré par are allowed to wrap instead of being truncated with an ellipsis", () => {
+  const html = renderToStaticMarkup(
+    <LedgerEntryTable
+      entries={[
+        entry({
+          counterpartyName: "Groupe scolaire international Horizon et Aurore",
+          createdByUserDisplayName: "Jean-Baptiste Ouédraogo-Compaoré",
+        }),
+      ]}
+    />,
+  );
+  const tableHtml = extractDesktopTableHtml(html);
+
+  assert.doesNotMatch(
+    tableHtml,
+    /truncate/,
+    "long Tiers/Enregistré par values should wrap onto a second line, not be clipped with an ellipsis",
+  );
+  assert.match(tableHtml, /Groupe scolaire international Horizon et Aurore/);
+  assert.match(tableHtml, /Jean-Baptiste Ouédraogo-Compaoré/);
+});
+
+test("whitespace-nowrap is not applied table-wide — only Montant, the one column that must never break mid-value", () => {
+  const html = renderToStaticMarkup(<LedgerEntryTable entries={[entry()]} />);
+  const tableHtml = extractDesktopTableHtml(html);
+
+  const nowrapCount = (tableHtml.match(/whitespace-nowrap/g) ?? []).length;
+  assert.equal(
+    nowrapCount,
+    1,
+    "only the Montant cell should force whitespace-nowrap; Date, Mode, Tiers, and Enregistré par must be free to wrap",
+  );
+});

@@ -1,5 +1,6 @@
 import AdminMobileHeader from "@/component/dashboard/AdminMobileHeader";
 import Sidebar from "@/component/dashboard/Sidebar";
+import Container from "@/component/layout/Container";
 import { auth } from "@/auth";
 
 type AdminShellProps = {
@@ -38,8 +39,8 @@ export default async function AdminShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <AdminMobileHeader role={role} />
 
-        <main className="w-full min-w-0 flex-1 px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-8">
-          {children}
+        <main className="min-w-0 flex-1 py-6 sm:py-8 lg:py-8">
+          <Container>{children}</Container>
         </main>
       </div>
     </div>

@@ -111,7 +111,7 @@ export default function FollowUpQueueTable({
 
       {/* Desktop: full data table */}
       <div className="hidden overflow-x-auto p-6 lg:block">
-        <table className="w-full min-w-300 border-separate border-spacing-y-3">
+        <table className="w-full border-separate border-spacing-y-3">
           <thead>
             <tr className="text-left text-sm font-medium text-slate-500">
               <th className="pb-2">Prospect</th>

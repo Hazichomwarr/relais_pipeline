@@ -22,7 +22,7 @@ export default async function UsersPage() {
 
   return (
     <AdminShell activeItem="users">
-      <div className="mx-auto max-w-7xl">
+      <div>
         <header className="mb-2">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
             Équipe RELAIS

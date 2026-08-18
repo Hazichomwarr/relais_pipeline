@@ -56,7 +56,7 @@ export default async function AdminMyProspectsPage({
 
   return (
     <AdminShell activeItem="myProspects">
-      <div className="mx-auto max-w-6xl">
+      <div>
         <header className="mb-6">
           <h1 className="text-3xl font-bold tracking-tight text-[#0f2557] sm:text-4xl">
             Mes prospects

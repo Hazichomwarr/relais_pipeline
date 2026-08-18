@@ -54,7 +54,7 @@ export default async function FinancesPage({
         : null;
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div>
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-[#0f2557] md:text-4xl">
