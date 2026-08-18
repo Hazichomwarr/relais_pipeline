@@ -16,7 +16,7 @@ test("history filters are parsed through the Ticket 17C.1 helper, never trusting
 });
 
 test("the KPI summary is fetched with no filter arguments — it must never narrow to the selected history filter", () => {
-  assert.match(source, /getFinancialLedgerSummary\(\)/);
+  assert.match(source, /getEffectiveFinancialLedgerSummary\(\)/);
 });
 
 test("the filtered-results empty state is distinct from the global empty state and offers a reset link", () => {

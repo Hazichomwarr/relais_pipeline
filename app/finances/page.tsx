@@ -8,7 +8,7 @@ import LedgerHistoryFilters from "@/component/finances/LedgerHistoryFilters";
 import { parseLedgerHistoryFilter } from "@/src/lib/ledger-history-filters";
 import { requireAuthenticatedUser } from "@/src/services/authorization.service";
 import {
-  getFinancialLedgerSummary,
+  getEffectiveFinancialLedgerSummary,
   listLedgerEntries,
 } from "@/src/services/financial-ledger.service";
 
@@ -37,8 +37,12 @@ export default async function FinancesPage({
 
   // The KPI cards always reflect the whole ledger — history filters must
   // never narrow "Solde actuel" into e.g. a "fuel balance" (Ticket 17C.1).
+  // They report effective business movement, not raw ledger volume: a
+  // fully reversed entry contributes 0 CFA to Entrées/Sorties even
+  // though both its original and compensating rows remain visible below
+  // (Ticket 23A).
   const [summary, entries] = await Promise.all([
-    getFinancialLedgerSummary(),
+    getEffectiveFinancialLedgerSummary(),
     listLedgerEntries(filter),
   ]);
 

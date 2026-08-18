@@ -29,10 +29,10 @@ test("the finances layout redirects before any ledger data is fetched", () => {
   assert.doesNotMatch(source, /listLedgerEntries\(/);
 });
 
-test("the finances dashboard reuses the Ticket 17A summary and list services without re-sorting or recomputing", () => {
+test("the finances dashboard reuses the Ticket 17A list service and the Ticket 23A effective summary service without re-sorting or recomputing", () => {
   const source = readFileSync("app/finances/page.tsx", "utf8");
 
-  assert.match(source, /getFinancialLedgerSummary\(/);
+  assert.match(source, /getEffectiveFinancialLedgerSummary\(/);
   assert.match(source, /listLedgerEntries\(/);
   assert.doesNotMatch(source, /\.sort\(/);
   assert.doesNotMatch(source, /prisma\./);

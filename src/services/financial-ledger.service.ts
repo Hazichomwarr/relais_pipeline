@@ -6,6 +6,7 @@ import { prisma } from "@/src/lib/prisma";
 import type { ValidatedLedgerEntryInput } from "@/src/lib/validations/financial-ledger.schema";
 import {
   createLedgerEntryCore,
+  getEffectiveFinancialLedgerSummaryCore,
   getFinancialLedgerSummaryCore,
   getLedgerEntryByIdCore,
   listLedgerEntriesCore,
@@ -210,12 +211,13 @@ const dependencies: LedgerEntryServiceDependencies = {
 
     const entries = await prisma.ledgerEntry.findMany({
       where: { product: filters.product, occurredAt },
-      select: { type: true, status: true, amount: true },
+      select: { type: true, status: true, reversalOfId: true, amount: true },
     });
 
     return entries.map((entry) => ({
       type: entry.type,
       status: entry.status,
+      reversalOfId: entry.reversalOfId,
       amount: entry.amount.toFixed(2),
     }));
   },
@@ -244,6 +246,18 @@ export async function getFinancialLedgerSummary(
   filters: LedgerSummaryFilters = {},
 ) {
   return getFinancialLedgerSummaryCore(filters, dependencies);
+}
+
+/**
+ * The all-time effective summary for the /finances dashboard (Ticket
+ * 23A) — Entrées/Sorties exclude reversed originals and their
+ * compensating reversal rows, so a fully annulled transaction
+ * contributes 0 CFA to either direction. Deliberately unfiltered: see
+ * isEffectiveLedgerMovement's doc comment for why a date-scoped variant
+ * is not offered here.
+ */
+export async function getEffectiveFinancialLedgerSummary() {
+  return getEffectiveFinancialLedgerSummaryCore(dependencies);
 }
 
 export type LedgerEntryListItem = Awaited<

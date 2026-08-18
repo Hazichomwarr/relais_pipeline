@@ -120,7 +120,14 @@ export type LedgerEntryServiceDependencies = {
   ) => Promise<{ id: string }>;
   listForSummary: (
     filters: LedgerSummaryFilters,
-  ) => Promise<{ type: LedgerEntryType; status: LedgerEntryStatus; amount: string }[]>;
+  ) => Promise<
+    {
+      type: LedgerEntryType;
+      status: LedgerEntryStatus;
+      reversalOfId: string | null;
+      amount: string;
+    }[]
+  >;
 };
 
 export function toLedgerEntryWriteFields(
@@ -360,4 +367,83 @@ export async function getFinancialLedgerSummaryCore(
 ): Promise<FinancialLedgerSummary> {
   const entries = await dependencies.listForSummary(filters);
   return computeFinancialLedgerSummaryCore(entries);
+}
+
+/**
+ * An entry counts as effective business movement only when it is both
+ * an original (not itself a reversal — reversalOfId is null) and still
+ * POSTED (not since reversed). This is the single rule shared by the
+ * effective Entrées/Sorties/Solde figures below (Ticket 23A): it is
+ * what keeps a reversed original from inflating its own direction and
+ * its compensating reversal row from inflating the opposite direction.
+ */
+export function isEffectiveLedgerMovement(entry: {
+  status: LedgerEntryStatus;
+  reversalOfId: string | null;
+}): boolean {
+  return entry.status === "POSTED" && entry.reversalOfId === null;
+}
+
+/**
+ * Effective totals for the all-time dashboard (Ticket 23A). Unlike
+ * computeFinancialLedgerSummaryCore above — which sums every row ever
+ * posted and is kept as-is for period-scoped financial reports, see
+ * financial-report.service-core.ts — this excludes both sides of a
+ * reversal pair from Entrées/Sorties: the REVERSED original (its
+ * business effect has been annulled) and the compensating reversal row
+ * (bookkeeping, not new business activity, even though its `type` is
+ * the opposite direction). postedEntryCount keeps the same lifecycle
+ * rule as the gross summary — a reversal row is a legitimate, currently
+ * registered écriture, only a REVERSED original is excluded.
+ *
+ * This is only valid for an unscoped (all-time) read. A date-filtered
+ * variant would have to decide whether a reversal dated outside the
+ * queried period should still cancel an original dated inside it —
+ * that policy question is unresolved (Ticket 23A audit) and deliberately
+ * out of scope here.
+ */
+export function computeEffectiveFinancialLedgerSummaryCore(
+  entries: {
+    type: LedgerEntryType;
+    status: LedgerEntryStatus;
+    reversalOfId: string | null;
+    amount: string;
+  }[],
+): FinancialLedgerSummary {
+  let totalInflows = new Prisma.Decimal(0);
+  let totalOutflows = new Prisma.Decimal(0);
+  let postedEntryCount = 0;
+
+  for (const entry of entries) {
+    if (entry.status === "POSTED") {
+      postedEntryCount += 1;
+    }
+
+    if (!isEffectiveLedgerMovement(entry)) {
+      continue;
+    }
+
+    const amount = new Prisma.Decimal(entry.amount);
+
+    if (entry.type === "INFLOW") {
+      totalInflows = totalInflows.plus(amount);
+    } else {
+      totalOutflows = totalOutflows.plus(amount);
+    }
+  }
+
+  return {
+    currencyCode: "XOF",
+    totalInflows: totalInflows.toFixed(2),
+    totalOutflows: totalOutflows.toFixed(2),
+    balance: totalInflows.minus(totalOutflows).toFixed(2),
+    postedEntryCount,
+  };
+}
+
+export async function getEffectiveFinancialLedgerSummaryCore(
+  dependencies: Pick<LedgerEntryServiceDependencies, "listForSummary">,
+): Promise<FinancialLedgerSummary> {
+  const entries = await dependencies.listForSummary({});
+  return computeEffectiveFinancialLedgerSummaryCore(entries);
 }

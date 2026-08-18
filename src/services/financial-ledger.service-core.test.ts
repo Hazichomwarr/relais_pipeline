@@ -5,11 +5,14 @@ import type { ValidatedLedgerEntryInput } from "@/src/lib/validations/financial-
 
 import {
   buildReversalReason,
+  computeEffectiveFinancialLedgerSummaryCore,
   computeFinancialLedgerSummaryCore,
   createLedgerEntryCore,
+  getEffectiveFinancialLedgerSummaryCore,
   getFinancialLedgerSummaryCore,
   getLedgerEntryByIdCore,
   getReversalTypeAndCategory,
+  isEffectiveLedgerMovement,
   listLedgerEntriesCore,
   reverseLedgerEntryCore,
   type LedgerEntryDetailRow,
@@ -166,6 +169,7 @@ function createLedgerStore(initial: LedgerEntryDetailRow[] = []) {
         .map((entry) => ({
           type: entry.type,
           status: entry.status,
+          reversalOfId: entry.reversalOfId,
           amount: entry.amount,
         })),
   };
@@ -530,6 +534,121 @@ test("getFinancialLedgerSummaryCore filters by date range", async () => {
   );
 
   assert.equal(summary.totalInflows, "20000.00");
+});
+
+// --- Effective summary (Ticket 23A) ----------------------------------
+
+test("isEffectiveLedgerMovement: true only for a POSTED, non-reversal entry", () => {
+  assert.equal(
+    isEffectiveLedgerMovement({ status: "POSTED", reversalOfId: null }),
+    true,
+  );
+  assert.equal(
+    isEffectiveLedgerMovement({ status: "REVERSED", reversalOfId: null }),
+    false,
+    "a reversed original no longer counts",
+  );
+  assert.equal(
+    isEffectiveLedgerMovement({ status: "POSTED", reversalOfId: "original-1" }),
+    false,
+    "a reversal bookkeeping row is never effective business movement",
+  );
+});
+
+test("a normal ENTRY is counted in Entrées and affects Solde positively", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    { type: "INFLOW", status: "POSTED", reversalOfId: null, amount: "70000.00" },
+  ]);
+
+  assert.equal(summary.totalInflows, "70000.00");
+  assert.equal(summary.totalOutflows, "0.00");
+  assert.equal(summary.balance, "70000.00");
+});
+
+test("a normal EXIT is counted in Sorties and affects Solde negatively", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    { type: "OUTFLOW", status: "POSTED", reversalOfId: null, amount: "20000.00" },
+  ]);
+
+  assert.equal(summary.totalOutflows, "20000.00");
+  assert.equal(summary.totalInflows, "0.00");
+  assert.equal(summary.balance, "-20000.00");
+});
+
+test("a fully reversed ENTRY nets to 0 in Entrées and in Solde — its reversal row does not masquerade as a Sortie", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    // The original +70 000 inflow, now annulled.
+    { type: "INFLOW", status: "REVERSED", reversalOfId: null, amount: "70000.00" },
+    // Its compensating reversal: bookkeeping, typed OUTFLOW, but not a
+    // real Sortie.
+    { type: "OUTFLOW", status: "POSTED", reversalOfId: "original-1", amount: "70000.00" },
+  ]);
+
+  assert.equal(summary.totalInflows, "0.00");
+  assert.equal(summary.totalOutflows, "0.00");
+  assert.equal(summary.balance, "0.00");
+});
+
+test("a fully reversed EXIT nets to 0 in Sorties and in Solde — its reversal row does not masquerade as an Entrée", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    // The original -25 000 outflow, now annulled.
+    { type: "OUTFLOW", status: "REVERSED", reversalOfId: null, amount: "25000.00" },
+    // Its compensating reversal: bookkeeping, typed INFLOW, but not a
+    // real Entrée.
+    { type: "INFLOW", status: "POSTED", reversalOfId: "original-2", amount: "25000.00" },
+  ]);
+
+  assert.equal(summary.totalOutflows, "0.00");
+  assert.equal(summary.totalInflows, "0.00");
+  assert.equal(summary.balance, "0.00");
+});
+
+test("postedEntryCount still counts a reversal bookkeeping row — only a REVERSED original is excluded", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    { type: "INFLOW", status: "REVERSED", reversalOfId: null, amount: "70000.00" },
+    { type: "OUTFLOW", status: "POSTED", reversalOfId: "original-1", amount: "70000.00" },
+  ]);
+
+  assert.equal(summary.postedEntryCount, 1);
+});
+
+test("regression: production reversal fixture reconciles Entrées − Sorties = Solde actuel (Ticket 23A)", () => {
+  const summary = computeEffectiveFinancialLedgerSummaryCore([
+    // Normal entrées.
+    { type: "INFLOW", status: "POSTED", reversalOfId: null, amount: "500000.00" },
+    { type: "INFLOW", status: "POSTED", reversalOfId: null, amount: "70000.00" },
+    // A fully reversed entrée: the original is annulled, its reversal
+    // is bookkeeping only.
+    { type: "INFLOW", status: "REVERSED", reversalOfId: null, amount: "70000.00" },
+    { type: "OUTFLOW", status: "POSTED", reversalOfId: "reversed-entree", amount: "70000.00" },
+    // Normal sortie.
+    { type: "OUTFLOW", status: "POSTED", reversalOfId: null, amount: "355613.00" },
+    // A fully reversed sortie: same shape, opposite direction.
+    { type: "OUTFLOW", status: "REVERSED", reversalOfId: null, amount: "70000.00" },
+    { type: "INFLOW", status: "POSTED", reversalOfId: "reversed-sortie", amount: "70000.00" },
+  ]);
+
+  assert.equal(summary.totalInflows, "570000.00");
+  assert.equal(summary.totalOutflows, "355613.00");
+  assert.equal(summary.balance, "214387.00");
+});
+
+test("getEffectiveFinancialLedgerSummaryCore reads the whole ledger, unfiltered", async () => {
+  const store = createLedgerStore([
+    makeEntry("in-1", { type: "INFLOW", amount: "500000.00" }),
+    makeEntry("out-1", { type: "OUTFLOW", amount: "355613.00" }),
+  ]);
+
+  await reverseLedgerEntryCore(
+    { entryId: "in-1", reversedByUserId: "admin-1", reason: "Double paiement" },
+    store.dependencies,
+  );
+
+  const summary = await getEffectiveFinancialLedgerSummaryCore(store.dependencies);
+
+  assert.equal(summary.totalInflows, "0.00");
+  assert.equal(summary.totalOutflows, "355613.00");
+  assert.equal(summary.balance, "-355613.00");
 });
 
 // --- Reversal ---------------------------------------------------------
