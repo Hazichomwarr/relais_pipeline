@@ -91,12 +91,25 @@ export type SharedFeedItem =
 export const DEFAULT_SHARED_FEED_LIMIT = 30;
 export const MAX_SHARED_FEED_LIMIT = 100;
 
-/** ProspectActivity types that belong to a dedicated family and must never
- * double up as a generic PROSPECT_INTERACTION item. */
-export const NON_INTERACTION_ACTIVITY_TYPES: ProspectActivityType[] = [
-  "FOLLOW_UP",
-  "WON_TRANSITION",
-];
+/**
+ * Ticket 25B — explicit privacy boundary for the company-wide feed.
+ *
+ * Only customer-facing interactions are opt-in. INTERNAL_NOTE deliberately
+ * stays in the prospect dossier and never enters feed normalization. Keeping
+ * this as an allow-list also means a future ProspectActivityType remains
+ * private until it is explicitly reviewed for shared visibility.
+ */
+export const SHARED_FEED_INTERACTION_TYPES = [
+  "FIELD_VISIT",
+  "PHONE_CALL",
+  "WHATSAPP",
+  "MEETING",
+  "DEMO",
+  "DOCUMENT_SENT",
+] as const satisfies readonly ProspectActivityType[];
+
+const SHARED_FEED_INTERACTION_TYPE_SET: ReadonlySet<ProspectActivityType> =
+  new Set(SHARED_FEED_INTERACTION_TYPES);
 
 const PREVIEW_MAX_LENGTH = 320;
 
@@ -142,6 +155,12 @@ export type ProspectActivityFeedRow = {
     assignedUserId: string | null;
   };
 };
+
+export function isSharedFeedInteractionRow(
+  row: ProspectActivityFeedRow,
+): boolean {
+  return SHARED_FEED_INTERACTION_TYPE_SET.has(row.type);
+}
 
 function mapProspectRef(
   row: ProspectActivityFeedRow,
@@ -283,7 +302,9 @@ export async function getSharedFeedCore(
 
   return mergeSharedFeedItems(
     [
-      interactions.map(mapProspectInteractionRow),
+      interactions
+        .filter(isSharedFeedInteractionRow)
+        .map(mapProspectInteractionRow),
       followUps.map(mapFollowUpCompletedRow),
       wonEvents.map(mapProspectWonRow),
       userEvents.map(mapUserStatusRow),

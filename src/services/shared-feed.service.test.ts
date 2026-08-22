@@ -38,8 +38,10 @@ test("the follow-up family is scoped to the FOLLOW_UP activity type, never infer
   assert.doesNotMatch(source, /followUpDate/);
 });
 
-test("the generic interaction family excludes the two dedicated-family activity types", () => {
-  assert.match(source, /NON_INTERACTION_ACTIVITY_TYPES/);
+test("the generic interaction query uses the reviewed customer-facing allow-list", () => {
+  assert.match(source, /SHARED_FEED_INTERACTION_TYPES/);
+  assert.match(source, /type:\s*\{\s*in:\s*\[\.\.\.SHARED_FEED_INTERACTION_TYPES\]/);
+  assert.doesNotMatch(source, /type:\s*\{\s*notIn:/);
 });
 
 test("every source query is bounded by the resolved limit — no unbounded history reads", () => {

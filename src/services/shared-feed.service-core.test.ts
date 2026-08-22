@@ -317,3 +317,51 @@ test("getSharedFeedCore returns items typed only as one of the four approved fam
     assert.ok(allowedTypes.includes(item.type));
   }
 });
+
+test("INTERNAL_NOTE never enters the normalized feed even when it is the newest row inside the limit", async () => {
+  const privateSentinel = "PRIVATE_INTERNAL_NOTE_SHOULD_NEVER_LEAVE_PROSPECT";
+  const dependencies: SharedFeedDependencies = {
+    findRecentProspectInteractions: async () => [
+      activityRow({
+        id: "private-internal-note",
+        type: "INTERNAL_NOTE",
+        summary: privateSentinel,
+        details: privateSentinel,
+        occurredAt: new Date("2026-08-08T15:00:00.000Z"),
+      }),
+      activityRow({
+        id: "phone-call",
+        type: "PHONE_CALL",
+        occurredAt: new Date("2026-08-08T12:00:00.000Z"),
+      }),
+      activityRow({
+        id: "meeting",
+        type: "MEETING",
+        occurredAt: new Date("2026-08-08T11:00:00.000Z"),
+      }),
+      activityRow({
+        id: "demo",
+        type: "DEMO",
+        occurredAt: new Date("2026-08-08T10:00:00.000Z"),
+      }),
+    ],
+    findRecentFollowUpsCompleted: async () => [],
+    findRecentProspectWonEvents: async () => [],
+    findRecentUserStatusEvents: async () => [],
+  };
+
+  const feed = await getSharedFeedCore({ limit: 4 }, dependencies);
+
+  assert.deepEqual(
+    feed.map((item) => item.id),
+    ["phone-call", "meeting", "demo"],
+  );
+  assert.deepEqual(
+    feed
+      .filter((item) => item.type === "PROSPECT_INTERACTION")
+      .map((item) => item.activityType),
+    ["PHONE_CALL", "MEETING", "DEMO"],
+  );
+  assert.doesNotMatch(JSON.stringify(feed), /private-internal-note/);
+  assert.doesNotMatch(JSON.stringify(feed), new RegExp(privateSentinel));
+});

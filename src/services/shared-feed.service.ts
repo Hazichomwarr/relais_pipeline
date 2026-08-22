@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/src/lib/prisma";
 import {
   getSharedFeedCore,
-  NON_INTERACTION_ACTIVITY_TYPES,
+  SHARED_FEED_INTERACTION_TYPES,
   type GetSharedFeedParams,
 } from "@/src/services/shared-feed.service-core";
 
@@ -42,7 +42,7 @@ export async function getSharedFeed(params: GetSharedFeedParams = {}) {
   return getSharedFeedCore(params, {
     findRecentProspectInteractions: (limit) =>
       prisma.prospectActivity.findMany({
-        where: { type: { notIn: NON_INTERACTION_ACTIVITY_TYPES } },
+        where: { type: { in: [...SHARED_FEED_INTERACTION_TYPES] } },
         orderBy: prospectActivityFeedOrderBy,
         take: limit,
         select: prospectActivityFeedSelect,

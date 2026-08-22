@@ -37,6 +37,7 @@ function activity(
   id: string,
   occurredAt: string,
   createdAt: string,
+  overrides: Partial<ProspectActivity> = {},
 ): ProspectActivity {
   return {
     id,
@@ -50,6 +51,7 @@ function activity(
     conversionReason: null,
     conversionReasonNote: null,
     createdAt: new Date(createdAt),
+    ...overrides,
   };
 }
 
@@ -69,6 +71,31 @@ test("retrieves every activity newest-first with deterministic ties", async () =
       result.activities.map((item) => item.id),
       ["tie-new", "tie-old", "old"],
     );
+  }
+});
+
+test("INTERNAL_NOTE remains available in the legitimate prospect history", async () => {
+  const privateSentinel = "PRIVATE_INTERNAL_NOTE_SHOULD_NEVER_LEAVE_PROSPECT";
+  const internalNote = activity(
+    "internal-note-1",
+    "2026-08-08T15:00:00.000Z",
+    "2026-08-08T15:01:00.000Z",
+    {
+      type: "INTERNAL_NOTE",
+      summary: "Note interne",
+      details: privateSentinel,
+    },
+  );
+
+  const result = await getProspectActivitiesCore("prospect-1", {
+    findProspect: async () => ({ id: "prospect-1" }),
+    findActivities: async () => [internalNote],
+  });
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.activities[0].type, "INTERNAL_NOTE");
+    assert.equal(result.activities[0].details, privateSentinel);
   }
 });
 
