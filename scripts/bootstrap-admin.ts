@@ -33,6 +33,10 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+  // Foundational exception to Ticket 25C's authenticated creation path: this
+  // script creates the very first administrator, so no authenticated actor
+  // exists yet. Never fabricate a self-created lifecycle row. All subsequent
+  // operational user creation goes through createUserWithCreationHistory().
   const admin = await prisma.user.create({
     data: {
       firstName: "Hamza",

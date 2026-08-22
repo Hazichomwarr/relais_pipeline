@@ -156,6 +156,20 @@ for (const functionName of [
   });
 }
 
+test("createUserAction derives the creation-history actor from the authenticated admin, never client input", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/user.actions.ts",
+    "createUserAction",
+  );
+
+  assert.match(
+    functionBody,
+    /createUser\(parsed\.data, authorization\.user\.id\)/,
+  );
+  assert.doesNotMatch(functionBody, /parsed\.data\.(actorUserId|creatorUserId|createdBy)/);
+  assert.doesNotMatch(functionBody, /values\.(actorUserId|creatorUserId|createdBy)/);
+});
+
 for (const functionName of [
   "createLedgerEntryAction",
   "reverseLedgerEntryAction",

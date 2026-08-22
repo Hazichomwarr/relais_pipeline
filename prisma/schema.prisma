@@ -247,6 +247,9 @@ model User {
   statusActivities      UserStatusActivity[] @relation("UserStatusActivityTarget")
   statusActivityActions UserStatusActivity[] @relation("UserStatusActivityActor")
 
+  creationActivity        UserCreationActivity?  @relation("UserCreationActivitySubject")
+  creationActivityActions UserCreationActivity[] @relation("UserCreationActivityActor")
+
   // Ticket 20B — a User may appear in a ProspectAction in up to four
   // distinct roles at once (assignee, creator, completer, canceler); each
   // needs its own named relation since they all point back at User.
@@ -270,17 +273,39 @@ model UserStatusActivity {
   id String @id @default(cuid())
 
   userId String
-  user   User @relation("UserStatusActivityTarget", fields: [userId], references: [id], onDelete: Restrict)
+  user   User   @relation("UserStatusActivityTarget", fields: [userId], references: [id], onDelete: Restrict)
 
   type UserStatusActivityType
 
   actorUserId String
-  actorUser   User @relation("UserStatusActivityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actorUser   User   @relation("UserStatusActivityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   occurredAt DateTime @default(now())
 
   @@index([userId, occurredAt])
   @@index([actorUserId])
+}
+
+// Ticket 25C — one forward-only, durable fact for an authenticated user
+// creation. This is deliberately separate from UserStatusActivity: creating
+// an employee/account is not an active-status transition. roleAtEvent is a
+// snapshot and must never be re-derived from the mutable User.role field.
+// Existing users are intentionally not backfilled because their creator and
+// creation-time role cannot be reconstructed truthfully.
+model UserCreationActivity {
+  id String @id @default(cuid())
+
+  subjectUserId String @unique
+  subjectUser   User   @relation("UserCreationActivitySubject", fields: [subjectUserId], references: [id], onDelete: Restrict)
+
+  actorUserId String
+  actorUser   User   @relation("UserCreationActivityActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  roleAtEvent UserRole
+  occurredAt  DateTime @default(now())
+
+  @@index([actorUserId])
+  @@index([occurredAt])
 }
 
 model PersonalNote {

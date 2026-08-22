@@ -253,6 +253,7 @@ test("realistic fixture: create COMMERCIAL, own 3 prospects, promote to MANAGER,
   const store = createUserStore();
   const created = await createUserCore(
     validUserInput({ role: "COMMERCIAL" }),
+    "admin-1",
     store.dependencies,
   );
   assert.equal(created.success, true);

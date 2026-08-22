@@ -44,7 +44,10 @@ export type UserStatusTransition = {
 };
 
 export type UserServiceDependencies = {
-  create: (data: ValidatedUserInput) => Promise<{ id: string }>;
+  create: (
+    data: ValidatedUserInput,
+    actorUserId: string,
+  ) => Promise<{ id: string }>;
   update: (
     userId: string,
     data: {
@@ -76,10 +79,11 @@ function resolveStatusTransition(
 
 export async function createUserCore(
   input: ValidatedUserInput,
+  actorUserId: string,
   dependencies: UserServiceDependencies,
 ): Promise<UserWriteResult> {
   try {
-    const user = await dependencies.create(input);
+    const user = await dependencies.create(input, actorUserId);
     return { success: true, userId: user.id };
   } catch (error) {
     console.error("Unable to create user:", error);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { User } from "@prisma/client";
+import type { User, UserRole } from "@prisma/client";
 
 import type {
   ValidatedUserInput,
@@ -34,7 +34,11 @@ function validUserInput(
 
 test("creates and retrieves a user by id", async () => {
   const store = createUserStore();
-  const created = await createUserCore(validUserInput(), store.dependencies);
+  const created = await createUserCore(
+    validUserInput(),
+    "admin-1",
+    store.dependencies,
+  );
 
   assert.equal(created.success, true);
   if (created.success) {
@@ -84,6 +88,7 @@ test("createUserCore persists an ADMIN-assigned daily report template", async ()
   const store = createUserStore();
   const created = await createUserCore(
     validUserInput({ dailyReportTemplateType: "ASSISTANT" }),
+    "admin-1",
     store.dependencies,
   );
 
@@ -95,11 +100,103 @@ test("a user may be created with no daily report template assigned", async () =>
   const store = createUserStore();
   const created = await createUserCore(
     validUserInput({ dailyReportTemplateType: null }),
+    "admin-1",
     store.dependencies,
   );
 
   assert.equal(created.success, true);
   assert.equal(store.users[0].dailyReportTemplateType, null);
+});
+
+for (const role of ["COMMERCIAL", "MANAGER", "ADMIN"] as UserRole[]) {
+  test(`ADMIN creation of a ${role} preserves exactly one creator-attributed role snapshot`, async () => {
+    const store = createUserStore();
+
+    const result = await createUserCore(
+      validUserInput({ role }),
+      "authenticated-admin",
+      store.dependencies,
+    );
+
+    assert.equal(result.success, true);
+    assert.equal(store.creationActivities.length, 1);
+    assert.deepEqual(store.creationActivities[0], {
+      subjectUserId: store.users[0].id,
+      actorUserId: "authenticated-admin",
+      roleAtEvent: role,
+    });
+  });
+}
+
+test("later role changes do not reinterpret the creation-time role", async () => {
+  const store = createUserStore();
+  const created = await createUserCore(
+    validUserInput({ role: "COMMERCIAL" }),
+    "admin-1",
+    store.dependencies,
+  );
+  assert.equal(created.success, true);
+  if (!created.success) return;
+
+  await updateUserCore(
+    { userId: created.userId, ...validUserInput({ role: "MANAGER" }) },
+    "admin-2",
+    store.dependencies,
+  );
+
+  assert.equal(store.users[0].role, "MANAGER");
+  assert.equal(store.creationActivities[0].roleAtEvent, "COMMERCIAL");
+});
+
+test("a failed creation-history write rolls back the user creation", async () => {
+  const store = createUserStore([], { failCreationActivity: true });
+
+  const result = await createUserCore(
+    validUserInput(),
+    "admin-1",
+    store.dependencies,
+  );
+
+  assert.equal(result.success, false);
+  assert.deepEqual(store.users, []);
+  assert.deepEqual(store.creationActivities, []);
+});
+
+test("a failed user insert cannot leave an orphan creation activity", async () => {
+  const store = createUserStore([], { failUserCreation: true });
+
+  const result = await createUserCore(
+    validUserInput(),
+    "admin-1",
+    store.dependencies,
+  );
+
+  assert.equal(result.success, false);
+  assert.deepEqual(store.users, []);
+  assert.deepEqual(store.creationActivities, []);
+});
+
+test("deactivation records a separate status fact without changing creation history", async () => {
+  const store = createUserStore();
+  const created = await createUserCore(
+    validUserInput({ role: "COMMERCIAL" }),
+    "admin-1",
+    store.dependencies,
+  );
+  assert.equal(created.success, true);
+  if (!created.success) return;
+
+  await deactivateUserCore(created.userId, "admin-2", store.dependencies);
+
+  assert.equal(store.creationActivities.length, 1);
+  assert.equal(store.creationActivities[0].roleAtEvent, "COMMERCIAL");
+  assert.deepEqual(store.statusTransitions, [
+    {
+      userId: created.userId,
+      type: "DEACTIVATED",
+      actorUserId: "admin-2",
+    },
+  ]);
 });
 
 test("updateUserCore changes an existing user's daily report template assignment", async () => {
@@ -252,17 +349,47 @@ test("returns a controlled result when updating or deactivating an unknown user"
   }
 });
 
-function createUserStore(initialUsers: User[] = []) {
+type CreationActivity = {
+  subjectUserId: string;
+  actorUserId: string;
+  roleAtEvent: UserRole;
+};
+
+function createUserStore(
+  initialUsers: User[] = [],
+  options: {
+    failUserCreation?: boolean;
+    failCreationActivity?: boolean;
+  } = {},
+) {
   const users = initialUsers.map((user) => ({ ...user }));
+  const creationActivities: CreationActivity[] = [];
   const statusTransitions: Array<
     { userId: string } & UserStatusTransition
   > = [];
   let nextId = users.length + 1;
 
   const dependencies: UserServiceDependencies = {
-    create: async (data) => {
+    create: async (data, actorUserId) => {
+      if (options.failUserCreation) {
+        throw new Error("User insert failed");
+      }
+
       const user = makeUser(`user-${nextId++}`, data);
+
+      // Model the real Prisma transaction: neither record commits when the
+      // lifecycle insert fails.
+      if (options.failCreationActivity) {
+        throw new Error("Creation activity insert failed");
+      }
+
+      const creationActivity = {
+        subjectUserId: user.id,
+        actorUserId,
+        roleAtEvent: user.role,
+      } satisfies CreationActivity;
       users.push(user);
+      creationActivities.push(creationActivity);
       return { id: user.id };
     },
     update: async (userId, data, statusTransition) => {
@@ -286,7 +413,7 @@ function createUserStore(initialUsers: User[] = []) {
       ),
   };
 
-  return { users, statusTransitions, dependencies };
+  return { users, creationActivities, statusTransitions, dependencies };
 }
 
 function makeUser(

@@ -40,7 +40,7 @@ export async function createUserAction(
     return validationFailure(parsed.error.flatten().fieldErrors);
   }
 
-  const result = await createUser(parsed.data);
+  const result = await createUser(parsed.data, authorization.user.id);
   return finishMutation(result);
 }
 

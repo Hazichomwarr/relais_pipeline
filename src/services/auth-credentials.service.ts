@@ -8,6 +8,7 @@ import {
   authenticateCore,
   changeOwnPasswordCore,
 } from "@/src/services/auth-credentials.service-core";
+import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
 
 const SALT_ROUNDS = 12;
 
@@ -40,16 +41,17 @@ export type CreateUserWithPasswordInput = {
 
 /**
  * Admin-only workflow: no UI wires into this yet (Ticket 13D scope).
- * Kept separate from user.service.ts's createUser() so the existing,
- * already-tested admin user creation flow stays untouched.
+ * It shares the Ticket 25C transaction boundary with the current user form,
+ * so enabling this path later cannot create an employee without history.
  */
 export async function createUserWithPassword(
   input: CreateUserWithPasswordInput,
+  actorUserId: string,
 ) {
   const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
 
-  return prisma.user.create({
-    data: {
+  return createUserWithCreationHistory(
+    {
       firstName: input.firstName,
       lastName: input.lastName,
       email: input.email,
@@ -57,8 +59,8 @@ export async function createUserWithPassword(
       role: input.role,
       passwordHash,
     },
-    select: { id: true },
-  });
+    actorUserId,
+  );
 }
 
 /**

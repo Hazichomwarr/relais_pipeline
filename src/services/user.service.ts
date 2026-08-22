@@ -16,10 +16,11 @@ import {
   type UserListFilters,
   type UserStatusTransition,
 } from "@/src/services/user.service-core";
+import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
 
 const dependencies = {
-  create: (data: ValidatedUserInput) =>
-    prisma.user.create({ data, select: { id: true } }),
+  create: (data: ValidatedUserInput, actorUserId: string) =>
+    createUserWithCreationHistory(data, actorUserId),
   update: (
     userId: string,
     data: Parameters<typeof prisma.user.update>[0]["data"],
@@ -60,8 +61,11 @@ const dependencies = {
     }),
 };
 
-export async function createUser(input: ValidatedUserInput) {
-  return createUserCore(input, dependencies);
+export async function createUser(
+  input: ValidatedUserInput,
+  actorUserId: string,
+) {
+  return createUserCore(input, actorUserId, dependencies);
 }
 
 export async function updateUser(
