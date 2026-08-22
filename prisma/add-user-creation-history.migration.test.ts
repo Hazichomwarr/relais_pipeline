@@ -11,10 +11,6 @@ const persistenceService = readFileSync(
   "src/services/user-creation-history.service.ts",
   "utf8",
 );
-const sharedFeedService = readFileSync(
-  "src/services/shared-feed.service.ts",
-  "utf8",
-);
 
 test("creation-history migration is additive and deliberately performs no historical backfill", () => {
   assert.match(migration, /CREATE TABLE "UserCreationActivity"/);
@@ -51,9 +47,4 @@ test("user creation and its history row share one Prisma transaction and snapsho
   assert.match(persistenceService, /transaction\.user\.create/);
   assert.match(persistenceService, /transaction\.userCreationActivity\.create/);
   assert.match(persistenceService, /roleAtEvent:\s*user\.role/);
-});
-
-test("Ticket 25C does not add creation history to the shared feed", () => {
-  assert.doesNotMatch(sharedFeedService, /userCreationActivity/);
-  assert.doesNotMatch(sharedFeedService, /UserCreationActivity/);
 });

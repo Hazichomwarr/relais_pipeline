@@ -6,7 +6,7 @@ import type {
 } from "@prisma/client";
 
 /**
- * Ticket 18A — the four approved À la une event families, and nothing
+ * Ticket 18A/25D — the approved À la une event families, and nothing
  * else. In particular:
  *
  * - FOLLOW_UP_SCHEDULED is intentionally absent. Prospect.nextAction and
@@ -25,6 +25,7 @@ export type SharedFeedItemType =
   | "PROSPECT_INTERACTION"
   | "FOLLOW_UP_COMPLETED"
   | "PROSPECT_WON"
+  | "USER_CREATED"
   | "USER_ACTIVATED"
   | "USER_DEACTIVATED";
 
@@ -82,10 +83,18 @@ export type UserStatusFeedItem = SharedFeedItemBase & {
   actorName: string;
 };
 
+export type UserCreatedFeedItem = SharedFeedItemBase & {
+  type: "USER_CREATED";
+  subjectDisplayName: string;
+  actorName: string;
+  roleAtEvent: UserRole;
+};
+
 export type SharedFeedItem =
   | ProspectInteractionFeedItem
   | FollowUpCompletedFeedItem
   | ProspectWonFeedItem
+  | UserCreatedFeedItem
   | UserStatusFeedItem;
 
 export const DEFAULT_SHARED_FEED_LIMIT = 30;
@@ -235,6 +244,27 @@ export function mapUserStatusRow(
   };
 }
 
+export type UserCreationActivityFeedRow = {
+  id: string;
+  occurredAt: Date;
+  roleAtEvent: UserRole;
+  subjectUser: { firstName: string; lastName: string };
+  actorUser: { firstName: string; lastName: string };
+};
+
+export function mapUserCreationRow(
+  row: UserCreationActivityFeedRow,
+): UserCreatedFeedItem {
+  return {
+    id: row.id,
+    type: "USER_CREATED",
+    occurredAt: row.occurredAt.toISOString(),
+    subjectDisplayName: `${row.subjectUser.firstName} ${row.subjectUser.lastName}`,
+    actorName: `${row.actorUser.firstName} ${row.actorUser.lastName}`,
+    roleAtEvent: row.roleAtEvent,
+  };
+}
+
 /** occurredAt DESC, id DESC — deterministic even when two events share the
  * exact same timestamp. */
 export function compareSharedFeedItems(
@@ -274,6 +304,9 @@ export type SharedFeedDependencies = {
   findRecentUserStatusEvents: (
     limit: number,
   ) => Promise<UserStatusActivityFeedRow[]>;
+  findRecentUserCreationEvents: (
+    limit: number,
+  ) => Promise<UserCreationActivityFeedRow[]>;
 };
 
 export type GetSharedFeedParams = {
@@ -281,8 +314,8 @@ export type GetSharedFeedParams = {
 };
 
 /**
- * Fetches up to `limit` of the newest rows from each of the four approved
- * sources (never the whole table), maps each to its DTO, merges, and takes
+ * Fetches up to `limit` of the newest rows from each approved source
+ * (never the whole table), maps each to its DTO, merges, and takes
  * the requested limit — a standard bounded top-K fan-in: since the final
  * result needs at most `limit` items, no individual source can contribute
  * more than `limit` of them.
@@ -293,12 +326,14 @@ export async function getSharedFeedCore(
 ): Promise<SharedFeedItem[]> {
   const limit = resolveSharedFeedLimit(params.limit);
 
-  const [interactions, followUps, wonEvents, userEvents] = await Promise.all([
-    dependencies.findRecentProspectInteractions(limit),
-    dependencies.findRecentFollowUpsCompleted(limit),
-    dependencies.findRecentProspectWonEvents(limit),
-    dependencies.findRecentUserStatusEvents(limit),
-  ]);
+  const [interactions, followUps, wonEvents, userEvents, userCreations] =
+    await Promise.all([
+      dependencies.findRecentProspectInteractions(limit),
+      dependencies.findRecentFollowUpsCompleted(limit),
+      dependencies.findRecentProspectWonEvents(limit),
+      dependencies.findRecentUserStatusEvents(limit),
+      dependencies.findRecentUserCreationEvents(limit),
+    ]);
 
   return mergeSharedFeedItems(
     [
@@ -308,6 +343,7 @@ export async function getSharedFeedCore(
       followUps.map(mapFollowUpCompletedRow),
       wonEvents.map(mapProspectWonRow),
       userEvents.map(mapUserStatusRow),
+      userCreations.map(mapUserCreationRow),
     ],
     limit,
   );

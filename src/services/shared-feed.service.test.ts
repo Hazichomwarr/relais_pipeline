@@ -25,7 +25,7 @@ test("never derives an event from Prospect.createdAt — no prospect-created eve
   assert.doesNotMatch(source, /prospect\.createdAt|createdAt:\s*true/);
 });
 
-test("never queries the Prospect model directly for status or interest — only ProspectActivity and UserStatusActivity are approved sources", () => {
+test("never queries the Prospect model directly for status or interest — only durable activity tables are approved sources", () => {
   assert.doesNotMatch(source, /prisma\.prospect\.(findMany|findFirst|findUnique)/);
 });
 
@@ -46,7 +46,21 @@ test("the generic interaction query uses the reviewed customer-facing allow-list
 
 test("every source query is bounded by the resolved limit — no unbounded history reads", () => {
   const takeOccurrences = source.match(/take:\s*limit/g) ?? [];
-  assert.equal(takeOccurrences.length, 4);
+  assert.equal(takeOccurrences.length, 5);
+});
+
+test("USER_CREATED reads UserCreationActivity with roleAtEvent and only display-name fields from its user relations", () => {
+  assert.match(source, /prisma\.userCreationActivity\.findMany/);
+  assert.match(source, /roleAtEvent:\s*true/);
+  assert.match(
+    source,
+    /subjectUser:\s*\{\s*select:\s*\{\s*firstName:\s*true,\s*lastName:\s*true\s*}\s*}/,
+  );
+  assert.match(
+    source,
+    /actorUser:\s*\{\s*select:\s*\{\s*firstName:\s*true,\s*lastName:\s*true\s*}\s*}/,
+  );
+  assert.doesNotMatch(source, /subjectUser:[\s\S]{0,100}role:\s*true/);
 });
 
 test("every source query orders by occurredAt desc, id desc for deterministic pagination", () => {

@@ -7,6 +7,7 @@ import type {
   FollowUpCompletedFeedItem,
   ProspectInteractionFeedItem,
   ProspectWonFeedItem,
+  UserCreatedFeedItem,
   UserStatusFeedItem,
 } from "@/src/services/shared-feed.service-core";
 
@@ -69,6 +70,15 @@ const userDeactivatedItem: UserStatusFeedItem = {
   userDisplayName: "Salifou Ouattara",
   userRole: "COMMERCIAL",
   actorName: "Hamza Mare",
+};
+
+const userCreatedItem: UserCreatedFeedItem = {
+  id: "creation-1",
+  type: "USER_CREATED",
+  occurredAt: "2026-08-08T09:05:00.000Z",
+  subjectDisplayName: "Aminata Ouédraogo",
+  actorName: "Hamza Mare",
+  roleAtEvent: "COMMERCIAL",
 };
 
 test("PROSPECT_INTERACTION renders the actor, the prospect, and the interaction preview", () => {
@@ -138,6 +148,36 @@ test("PROSPECT_WON gets the Nouveau client label and the acting commercial", () 
   assert.match(html, /Groupe Scolaire Wend-Panga/);
   assert.match(html, /est devenu client/);
   assert.match(html, /Commercial : Amidou Koane/);
+});
+
+test("USER_CREATED renders actor, subject, and the persisted creation-time role without private fields", () => {
+  const html = renderToStaticMarkup(
+    <SharedFeedItemCard
+      item={userCreatedItem}
+      viewer={adminViewer}
+      referenceDate={referenceDate}
+    />,
+  );
+
+  assert.match(html, /Hamza Mare/);
+  assert.match(html, /a ajouté/);
+  assert.match(html, /Aminata Ouédraogo/);
+  assert.match(html, /Rôle à l’arrivée : Commercial/);
+  assert.doesNotMatch(html, /email|téléphone|mot de passe/i);
+});
+
+test("USER_CREATED renders roleAtEvent after a later promotion, never a current role", () => {
+  const promotedCurrentRole = "MANAGER";
+  const html = renderToStaticMarkup(
+    <SharedFeedItemCard
+      item={{ ...userCreatedItem, roleAtEvent: "COMMERCIAL" }}
+      viewer={adminViewer}
+      referenceDate={referenceDate}
+    />,
+  );
+
+  assert.match(html, /Commercial/);
+  assert.doesNotMatch(html, new RegExp(promotedCurrentRole, "i"));
 });
 
 test("USER_ACTIVATED renders the user, their role, and the acting admin — never implying self-activation", () => {
@@ -232,7 +272,7 @@ test("COMMERCIAL viewer on another commercial's non-KARMDA prospect gets no link
   assert.doesNotMatch(html, /<a /);
 });
 
-test("USER_ACTIVATED and USER_DEACTIVATED never render a prospect or user detail link (V1 scope)", () => {
+test("user lifecycle items never render a prospect or user detail link", () => {
   const activatedHtml = renderToStaticMarkup(
     <SharedFeedItemCard
       item={userActivatedItem}
@@ -247,9 +287,17 @@ test("USER_ACTIVATED and USER_DEACTIVATED never render a prospect or user detail
       referenceDate={referenceDate}
     />,
   );
+  const createdHtml = renderToStaticMarkup(
+    <SharedFeedItemCard
+      item={userCreatedItem}
+      viewer={adminViewer}
+      referenceDate={referenceDate}
+    />,
+  );
 
   assert.doesNotMatch(activatedHtml, /<a /);
   assert.doesNotMatch(deactivatedHtml, /<a /);
+  assert.doesNotMatch(createdHtml, /<a /);
 });
 
 test("decorative icons are hidden from screen readers", () => {

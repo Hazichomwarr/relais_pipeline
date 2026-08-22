@@ -50,7 +50,7 @@ test("no /updates UI file references an excluded event family by name", () => {
   }
 });
 
-test("SharedFeedItemCard's discriminated switch covers exactly the five approved event types — no more, no less", () => {
+test("SharedFeedItemCard's discriminated switch covers exactly the six approved event types — no more, no less", () => {
   const source = readFileSync("component/updates/SharedFeedItemCard.tsx", "utf8");
   const cases = [...source.matchAll(/case\s+"([A-Z_]+)":/g)].map((m) => m[1]);
 
@@ -61,6 +61,7 @@ test("SharedFeedItemCard's discriminated switch covers exactly the five approved
       "PROSPECT_INTERACTION",
       "PROSPECT_WON",
       "USER_ACTIVATED",
+      "USER_CREATED",
       "USER_DEACTIVATED",
     ].sort(),
   );

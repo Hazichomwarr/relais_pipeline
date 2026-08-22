@@ -31,8 +31,13 @@ const userStatusActivityFeedOrderBy = [
   { id: "desc" },
 ] satisfies Prisma.UserStatusActivityOrderByWithRelationInput[];
 
+const userCreationActivityFeedOrderBy = [
+  { occurredAt: "desc" },
+  { id: "desc" },
+] satisfies Prisma.UserCreationActivityOrderByWithRelationInput[];
+
 /**
- * Composes the shared À la une feed from the four approved historical
+ * Composes the shared À la une feed from the approved historical
  * sources (Ticket 18A). Read-only, bounded, and deliberately silent on
  * authorization — the caller (an action or page) is responsible for
  * `requireSharedFeedAccess()` first, exactly like every other read
@@ -70,6 +75,18 @@ export async function getSharedFeed(params: GetSharedFeedParams = {}) {
           type: true,
           occurredAt: true,
           user: { select: { firstName: true, lastName: true, role: true } },
+          actorUser: { select: { firstName: true, lastName: true } },
+        },
+      }),
+    findRecentUserCreationEvents: (limit) =>
+      prisma.userCreationActivity.findMany({
+        orderBy: userCreationActivityFeedOrderBy,
+        take: limit,
+        select: {
+          id: true,
+          occurredAt: true,
+          roleAtEvent: true,
+          subjectUser: { select: { firstName: true, lastName: true } },
           actorUser: { select: { firstName: true, lastName: true } },
         },
       }),

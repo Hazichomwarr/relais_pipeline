@@ -4,6 +4,7 @@ import {
   MessageSquare,
   PartyPopper,
   UserCheck,
+  UserPlus,
   UserX,
   type LucideIcon,
 } from "lucide-react";
@@ -30,6 +31,7 @@ const eventIcons: Record<SharedFeedItem["type"], LucideIcon> = {
   PROSPECT_INTERACTION: MessageSquare,
   FOLLOW_UP_COMPLETED: CheckCircle,
   PROSPECT_WON: PartyPopper,
+  USER_CREATED: UserPlus,
   USER_ACTIVATED: UserCheck,
   USER_DEACTIVATED: UserX,
 };
@@ -38,16 +40,23 @@ const badgeStyles: Record<SharedFeedItem["type"], string> = {
   PROSPECT_INTERACTION: "bg-blue-600 text-white",
   FOLLOW_UP_COMPLETED: "bg-emerald-600 text-white",
   PROSPECT_WON: "bg-emerald-600 text-white",
+  USER_CREATED: "bg-blue-600 text-white",
   USER_ACTIVATED: "bg-emerald-600 text-white",
   USER_DEACTIVATED: "bg-slate-500 text-white",
 };
 
 /** Who the avatar's initials belong to — the acting commercial for
- * interaction/follow-up/won events, the affected user for status events. */
+ * prospect events, and the affected/created user for user events. */
 function getAvatarName(item: SharedFeedItem): string | null {
-  return item.type === "USER_ACTIVATED" || item.type === "USER_DEACTIVATED"
-    ? item.userDisplayName
-    : item.actorName;
+  if (item.type === "USER_CREATED") {
+    return item.subjectDisplayName;
+  }
+
+  if (item.type === "USER_ACTIVATED" || item.type === "USER_DEACTIVATED") {
+    return item.userDisplayName;
+  }
+
+  return item.actorName;
 }
 
 /**
@@ -185,6 +194,20 @@ function SharedFeedItemBody({ item }: { item: SharedFeedItem }) {
               Commercial : {item.actorName}
             </p>
           )}
+        </>
+      );
+
+    case "USER_CREATED":
+      return (
+        <>
+          <p className="font-semibold text-slate-900">
+            {item.actorName}{" "}
+            <span className="font-normal text-slate-600">a ajouté</span>{" "}
+            {item.subjectDisplayName}.
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Rôle à l’arrivée : {getUserRoleLabel(item.roleAtEvent)}
+          </p>
         </>
       );
 
