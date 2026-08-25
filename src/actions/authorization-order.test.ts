@@ -325,10 +325,12 @@ test("submitProspectFollowUpAction never accepts an actor/creator/completer id f
 
 const selfServiceActions = [
   {
+    file: "src/actions/commercial-profile.actions.ts",
     functionName: "updateOwnProfileAction",
     serviceCall: "updateOwnProfile(",
   },
   {
+    file: "src/actions/self-account.actions.ts",
     functionName: "changeOwnPasswordAction",
     serviceCall: "changeOwnPassword(",
   },
@@ -336,10 +338,7 @@ const selfServiceActions = [
 
 for (const action of selfServiceActions) {
   test(`${action.functionName} authorizes before validating and before calling its service`, () => {
-    const functionBody = extractFunctionBody(
-      "src/actions/commercial-profile.actions.ts",
-      action.functionName,
-    );
+    const functionBody = extractFunctionBody(action.file, action.functionName);
 
     const authorizeIndex = functionBody.search(/authorizeSelf\(\)/);
     const validateIndex = functionBody.indexOf(".safeParse(");
@@ -362,16 +361,33 @@ for (const action of selfServiceActions) {
   });
 
   test(`${action.functionName} never accepts a userId from the client — the target is always the authenticated caller`, () => {
-    const functionBody = extractFunctionBody(
-      "src/actions/commercial-profile.actions.ts",
-      action.functionName,
-    );
+    const functionBody = extractFunctionBody(action.file, action.functionName);
 
     assert.doesNotMatch(functionBody, /parsed\.data\.userId/);
     assert.doesNotMatch(functionBody, /values\.userId/);
     assert.doesNotMatch(functionBody, /\buserId\s*:\s*parsed\.data/);
   });
 }
+
+test("changeOwnPasswordAction's authorizeSelf() is identity-based (requireAuthenticatedUser), not role-based — every authenticated role reaches the same workflow (Ticket 25F)", () => {
+  const source = readFileSync("src/actions/self-account.actions.ts", "utf8");
+
+  assert.match(source, /requireAuthenticatedUser\(\)/);
+  assert.doesNotMatch(source, /requireRole\(/);
+  assert.doesNotMatch(source, /requireAdmin\(/);
+  assert.doesNotMatch(source, /requireManager\(/);
+  assert.doesNotMatch(source, /requireCommercial\(/);
+});
+
+test("changeOwnPasswordAction always targets the authenticated actor re-verified via assertActiveAccountAccess, never a value derived from parsed input", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/self-account.actions.ts",
+    "changeOwnPasswordAction",
+  );
+
+  assert.match(functionBody, /changeOwnPassword\(\s*account\.id,/);
+  assert.doesNotMatch(functionBody, /changeOwnPassword\(\s*parsed\.data/);
+});
 
 for (const functionName of [
   "createPersonalNoteAction",

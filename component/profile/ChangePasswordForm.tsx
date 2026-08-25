@@ -5,7 +5,7 @@ import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { changeOwnPasswordAction } from "@/src/actions/commercial-profile.actions";
+import { changeOwnPasswordAction } from "@/src/actions/self-account.actions";
 import {
   changeOwnPasswordSchema,
   type ChangeOwnPasswordInput,

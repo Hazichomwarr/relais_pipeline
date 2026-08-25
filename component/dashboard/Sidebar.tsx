@@ -36,7 +36,8 @@ export default function Sidebar({
     | "finances"
     | "updates"
     | "reports"
-    | "reportsManagement";
+    | "reportsManagement"
+    | "profile";
   role?: UserRole;
 }) {
   return (
@@ -219,10 +220,17 @@ export default function Sidebar({
           </Link>
         )}
 
-        <button className="flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium text-slate-600 hover:bg-slate-100">
+        <Link
+          href="/profile"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "profile"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
           <Settings className="h-5 w-5" />
           Paramètres
-        </button>
+        </Link>
       </nav>
 
       {/* USER */}

@@ -191,3 +191,23 @@ test("the Rapports quotidiens link is highlighted when activeItem is reportsMana
   assert.ok(managementLinkWhenPersonalActive);
   assert.doesNotMatch(managementLinkWhenPersonalActive![0], /bg-blue-50/);
 });
+
+test("ADMIN and MANAGER sidebars include an active Paramètres link to /profile (Ticket 25F — previously a dead, unlinked button)", () => {
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  const managerHtml = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  for (const html of [adminHtml, managerHtml]) {
+    assert.match(html, /Paramètres/);
+    assert.match(html, /<a [^>]*href="\/profile"[^>]*>/);
+  }
+});
+
+test("the Paramètres link is highlighted when activeItem is profile", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="profile" />,
+  );
+  const profileLinkMatch = html.match(/<a [^>]*href="\/profile"[^>]*>/);
+
+  assert.ok(profileLinkMatch, "expected a /profile link in the sidebar");
+  assert.match(profileLinkMatch![0], /bg-blue-50/);
+});

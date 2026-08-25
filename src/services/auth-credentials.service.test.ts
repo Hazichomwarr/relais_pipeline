@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { UserRole } from "@prisma/client";
 
@@ -130,6 +131,50 @@ test("changeOwnPasswordCore updates the password once the current one matches", 
 
   assert.equal(result.success, true);
   assert.equal(updatedWith, "new-secret1");
+});
+
+/**
+ * Ticket 25F: the self-service password-change capability must work
+ * identically for every role. changeOwnPasswordCore doesn't even accept a
+ * role — this proves the underlying workflow is structurally
+ * role-independent, not merely untested for ADMIN/MANAGER, for each of
+ * the three current roles.
+ */
+for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+  test(`changeOwnPasswordCore updates the password for a ${role} account given the correct current password`, async () => {
+    const user = makeUser(role);
+    let updatedWith: string | undefined;
+
+    const result = await changeOwnPasswordCore("correct-current", "new-secret1", {
+      findPasswordHash: async () => user.passwordHash,
+      compare: async (password, hash) => {
+        assert.equal(password, "correct-current");
+        assert.equal(hash, user.passwordHash);
+        return true;
+      },
+      updatePassword: async (newPassword) => {
+        updatedWith = newPassword;
+      },
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(updatedWith, "new-secret1");
+  });
+}
+
+test("changePassword (the real Prisma write behind changeOwnPassword) only ever touches passwordHash — never role, active, or dailyReportTemplateType", () => {
+  const source = readFileSync("src/services/auth-credentials.service.ts", "utf8");
+  const start = source.indexOf("export async function changePassword(");
+  assert.ok(start >= 0, "changePassword function not found");
+
+  const nextExportIndex = source.indexOf("\nexport ", start + 1);
+  const functionBody =
+    nextExportIndex === -1 ? source.slice(start) : source.slice(start, nextExportIndex);
+
+  assert.match(functionBody, /data:\s*\{\s*passwordHash\s*\}/);
+  assert.doesNotMatch(functionBody, /\brole\b/);
+  assert.doesNotMatch(functionBody, /\bactive\b/);
+  assert.doesNotMatch(functionBody, /dailyReportTemplateType/);
 });
 
 function makeUser(

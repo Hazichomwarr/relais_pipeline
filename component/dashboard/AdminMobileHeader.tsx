@@ -102,9 +102,8 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       : []),
     {
       label: "Paramètres",
-      href: "/admin",
+      href: "/profile",
       icon: <Settings className="h-5 w-5" />,
-      disabled: true,
     },
   ];
 }

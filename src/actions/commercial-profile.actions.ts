@@ -2,9 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { changeOwnPasswordSchema } from "@/src/lib/validations/auth.schema";
 import { commercialProfileUpdateSchema } from "@/src/lib/validations/user.schema";
-import { changeOwnPassword } from "@/src/services/auth-credentials.service";
 import { requireCommercial } from "@/src/services/authorization.service";
 import { AuthorizationError } from "@/src/services/authorization.service-core";
 import { assertCommercialAccess } from "@/src/services/commercial-access.service";
@@ -12,10 +10,16 @@ import { CommercialAccessError } from "@/src/services/commercial-access.service-
 import { updateOwnProfile } from "@/src/services/user.service";
 
 /**
- * Both actions here re-verify active status via assertCommercialAccess (not
- * just requireCommercial's JWT-cached role), so they need to handle two
- * distinct error classes — the generic authorizeAction() helper only
- * understands AuthorizationError, so this is done inline instead.
+ * Re-verifies active status via assertCommercialAccess (not just
+ * requireCommercial's JWT-cached role), so it needs to handle two distinct
+ * error classes — the generic authorizeAction() helper only understands
+ * AuthorizationError, so this is done inline instead.
+ *
+ * The password-change action that used to live here moved to
+ * src/actions/self-account.actions.ts (Ticket 25F): changing your own
+ * password is an authenticated-user capability, not Commercial-specific,
+ * so it now authorizes via requireAuthenticatedUser() for every role.
+ * This file keeps only the Commercial-specific profile-field edit.
  */
 async function authorizeSelf() {
   const user = await requireCommercial();
@@ -63,52 +67,4 @@ export async function updateOwnProfileAction(
   revalidatePath("/dashboard/commercial/profile");
 
   return { success: true };
-}
-
-export type ChangeOwnPasswordActionResult =
-  | { success: true; message: string }
-  | {
-      success: false;
-      message: string;
-      fieldErrors?: Record<string, string[] | undefined>;
-    };
-
-export async function changeOwnPasswordAction(
-  values: unknown,
-): Promise<ChangeOwnPasswordActionResult> {
-  let commercial;
-
-  try {
-    commercial = await authorizeSelf();
-  } catch (error) {
-    if (error instanceof AuthorizationError || error instanceof CommercialAccessError) {
-      return { success: false, message: error.message };
-    }
-    throw error;
-  }
-
-  const parsed = changeOwnPasswordSchema.safeParse(values);
-
-  if (!parsed.success) {
-    return {
-      success: false,
-      message: "Certaines informations sont invalides.",
-      fieldErrors: parsed.error.flatten().fieldErrors,
-    };
-  }
-
-  const result = await changeOwnPassword(
-    commercial.id,
-    parsed.data.currentPassword,
-    parsed.data.newPassword,
-  );
-
-  if (!result.success) {
-    return { success: false, message: result.message };
-  }
-
-  return {
-    success: true,
-    message: "Votre mot de passe a été mis à jour.",
-  };
 }

@@ -127,6 +127,21 @@ test("ADMIN/MANAGER mobile navigation renames the shared directory entry to Rép
   assert.doesNotMatch(source, /label: "Toutes les écoles"/);
 });
 
+test("ADMIN/MANAGER mobile navigation includes an active (non-disabled) Paramètres entry pointing to /profile (Ticket 25F — previously a permanently disabled placeholder)", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const settingsEntryMatch = source.match(
+    /\{\s*label: "Paramètres",[\s\S]*?\},/,
+  );
+
+  assert.ok(settingsEntryMatch, "expected a Paramètres nav item entry");
+  assert.match(settingsEntryMatch![0], /href: "\/profile"/);
+  assert.doesNotMatch(settingsEntryMatch![0], /disabled: true/);
+});
+
 test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quotidiens entry pointing to /admin/reports (Ticket 19C)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",

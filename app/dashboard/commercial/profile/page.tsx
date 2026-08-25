@@ -1,9 +1,9 @@
 import { LogOut } from "lucide-react";
 import { redirect } from "next/navigation";
 
-import ChangePasswordForm from "@/component/commercial/ChangePasswordForm";
 import ProfileEditForm from "@/component/commercial/ProfileEditForm";
-import ProfileSummary from "@/component/commercial/ProfileSummary";
+import ChangePasswordForm from "@/component/profile/ChangePasswordForm";
+import ProfileSummary from "@/component/profile/ProfileSummary";
 import { requireCommercial } from "@/src/services/authorization.service";
 import { assertCommercialAccess } from "@/src/services/commercial-access.service";
 import { CommercialAccessError } from "@/src/services/commercial-access.service-core";
