@@ -55,7 +55,16 @@ export default async function AdminPage({
           </p>
         </div>
 
-        <ReportDateFilter />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <p className="text-base font-medium text-slate-500 lg:text-lg">
+            <span className="text-xl font-bold text-[#0f2557] lg:text-2xl">
+              {prospects.length}
+            </span>{" "}
+            prospect{prospects.length > 1 ? "s" : ""}
+          </p>
+
+          <ReportDateFilter />
+        </div>
       </div>
 
       <KpiCards prospects={prospects} />

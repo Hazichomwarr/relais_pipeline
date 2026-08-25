@@ -1,7 +1,10 @@
 import type { ProspectListItem } from "@/src/services/prospect.service";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
-import { isInterestedProspect } from "@/src/services/prospect-status.service-core";
-import { Flame, Trophy, Users, type LucideIcon } from "lucide-react";
+import {
+  computeReadyToDiscussSummary,
+  isInterestedProspect,
+} from "@/src/services/prospect-status.service-core";
+import { CircleCheck, Flame, Trophy, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 type KpiCardsProps = {
@@ -17,8 +20,6 @@ type KpiCard = {
 };
 
 export default function KpiCards({ prospects }: KpiCardsProps) {
-  const totalProspects = prospects.length;
-
   const uniqueAgents = new Set(
     prospects.map((prospect) => getAssignedUserName(prospect)),
   ).size;
@@ -27,20 +28,16 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
     isInterestedProspect(prospect.interest),
   ).length;
 
-  const won = prospects.filter((prospect) => prospect.status === "WON").length;
-
   const interestedPercent =
     prospects.length === 0
       ? 0
       : Math.round((interested / prospects.length) * 100);
 
+  const readyToDiscuss = computeReadyToDiscussSummary(prospects);
+
+  const won = prospects.filter((prospect) => prospect.status === "WON").length;
+
   const cards: KpiCard[] = [
-    {
-      label: "Prospects",
-      total: totalProspects,
-      indicator: "Tous produits confondus",
-      icon: Users,
-    },
     {
       label: "Commerciaux",
       total: uniqueAgents,
@@ -52,6 +49,12 @@ export default function KpiCards({ prospects }: KpiCardsProps) {
       total: interested,
       indicator: `${interestedPercent}% du total`,
       icon: Flame,
+    },
+    {
+      label: "Prêts à discuter",
+      total: readyToDiscuss.count,
+      indicator: `${readyToDiscuss.percentage}% du total`,
+      icon: CircleCheck,
     },
     {
       label: "Opportunités gagnées",

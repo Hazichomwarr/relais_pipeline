@@ -31,3 +31,28 @@ const INTERESTED_LEVELS: ReadonlySet<InterestLevel> = new Set([
 export function isInterestedProspect(interest: InterestLevel): boolean {
   return INTERESTED_LEVELS.has(interest);
 }
+
+/**
+ * Ticket 25E's "Prêts à discuter" Admin dashboard KPI: the single
+ * structured interest value for the strongest, immediately actionable
+ * interest level — READY_TO_DISCUSS in prisma/schema.prisma, labeled
+ * "✅ Prêt à discuter" in src/lib/constants/prospect-options.ts. Deliberately
+ * narrower than isInterestedProspect above; the two answer different
+ * questions and must not be merged.
+ */
+export function isReadyToDiscussProspect(interest: InterestLevel): boolean {
+  return interest === "READY_TO_DISCUSS";
+}
+
+export function computeReadyToDiscussSummary(
+  prospects: { interest: InterestLevel }[],
+): { count: number; percentage: number } {
+  const count = prospects.filter((prospect) =>
+    isReadyToDiscussProspect(prospect.interest),
+  ).length;
+
+  const percentage =
+    prospects.length === 0 ? 0 : Math.round((count / prospects.length) * 100);
+
+  return { count, percentage };
+}
