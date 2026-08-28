@@ -282,6 +282,12 @@ export type CommercialPerformanceTargetRow = {
   periodStart: Date;
   periodEnd: Date;
   targetWins: number;
+  // Ticket 25H.2B — the Results score engine's own defensive re-check
+  // (see CommercialResultsTarget in commercial-results.service-core.ts)
+  // needs this snapshot too; included here so getCommercialPerformanceTargetCore
+  // stays the one authoritative read model rather than a second query
+  // being written just to fetch one extra column.
+  roleAtAssignment: UserRole;
 };
 
 export type UpdateCommercialPerformanceTargetResult =

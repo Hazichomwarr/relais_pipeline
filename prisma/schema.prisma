@@ -162,6 +162,35 @@ enum UserRole {
   MANAGER
 }
 
+// Ticket 25I — DRAFT is editable by its evaluator; SUBMITTED is immutable.
+// No further states in V1 (no void/supersede lifecycle yet — see the
+// model comment above RoleResponsibilityAssessment).
+enum RoleResponsibilityAssessmentStatus {
+  DRAFT
+  SUBMITTED
+}
+
+// Ticket 25I §11/§31 — explicit anchored choices, never a naked 1-5
+// slider. The behavioral text for each level is responsibility-specific
+// (src/lib/role-responsibility-catalog.ts), not a generic "poor/good/
+// excellent" — this enum only names the four ordered levels themselves.
+enum RoleResponsibilityAssessmentLevel {
+  NOT_MET
+  PARTIALLY_MET
+  MET
+  EXCEEDED
+}
+
+// Ticket 25I §7/§36 — every V1 catalog item is MANAGER_ASSESSED (see the
+// catalog's own audit-verdict comment for why no machine-evidenced
+// responsibility survived audit); the enum still names both values so a
+// future genuinely machine-evidenced responsibility doesn't need a
+// schema change to be added.
+enum RoleResponsibilityEvidenceType {
+  MANAGER_ASSESSED
+  MACHINE_EVIDENCED
+}
+
 enum PersonalNoteCategory {
   URGENT_TODO
   COMMERCIAL_DEBRIEF
@@ -269,6 +298,11 @@ model User {
   // and a target's creator are different roles that both point back at User.
   commercialPerformanceTargets        CommercialPerformanceTarget[] @relation("CommercialPerformanceTargetEmployee")
   createdCommercialPerformanceTargets CommercialPerformanceTarget[] @relation("CommercialPerformanceTargetCreator")
+
+  // Ticket 25I — same two-relation reasoning as above: the assessed
+  // employee and the evaluator are different roles, both User.
+  roleResponsibilityAssessmentsAsEmployee  RoleResponsibilityAssessment[] @relation("RoleResponsibilityAssessmentEmployee")
+  roleResponsibilityAssessmentsAsEvaluator RoleResponsibilityAssessment[] @relation("RoleResponsibilityAssessmentEvaluator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -681,4 +715,92 @@ model CommercialPerformanceTarget {
   @@unique([userId, periodStart, periodEnd])
   @@index([userId, periodStart])
   @@index([createdByUserId])
+}
+
+// Ticket 25I — the Role Responsibilities /20 dimension. One row per
+// employee per evaluation period (@@unique below), status DRAFT ->
+// SUBMITTED, immutable once submitted — no in-place correction lifecycle
+// in V1 (§26: a future void/supersede model, not built here). `score`
+// stays null until submission; `maxScore` is stored per-row rather than
+// assumed as a global constant so a future per-role max wouldn't require
+// a migration to represent historically.
+//
+// `roleAtEvaluation` is a snapshot of the employee's role AT ASSESSMENT
+// CREATION TIME, not a verified guarantee that they held that role for
+// the entire period — this CRM has no durable role-change-history model
+// (confirmed: User.role has no dated transition log), so a
+// ROLE_CHANGED_DURING_PERIOD safeguard cannot be built truthfully today.
+// Documented as a known limitation, not implemented as a fake check.
+model RoleResponsibilityAssessment {
+  id String @id @default(cuid())
+
+  employeeUserId String
+  employee       User   @relation("RoleResponsibilityAssessmentEmployee", fields: [employeeUserId], references: [id], onDelete: Restrict)
+
+  roleAtEvaluation UserRole
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  policyVersion String
+
+  evaluatorUserId      String
+  evaluator            User     @relation("RoleResponsibilityAssessmentEvaluator", fields: [evaluatorUserId], references: [id], onDelete: Restrict)
+  evaluatorRoleAtEvent UserRole
+
+  status RoleResponsibilityAssessmentStatus @default(DRAFT)
+
+  score    Int?
+  maxScore Int  @default(20)
+
+  submittedAt DateTime?
+
+  items RoleResponsibilityAssessmentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeUserId, periodStart, periodEnd])
+  @@index([employeeUserId, periodStart])
+  @@index([evaluatorUserId])
+  @@index([status])
+}
+
+// Ticket 25I §24 — a full snapshot of the catalog definition
+// (src/lib/role-responsibility-catalog.ts) at the moment the parent
+// assessment was created, including `anchorsSnapshot` (all four levels'
+// text and point values). A future catalog edit — a relabeled
+// responsibility, a rewritten anchor, a changed point mapping — never
+// rewrites what an evaluator was actually shown, exactly like
+// ProspectActivity.creditedUserRoleAtEvent's "never re-derived" rule.
+// `awardedPoints` is computed from THIS row's own anchorsSnapshot at the
+// moment `assessmentLevel` is set, never re-derived from the live
+// catalog — see role-responsibility-assessment.service-core.ts.
+model RoleResponsibilityAssessmentItem {
+  id String @id @default(cuid())
+
+  assessmentId String
+  assessment   RoleResponsibilityAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  responsibilityKey       String
+  labelAtEvaluation       String
+  descriptionAtEvaluation String
+  maxPoints               Int
+  evidenceType            RoleResponsibilityEvidenceType
+  anchorsSnapshot         Json
+
+  // Null = UNASSESSED (Ticket 25I §15) — distinct from N/A, which V1
+  // does not implement (see the service-core file's own comment on why:
+  // the audited catalog has exactly one responsibility per supported
+  // role, so there is no partial-applicability scenario to normalize).
+  // Submission requires every item to have a non-null assessmentLevel.
+  assessmentLevel RoleResponsibilityAssessmentLevel?
+  awardedPoints   Int?
+  observation     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentId, responsibilityKey])
+  @@index([assessmentId])
 }

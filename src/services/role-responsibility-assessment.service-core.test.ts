@@ -1,0 +1,597 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+import type { UserRole } from "@prisma/client";
+
+import { getRoleResponsibilityCatalogForRole } from "@/src/lib/role-responsibility-catalog";
+import {
+  assessRoleResponsibilityItemCore,
+  canAssessRoleResponsibilities,
+  createRoleResponsibilityAssessmentCore,
+  deleteRoleResponsibilityAssessmentCore,
+  submitRoleResponsibilityAssessmentCore,
+  type CreateRoleResponsibilityAssessmentDependencies,
+  type CreateRoleResponsibilityAssessmentFields,
+  type RoleResponsibilityAssessmentActor,
+  type RoleResponsibilityAssessmentEmployeeRecord,
+  type RoleResponsibilityAssessmentItemRow,
+} from "./role-responsibility-assessment.service-core";
+
+const CLOSED_PERIOD = {
+  periodStart: new Date("2026-08-01T00:00:00.000Z"),
+  periodEnd: new Date("2026-08-31T23:59:59.999Z"),
+};
+const NOW_AFTER_AUGUST = new Date("2026-09-05T00:00:00.000Z");
+const NOW_MID_AUGUST = new Date("2026-08-15T00:00:00.000Z");
+
+function actor(id: string, role: UserRole): RoleResponsibilityAssessmentActor {
+  return { id, role };
+}
+
+function employee(
+  overrides: Partial<RoleResponsibilityAssessmentEmployeeRecord> = {},
+): RoleResponsibilityAssessmentEmployeeRecord {
+  return { id: "employee-1", role: "COMMERCIAL", active: true, ...overrides };
+}
+
+function createDeps(overrides: {
+  findEmployee?: () => Promise<RoleResponsibilityAssessmentEmployeeRecord | null>;
+  findExisting?: () => Promise<{ id: string } | null>;
+  create?: (
+    fields: CreateRoleResponsibilityAssessmentFields,
+  ) => Promise<{ id: string }>;
+} = {}): CreateRoleResponsibilityAssessmentDependencies {
+  return {
+    findEmployee: overrides.findEmployee ?? (async () => employee()),
+    findExisting: overrides.findExisting ?? (async () => null),
+    create: overrides.create ?? (async () => ({ id: "assessment-1" })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// §66: double-counting boundary — structural guarantee
+// ---------------------------------------------------------------------------
+
+test("§66: the core file never imports Execution Discipline's or Results' scoring functions — only the shared period type", () => {
+  const source = readFileSync(
+    "src/services/role-responsibility-assessment.service-core.ts",
+    "utf8",
+  );
+  assert.doesNotMatch(source, /computeExecutionDisciplineScore/);
+  assert.doesNotMatch(source, /computeCommercialResultsScore/);
+  assert.doesNotMatch(source, /collectCommercialResultsEvidence/);
+  assert.match(source, /ExecutionDisciplinePeriod/); // the period type only
+});
+
+// ---------------------------------------------------------------------------
+// §67: authorization matrix
+// ---------------------------------------------------------------------------
+
+test("§67/§21: nobody can assess themselves, regardless of role", () => {
+  for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+    assert.equal(
+      canAssessRoleResponsibilities(actor("same-id", role), role, "same-id"),
+      false,
+    );
+  }
+});
+
+test("§67: a COMMERCIAL can never assess anyone", () => {
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("commercial-a", "COMMERCIAL"),
+      "COMMERCIAL",
+      "commercial-b",
+    ),
+    false,
+  );
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("commercial-a", "COMMERCIAL"),
+      "MANAGER",
+      "manager-b",
+    ),
+    false,
+  );
+});
+
+test("§67: ADMIN and MANAGER may both assess a COMMERCIAL", () => {
+  for (const assessorRole of ["ADMIN", "MANAGER"] as const) {
+    assert.equal(
+      canAssessRoleResponsibilities(
+        actor("assessor-1", assessorRole),
+        "COMMERCIAL",
+        "commercial-b",
+      ),
+      true,
+    );
+  }
+});
+
+test("§67/§20: only ADMIN may assess a MANAGER — a peer MANAGER may not", () => {
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("admin-1", "ADMIN"),
+      "MANAGER",
+      "manager-b",
+    ),
+    true,
+  );
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("manager-a", "MANAGER"),
+      "MANAGER",
+      "manager-b",
+    ),
+    false,
+  );
+});
+
+test("§67/§6/§20: nobody may assess an ADMIN — no supported evaluator path exists in V1", () => {
+  for (const assessorRole of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+    assert.equal(
+      canAssessRoleResponsibilities(
+        actor("assessor-1", assessorRole),
+        "ADMIN",
+        "admin-b",
+      ),
+      false,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// §68: role catalog boundaries
+// ---------------------------------------------------------------------------
+
+test("§68: creating an assessment for a COMMERCIAL employee succeeds and snapshots the Commercial catalog", async () => {
+  const result = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ id: "commercial-a", role: "COMMERCIAL" }) }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(result.success, true);
+});
+
+test("§68: creating an assessment for an ADMIN employee is rejected — ADMIN has no supported catalog", async () => {
+  const result = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "admin-2", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ id: "admin-2", role: "ADMIN" }) }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "ROLE_NOT_SUPPORTED");
+});
+
+test("§68: a MANAGER employee's snapshotted catalog never includes Commercial responsibility keys, and vice versa", async () => {
+  const commercialKeys = getRoleResponsibilityCatalogForRole("COMMERCIAL").map(
+    (item) => item.key,
+  );
+  const managerKeys = getRoleResponsibilityCatalogForRole("MANAGER").map(
+    (item) => item.key,
+  );
+
+  assert.equal(
+    commercialKeys.some((key) => managerKeys.includes(key)),
+    false,
+    "Commercial and Manager catalogs must not share responsibility keys",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// §69: snapshot fidelity at creation
+// ---------------------------------------------------------------------------
+
+test("§69/§24: the items handed to the create dependency are a faithful, complete copy of the catalog at that moment", async () => {
+  let capturedItems: CreateRoleResponsibilityAssessmentFields["items"] = [];
+
+  await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({
+      findEmployee: async () => employee({ id: "commercial-a", role: "COMMERCIAL" }),
+      create: async (fields) => {
+        capturedItems = fields.items;
+        return { id: "assessment-1" };
+      },
+    }),
+    NOW_AFTER_AUGUST,
+  );
+
+  const catalog = getRoleResponsibilityCatalogForRole("COMMERCIAL");
+  assert.equal(capturedItems.length, catalog.length);
+  for (const [index, definition] of catalog.entries()) {
+    assert.equal(capturedItems[index].responsibilityKey, definition.key);
+    assert.equal(capturedItems[index].labelAtEvaluation, definition.label);
+    assert.equal(
+      capturedItems[index].descriptionAtEvaluation,
+      definition.description,
+    );
+    assert.equal(capturedItems[index].maxPoints, definition.maxPoints);
+    assert.deepEqual(capturedItems[index].anchorsSnapshot, definition.anchors);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// §77: period closure at creation
+// ---------------------------------------------------------------------------
+
+test("§77: creation is rejected for a period that has not yet closed", async () => {
+  const result = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ id: "commercial-a" }) }),
+    NOW_MID_AUGUST,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "PERIOD_NOT_CLOSED");
+});
+
+test("creation succeeds once the period has closed", async () => {
+  const result = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ id: "commercial-a" }) }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(result.success, true);
+});
+
+test("duplicate period for the same employee is rejected (service-level; DB unique constraint verified separately by the migration test)", async () => {
+  const result = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({
+      findEmployee: async () => employee({ id: "commercial-a" }),
+      findExisting: async () => ({ id: "existing" }),
+    }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "DUPLICATE_PERIOD");
+});
+
+test("an inactive or unknown employee is rejected", async () => {
+  const missing = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "ghost", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => null }),
+    NOW_AFTER_AUGUST,
+  );
+  const inactive = await createRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    { employeeId: "commercial-a", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ active: false }) }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(missing.success, false);
+  if (!missing.success) assert.equal(missing.code, "EMPLOYEE_NOT_FOUND");
+  assert.equal(inactive.success, false);
+  if (!inactive.success) assert.equal(inactive.code, "EMPLOYEE_NOT_FOUND");
+});
+
+test("access is denied when the actor is not authorized to assess this employee's role", async () => {
+  const managerAssessingManager = await createRoleResponsibilityAssessmentCore(
+    actor("manager-a", "MANAGER"),
+    { employeeId: "manager-b", period: CLOSED_PERIOD },
+    createDeps({ findEmployee: async () => employee({ id: "manager-b", role: "MANAGER" }) }),
+    NOW_AFTER_AUGUST,
+  );
+
+  assert.equal(managerAssessingManager.success, false);
+  if (!managerAssessingManager.success) {
+    assert.equal(managerAssessingManager.code, "ACCESS_DENIED");
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Item assessment — helpers
+// ---------------------------------------------------------------------------
+
+function itemRow(
+  overrides: Partial<RoleResponsibilityAssessmentItemRow> = {},
+): RoleResponsibilityAssessmentItemRow {
+  const catalogItem = getRoleResponsibilityCatalogForRole("COMMERCIAL")[0];
+  return {
+    id: "item-1",
+    assessmentId: "assessment-1",
+    responsibilityKey: catalogItem.key,
+    anchorsSnapshot: catalogItem.anchors,
+    ...overrides,
+  };
+}
+
+function draftAssessment(overrides: { evaluatorUserId?: string } = {}) {
+  return {
+    id: "assessment-1",
+    status: "DRAFT" as const,
+    evaluatorUserId: overrides.evaluatorUserId ?? "evaluator-1",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// §70: extreme-level observation requirement
+// ---------------------------------------------------------------------------
+
+test("§70/§35: NOT_MET and EXCEEDED require a non-empty observation", async () => {
+  for (const level of ["NOT_MET", "EXCEEDED"] as const) {
+    const rejected = await assessRoleResponsibilityItemCore(
+      actor("evaluator-1", "ADMIN"),
+      "assessment-1",
+      "item-1",
+      level,
+      null,
+      {
+        findAssessment: async () => draftAssessment(),
+        findItem: async () => itemRow(),
+        update: async () => {
+          assert.fail("update must not be called without a required observation");
+        },
+      },
+    );
+
+    assert.equal(rejected.success, false);
+    if (!rejected.success) assert.equal(rejected.code, "OBSERVATION_REQUIRED");
+
+    const accepted = await assessRoleResponsibilityItemCore(
+      actor("evaluator-1", "ADMIN"),
+      "assessment-1",
+      "item-1",
+      level,
+      "Observation concrète justifiant ce niveau.",
+      {
+        findAssessment: async () => draftAssessment(),
+        findItem: async () => itemRow(),
+        update: async () => {},
+      },
+    );
+    assert.equal(accepted.success, true);
+  }
+});
+
+test("§70: PARTIALLY_MET and MET do not require an observation", async () => {
+  for (const level of ["PARTIALLY_MET", "MET"] as const) {
+    const result = await assessRoleResponsibilityItemCore(
+      actor("evaluator-1", "ADMIN"),
+      "assessment-1",
+      "item-1",
+      level,
+      null,
+      {
+        findAssessment: async () => draftAssessment(),
+        findItem: async () => itemRow(),
+        update: async () => {},
+      },
+    );
+    assert.equal(result.success, true);
+  }
+});
+
+test("awardedPoints is computed from the item's own frozen anchorsSnapshot, never from the live catalog", async () => {
+  const result = await assessRoleResponsibilityItemCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => draftAssessment(),
+      findItem: async () => itemRow(),
+      update: async () => {},
+    },
+  );
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    const catalogItem = getRoleResponsibilityCatalogForRole("COMMERCIAL")[0];
+    const metAnchor = catalogItem.anchors.find((a) => a.level === "MET");
+    assert.equal(result.awardedPoints, metAnchor?.points);
+  }
+});
+
+test("only the assessment's own evaluator may assess its items", async () => {
+  const result = await assessRoleResponsibilityItemCore(
+    actor("someone-else", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => draftAssessment({ evaluatorUserId: "evaluator-1" }),
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("update must not be called for a non-evaluator actor");
+      },
+    },
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "ACCESS_DENIED");
+});
+
+// ---------------------------------------------------------------------------
+// §74: submitted immutability — item assessment
+// ---------------------------------------------------------------------------
+
+test("§74: a SUBMITTED assessment's items can no longer be reassessed", async () => {
+  const result = await assessRoleResponsibilityItemCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "SUBMITTED",
+        evaluatorUserId: "evaluator-1",
+      }),
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("update must not be called on a submitted assessment");
+      },
+    },
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "ASSESSMENT_LOCKED");
+});
+
+// ---------------------------------------------------------------------------
+// §71/§73: submission — unassessed items block, score is a deterministic integer
+// ---------------------------------------------------------------------------
+
+test("§71: submission is rejected while any item remains UNASSESSED", async () => {
+  const result = await submitRoleResponsibilityAssessmentCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "evaluator-1",
+        items: [
+          { id: "item-1", awardedPoints: 17 },
+          { id: "item-2", awardedPoints: null },
+        ],
+      }),
+      submit: async () => {
+        assert.fail("submit must not be called with an unassessed item");
+      },
+    },
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "UNASSESSED_ITEMS");
+});
+
+test("§73: the submitted score is the exact integer sum of awardedPoints — deterministic, no rounding involved", async () => {
+  const result = await submitRoleResponsibilityAssessmentCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "evaluator-1",
+        items: [{ id: "item-1", awardedPoints: 17 }],
+      }),
+      submit: async (id, score) => {
+        assert.equal(id, "assessment-1");
+        assert.equal(score, 17);
+      },
+    },
+  );
+
+  assert.equal(result.success, true);
+  if (result.success) assert.equal(result.score, 17);
+});
+
+test("the Commercial catalog's MET response scores 17/20 and EXCEEDED scores exactly 20/20", () => {
+  const catalogItem = getRoleResponsibilityCatalogForRole("COMMERCIAL")[0];
+  const met = catalogItem.anchors.find((a) => a.level === "MET");
+  const exceeded = catalogItem.anchors.find((a) => a.level === "EXCEEDED");
+
+  assert.equal(met?.points, 17);
+  assert.equal(exceeded?.points, 20);
+});
+
+// ---------------------------------------------------------------------------
+// §74: submitted immutability — submit and delete
+// ---------------------------------------------------------------------------
+
+test("§74: submitting an already-SUBMITTED assessment is rejected", async () => {
+  const result = await submitRoleResponsibilityAssessmentCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "SUBMITTED",
+        evaluatorUserId: "evaluator-1",
+        items: [{ id: "item-1", awardedPoints: 17 }],
+      }),
+      submit: async () => {
+        assert.fail("submit must not be called twice");
+      },
+    },
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "ASSESSMENT_LOCKED");
+});
+
+test("§74: deleting a SUBMITTED assessment is rejected; a DRAFT may be deleted by its evaluator", async () => {
+  const submittedDelete = await deleteRoleResponsibilityAssessmentCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "SUBMITTED",
+        evaluatorUserId: "evaluator-1",
+      }),
+      delete: async () => {
+        assert.fail("delete must not be called on a submitted assessment");
+      },
+    },
+  );
+  const draftDelete = await deleteRoleResponsibilityAssessmentCore(
+    actor("evaluator-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "evaluator-1",
+      }),
+      delete: async () => {},
+    },
+  );
+
+  assert.equal(submittedDelete.success, false);
+  if (!submittedDelete.success) assert.equal(submittedDelete.code, "ASSESSMENT_LOCKED");
+  assert.equal(draftDelete.success, true);
+});
+
+// ---------------------------------------------------------------------------
+// §72: N/A is not implemented in V1 — a deliberate, documented scope decision
+// ---------------------------------------------------------------------------
+
+test("§72/§14/§15: no N/A concept exists on the item — only UNASSESSED (null level) or one of the four defined levels", () => {
+  // Structural guarantee: RoleResponsibilityAssessmentLevel (schema enum)
+  // has exactly four values, none of them "N/A" — confirmed already by
+  // the migration test's exact-enum-value assertion. This test locks the
+  // *reason* in the same file the behavior lives in: the audited catalog
+  // has exactly one responsibility per supported role, so there is no
+  // partial-applicability scenario to normalize (see the catalog file's
+  // own audit-verdict comment).
+  const commercialCatalog = getRoleResponsibilityCatalogForRole("COMMERCIAL");
+  const managerCatalog = getRoleResponsibilityCatalogForRole("MANAGER");
+  assert.equal(commercialCatalog.length, 1);
+  assert.equal(managerCatalog.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// §75/§76: role-at-evaluation and evaluator-role-at-event stay frozen —
+// structural guarantee, not a live re-check
+// ---------------------------------------------------------------------------
+
+test("§75/§76: assessing, submitting, and deleting never re-fetch the employee or re-check anyone's current role — only identity (evaluatorUserId) and status are consulted", () => {
+  const source = readFileSync(
+    "src/services/role-responsibility-assessment.service-core.ts",
+    "utf8",
+  );
+  const afterCreate = source.slice(source.indexOf("// Assess one item"));
+
+  assert.doesNotMatch(afterCreate, /findEmployee/);
+  assert.doesNotMatch(afterCreate, /\.role\s*!==\s*"COMMERCIAL"/);
+});

@@ -330,6 +330,7 @@ function targetRow(
     periodStart: new Date("2026-09-01T00:00:00.000Z"),
     periodEnd: new Date("2026-09-30T23:59:59.999Z"),
     targetWins: 4,
+    roleAtAssignment: "COMMERCIAL",
     ...overrides,
   };
 }

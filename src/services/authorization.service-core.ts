@@ -88,6 +88,22 @@ export const COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES: UserRole[] = [
   "MANAGER",
 ];
 
+/**
+ * Ticket 25I — the coarse route/action gate: ADMIN or MANAGER may
+ * *attempt* to manage a Role Responsibility assessment at all; COMMERCIAL
+ * never can. This is deliberately broader than the real authority
+ * matrix (a MANAGER may assess a COMMERCIAL but not a MANAGER; nobody
+ * may assess an ADMIN in V1; nobody may self-assess) — that finer rule
+ * depends on the *target* employee's role and cannot be expressed as a
+ * flat actor-role list, so it lives in
+ * canAssessRoleResponsibilities (role-responsibility-assessment.service-core.ts),
+ * not here. This constant only keeps a COMMERCIAL out of the door.
+ */
+export const ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

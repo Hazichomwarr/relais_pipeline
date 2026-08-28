@@ -35,12 +35,20 @@ export default async function UsersPage() {
             Gérez les membres de l’équipe sans supprimer leur présence
             historique dans le CRM.
           </p>
-          <Link
-            href="/admin/performance-targets"
-            className="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            Objectifs commerciaux →
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-4">
+            <Link
+              href="/admin/performance-targets"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              Objectifs commerciaux →
+            </Link>
+            <Link
+              href="/admin/performance-assessments"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              Responsabilités de rôle →
+            </Link>
+          </div>
         </header>
 
         <UserManagement users={users} />

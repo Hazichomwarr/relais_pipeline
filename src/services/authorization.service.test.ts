@@ -9,6 +9,7 @@ import {
   DAILY_REPORT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
+  ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SHARED_FEED_ROLES,
   type AuthenticatedUser,
 } from "./authorization.service-core";
@@ -141,6 +142,27 @@ test("requireRoleCore denies COMMERCIAL managing performance targets — employe
       requireRoleCore(
         { user: makeUser("COMMERCIAL") },
         COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
+      ),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER through the coarse Role Responsibility assessment gate (Ticket 25I)", () => {
+  for (const role of ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL the Role Responsibility assessment gate outright — the finer per-employee rule never even runs for them (Ticket 25I §21)", () => {
+  assert.throws(
+    () =>
+      requireRoleCore(
+        { user: makeUser("COMMERCIAL") },
+        ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
       ),
     hasCode("ACCESS_DENIED"),
   );

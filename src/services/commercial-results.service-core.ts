@@ -3,18 +3,16 @@ import type { ProspectActivityType, UserRole } from "@prisma/client";
 import { type ExecutionDisciplinePeriod } from "@/src/services/execution-discipline.service-core";
 
 /**
- * Ticket 25H.2 — the Results evidence engine. This file deliberately does
- * NOT compute a `/40` score: the required audit (see
- * notes/ticket-25h2-commercial-results-score-engine.md) found neither a
- * historically durable ownership-during-period denominator (Prospect has
- * no assignment-history model — confirmed repo-wide) nor any existing
- * performance target/quota domain concept (confirmed by exhaustive grep —
- * the one hit, `*_PROSPECTING_TARGET`, is an unrelated Operations
- * Coordinator daily-report constant). That is Outcome C from the ticket's
- * own decision tree: implement the evidence collector, leave numeric
- * scoring explicitly blocked pending a dedicated target-domain ticket.
- * Do not add a formula here to make this file "feel finished" — an
- * invented denominator would be less honest than no score at all.
+ * Ticket 25H.2 built the evidence collector (collectCommercialResultsEvidence)
+ * after finding neither a historically durable ownership-during-period
+ * denominator nor any existing target/quota domain — see
+ * notes/ticket-25h2-commercial-results-score-engine.md. 25H.2A then built
+ * that missing target domain
+ * (commercial-performance-target.service-core.ts). This file's scoring
+ * half (computeCommercialResultsScore/computeCommercialResultsResult) is
+ * Ticket 25H.2B, combining the two into a real `/40` — but only when the
+ * period's evidence coverage is complete and an exact, valid target
+ * exists; otherwise it still refuses to fabricate a number.
  */
 
 export const COMMERCIAL_RESULTS_POLICY_VERSION = "COMMERCIAL_RESULTS_V1";
@@ -142,30 +140,61 @@ export function collectCommercialResultsEvidence(
   };
 }
 
+/**
+ * The one target-domain fact this file needs (Ticket 25H.2B §5/§20) —
+ * deliberately narrower than commercial-performance-target.service-core.ts's
+ * full CommercialPerformanceTargetRow, since scoring only ever reads
+ * these two fields. `roleAtAssignment` is re-validated defensively here
+ * (§5) even though 25H.2A's write path already guarantees it's always
+ * "COMMERCIAL" — this file never trusts a table name alone.
+ */
+export type CommercialResultsTarget = {
+  targetWins: number;
+  roleAtAssignment: UserRole;
+};
+
 export type CommercialResultsStatus =
-  | "BLOCKED_PENDING_TARGET_DOMAIN"
+  | "SCORED"
+  | "NO_TARGET"
+  | "INVALID_TARGET"
+  | "LEGACY_ATTRIBUTION_INCOMPLETE"
   | "UNSUPPORTED_ROLE"
   | "PERIOD_NOT_CLOSED"
   | "EMPLOYEE_NOT_FOUND";
 
-export const COMMERCIAL_RESULTS_SCORING_BLOCKED_REASON =
-  "Results scoring requires a historically defensible denominator or " +
-  "target, and neither exists in this CRM today (no Prospect assignment " +
-  "history, no performance target/quota domain). Evidence is collected " +
-  "and durable; the numeric /40 is intentionally not computed. See " +
-  "ticket-25h2-commercial-results-score-engine.md.";
-
 export type CommercialResultsResult =
   | {
-      status: "BLOCKED_PENDING_TARGET_DOMAIN";
-      score: null;
+      status: "SCORED";
+      score: number;
       maxScore: typeof COMMERCIAL_RESULTS_MAX_SCORE;
-      scoringBlockedReason: string;
+      achievementRate: number;
+      targetWins: number;
+      creditedWins: number;
+      coverageStatus: "COMPLETE";
       evidence: CommercialResultsEvidence;
       policyVersion: string;
     }
   | {
-      status: "UNSUPPORTED_ROLE" | "PERIOD_NOT_CLOSED" | "EMPLOYEE_NOT_FOUND";
+      status: "LEGACY_ATTRIBUTION_INCOMPLETE";
+      score: null;
+      maxScore: typeof COMMERCIAL_RESULTS_MAX_SCORE;
+      legacyUnattributedWinsInPeriod: number;
+      evidence: CommercialResultsEvidence;
+      policyVersion: string;
+    }
+  | {
+      status: "NO_TARGET";
+      score: null;
+      maxScore: typeof COMMERCIAL_RESULTS_MAX_SCORE;
+      evidence: CommercialResultsEvidence;
+      policyVersion: string;
+    }
+  | {
+      status:
+        | "INVALID_TARGET"
+        | "UNSUPPORTED_ROLE"
+        | "PERIOD_NOT_CLOSED"
+        | "EMPLOYEE_NOT_FOUND";
       score: null;
       maxScore: typeof COMMERCIAL_RESULTS_MAX_SCORE;
       evidence: null;
@@ -173,7 +202,11 @@ export type CommercialResultsResult =
     };
 
 function notEvaluated(
-  status: "UNSUPPORTED_ROLE" | "PERIOD_NOT_CLOSED" | "EMPLOYEE_NOT_FOUND",
+  status:
+    | "INVALID_TARGET"
+    | "UNSUPPORTED_ROLE"
+    | "PERIOD_NOT_CLOSED"
+    | "EMPLOYEE_NOT_FOUND",
 ): CommercialResultsResult {
   return {
     status,
@@ -184,27 +217,77 @@ function notEvaluated(
   };
 }
 
+export type CommercialResultsScoreInput = {
+  creditedWins: number;
+  targetWins: number;
+};
+
 /**
- * Orchestrates Ticket 25H.2's pipeline for one employee/period, mirroring
- * Execution Discipline's shape (§20/§30: share the pattern, not the
- * implementation) — current-role eligibility, then period closure, then
- * evidence collection. Unlike Execution Discipline there is no small-
- * sample or scoring step after evidence: every successful call returns
- * BLOCKED_PENDING_TARGET_DOMAIN, by design, until a future ticket
- * introduces a real denominator or target.
+ * The pure score core (Ticket 25H.2B §1/§19): caps at 40, never exceeds
+ * it regardless of overachievement. Precondition: `targetWins > 0` —
+ * callers must guard first (computeCommercialResultsResult's
+ * INVALID_TARGET check is that guard); this function does not defend
+ * against zero/negative itself, so it is never called with one.
+ */
+export function computeCommercialResultsScore(
+  input: CommercialResultsScoreInput,
+): number {
+  const raw =
+    (COMMERCIAL_RESULTS_MAX_SCORE * input.creditedWins) / input.targetWins;
+
+  return Math.min(COMMERCIAL_RESULTS_MAX_SCORE, Math.round(raw));
+}
+
+/**
+ * A raw, unclamped decimal ratio (e.g. `1.75` for 7 wins against a
+ * target of 4, `10` for 10 against 1) — not a `conversionRate`-style
+ * percentage (×100). This is a deliberate deviation from that existing
+ * convention: the ticket's own worked test examples (§16 "achievementRate
+ * = 1.75", §33 "achievementRate 10") are unambiguous about the decimal
+ * form, so they take precedence over inferring a percentage from an
+ * unrelated existing helper. A future UI can multiply by 100 to display
+ * a percentage; this value never clamps to 1.0 (§16: "the score caps;
+ * achievement evidence does not").
+ */
+export function computeCommercialResultsAchievementRate(
+  input: CommercialResultsScoreInput,
+): number {
+  return input.creditedWins / input.targetWins;
+}
+
+/**
+ * Orchestrates Ticket 25H.2B's full pipeline for one employee/period:
+ * current-role eligibility, period closure, evidence collection, then —
+ * only once evidence coverage is trustworthy and an exact, valid target
+ * exists — the score itself. Mirrors Execution Discipline's shape
+ * (§20/§30: share the pattern, not the implementation).
  *
- * The role gate here checks the employee's *current* role — a product-
- * level decision about whether to present a Results dimension for this
- * person's profile at all today, independent of collectCommercialResultsEvidence's
- * event-time eligibility rule above. A currently-MANAGER employee's past
- * COMMERCIAL-earned evidence still exists and is still correct — call
- * collectCommercialResultsEvidence directly for that case, as a future
- * historical-record viewer would.
+ * `target` is a plain, already-resolved value (never a Prisma call) —
+ * this function stays pure, per §19; the service layer is responsible
+ * for calling getCommercialPerformanceTarget and passing the result in,
+ * exactly once, per §2's "no fallback" / §26's "strictly read-only"
+ * rules.
+ *
+ * Check order matters: coverage is evaluated *before* target lookup, so
+ * a period with incomplete legacy attribution is flagged
+ * LEGACY_ATTRIBUTION_INCOMPLETE even when a valid target exists (§9/§38)
+ * — an incomplete historical picture is disqualifying on its own, not
+ * merely "missing a comparison basis."
+ *
+ * The role gate checks the employee's *current* role — a product-level
+ * decision about whether to present a Results dimension for this
+ * person's profile at all today, independent of
+ * collectCommercialResultsEvidence's event-time eligibility rule. A
+ * currently-MANAGER employee's past COMMERCIAL-earned evidence still
+ * exists and is still correct — call collectCommercialResultsEvidence
+ * directly for that case, as a future historical-record viewer would
+ * (§4/§24, unchanged from 25H.2's own reasoning).
  */
 export function computeCommercialResultsResult(
   employee: CommercialResultsEmployee,
   period: CommercialResultsPeriod,
   wonTransitions: readonly CommercialResultsWonEventRow[],
+  target: CommercialResultsTarget | null,
   now: Date = new Date(),
 ): CommercialResultsResult {
   if (!isScorableForCommercialResults(employee.role)) {
@@ -221,11 +304,48 @@ export function computeCommercialResultsResult(
     wonTransitions,
   );
 
+  if (evidence.coverageStatus === "PARTIAL_LEGACY_ATTRIBUTION") {
+    return {
+      status: "LEGACY_ATTRIBUTION_INCOMPLETE",
+      score: null,
+      maxScore: COMMERCIAL_RESULTS_MAX_SCORE,
+      legacyUnattributedWinsInPeriod: evidence.legacyUnattributedWinsInPeriod,
+      evidence,
+      policyVersion: COMMERCIAL_RESULTS_POLICY_VERSION,
+    };
+  }
+
+  if (!target) {
+    return {
+      status: "NO_TARGET",
+      score: null,
+      maxScore: COMMERCIAL_RESULTS_MAX_SCORE,
+      evidence,
+      policyVersion: COMMERCIAL_RESULTS_POLICY_VERSION,
+    };
+  }
+
+  if (
+    target.roleAtAssignment !== "COMMERCIAL" ||
+    !Number.isInteger(target.targetWins) ||
+    target.targetWins <= 0
+  ) {
+    return notEvaluated("INVALID_TARGET");
+  }
+
+  const scoreInput: CommercialResultsScoreInput = {
+    creditedWins: evidence.creditedWins,
+    targetWins: target.targetWins,
+  };
+
   return {
-    status: "BLOCKED_PENDING_TARGET_DOMAIN",
-    score: null,
+    status: "SCORED",
+    score: computeCommercialResultsScore(scoreInput),
     maxScore: COMMERCIAL_RESULTS_MAX_SCORE,
-    scoringBlockedReason: COMMERCIAL_RESULTS_SCORING_BLOCKED_REASON,
+    achievementRate: computeCommercialResultsAchievementRate(scoreInput),
+    targetWins: target.targetWins,
+    creditedWins: evidence.creditedWins,
+    coverageStatus: "COMPLETE",
     evidence,
     policyVersion: COMMERCIAL_RESULTS_POLICY_VERSION,
   };

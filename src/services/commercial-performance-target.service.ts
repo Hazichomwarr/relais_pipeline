@@ -57,6 +57,7 @@ export async function updateCommercialPerformanceTarget(
           periodStart: true,
           periodEnd: true,
           targetWins: true,
+          roleAtAssignment: true,
         },
       }),
     update: async (id, wins) => {
@@ -105,6 +106,7 @@ export async function getCommercialPerformanceTarget(
           periodStart: true,
           periodEnd: true,
           targetWins: true,
+          roleAtAssignment: true,
         },
       }),
   });

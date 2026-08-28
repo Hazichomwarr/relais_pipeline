@@ -12,6 +12,7 @@ import {
   PROSPECT_ACTION_QUEUE_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
+  ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SALES_ANALYTICS_ROLES,
   SHARED_FEED_ROLES,
 } from "@/src/services/authorization.service-core";
@@ -100,4 +101,14 @@ export async function requireMyProspectsAccess() {
  */
 export async function requireCommercialPerformanceTargetManagementAccess() {
   return requireRole(...COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES);
+}
+
+/**
+ * Coarse gate for Role Responsibility assessment management (Ticket
+ * 25I) — ADMIN and MANAGER only. The finer "may this actor assess THIS
+ * employee" rule is domain-level, not authorization-level; see
+ * canAssessRoleResponsibilities.
+ */
+export async function requireRoleResponsibilityAssessmentManagementAccess() {
+  return requireRole(...ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES);
 }
