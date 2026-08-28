@@ -263,6 +263,13 @@ model User {
   // `model ProspectActivity`.
   creditedProspectActivities ProspectActivity[] @relation("ProspectActivityCreditedUser")
 
+  // Ticket 25H.2A — the comparison basis Results scoring is blocked on
+  // (see notes/ticket-25h2-commercial-results-score-engine.md). Two named
+  // relations for the same reason ProspectAction needs four: an employee
+  // and a target's creator are different roles that both point back at User.
+  commercialPerformanceTargets        CommercialPerformanceTarget[] @relation("CommercialPerformanceTargetEmployee")
+  createdCommercialPerformanceTargets CommercialPerformanceTarget[] @relation("CommercialPerformanceTargetCreator")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -623,4 +630,55 @@ model LedgerEntry {
   @@index([occurredAt])
   @@index([createdByUserId])
   @@index([currencyCode, occurredAt])
+}
+
+// Ticket 25H.2A — the durable comparison basis 25H.2's Results evidence
+// engine needs before creditedWins can become a /40 score. Deliberately
+// narrow: COMMERCIAL-only, one metric (targetWins), one target per
+// employee per canonical calendar month.
+//
+// Historical stability, mirroring UserCreationActivity.roleAtEvent and
+// ProspectActivity.creditedUserRoleAtEvent: roleAtAssignment and
+// createdByRoleAtEvent are frozen snapshots, never re-derived from the
+// live User relation. A COMMERCIAL's August target stays an August
+// Commercial target even after a September promotion to MANAGER.
+//
+// Freeze-before-period semantics (Option A, no revision history — see
+// the notes doc): editable/deletable only while `now < periodStart`,
+// enforced entirely in application logic (createCommercialPerformanceTargetCore
+// / updateCommercialPerformanceTargetCore / deleteCommercialPerformanceTargetCore),
+// not by any DB constraint, since "now" isn't a schema-expressible
+// condition. No separate lifecycle/status column: lock state is always
+// derived from periodStart vs. the current instant, never persisted.
+model CommercialPerformanceTarget {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("CommercialPerformanceTargetEmployee", fields: [userId], references: [id], onDelete: Restrict)
+
+  // Both inclusive, always the canonical business-timezone calendar-month
+  // boundary computed by resolveCommercialPerformanceTargetMonth — never
+  // an arbitrary caller-supplied range, so the uniqueness constraint below
+  // reliably means "one target per employee per month".
+  periodStart DateTime
+  periodEnd   DateTime
+
+  targetWins Int
+
+  // Snapshot at creation — see the model comment above. Not the eligibility
+  // check for whether a target is *creatable* (that's enforced at write
+  // time by createCommercialPerformanceTargetCore); this is what the
+  // target meant once it existed.
+  roleAtAssignment UserRole
+
+  createdByUserId      String
+  createdByUser        User     @relation("CommercialPerformanceTargetCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdByRoleAtEvent UserRole
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, periodStart, periodEnd])
+  @@index([userId, periodStart])
+  @@index([createdByUserId])
 }

@@ -27,7 +27,16 @@ function fromBusinessLocal(localDate: Date): Date {
   );
 }
 
-function businessLocalMidnight(year: number, month: number, day: number): Date {
+/**
+ * Exported (Ticket 25H.2A) so other calendar-month-boundary needs — e.g.
+ * commercial-performance-target.service-core.ts's target period — reuse
+ * this exact business-timezone math instead of re-deriving it.
+ */
+export function businessLocalMidnight(
+  year: number,
+  month: number,
+  day: number,
+): Date {
   return fromBusinessLocal(new Date(Date.UTC(year, month, day)));
 }
 

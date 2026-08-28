@@ -5,6 +5,7 @@ import type { UserRole } from "@prisma/client";
 import {
   assertCanChangePasswordCore,
   AuthorizationError,
+  COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
@@ -120,6 +121,27 @@ test("requireRoleCore denies COMMERCIAL management-wide daily report reading, ev
   assert.throws(
     () =>
       requireRoleCore({ user: makeUser("COMMERCIAL") }, DAILY_REPORT_MANAGEMENT_ROLES),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER to manage Commercial performance targets (Ticket 25H.2A)", () => {
+  for (const role of COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL managing performance targets — employees must not set their own targets (Ticket 25H.2A §9)", () => {
+  assert.throws(
+    () =>
+      requireRoleCore(
+        { user: makeUser("COMMERCIAL") },
+        COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
+      ),
     hasCode("ACCESS_DENIED"),
   );
 });

@@ -72,6 +72,22 @@ export const SALES_ANALYTICS_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
  */
 export const MY_PROSPECTS_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 25H.2A — ADMIN and MANAGER may create/edit/delete (upcoming)
+ * Commercial performance targets. Identical to DAILY_REPORT_MANAGEMENT_ROLES
+ * and SALES_ANALYTICS_ROLES today by coincidence, kept as its own constant
+ * for the same reason those are — this feature's access list is its own
+ * deliberate decision. Unlike DAILY_REPORT_MANAGEMENT_ROLES, this one DOES
+ * authorize a mutation: there is no per-employee ownership check beyond
+ * role, because this CRM has no manager-of-employee hierarchy (25G §6/§27)
+ * — a MANAGER's authority here is organization-wide, not team-scoped, and
+ * that limitation is deliberate and documented, not an oversight.
+ */
+export const COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

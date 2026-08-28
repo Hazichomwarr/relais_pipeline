@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import {
   assertCanChangePasswordCore,
   AuthorizationError,
+  COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
   MY_PROSPECTS_ROLES,
   PROSPECT_ACTION_QUEUE_ROLES,
@@ -90,4 +91,13 @@ export async function requireSalesAnalyticsAccess() {
  */
 export async function requireMyProspectsAccess() {
   return requireRole(...MY_PROSPECTS_ROLES);
+}
+
+/**
+ * Read/write boundary for Commercial performance target management
+ * (Ticket 25H.2A) — ADMIN and MANAGER only. Organization-wide, not
+ * team-scoped, because no manager-of-employee hierarchy exists yet.
+ */
+export async function requireCommercialPerformanceTargetManagementAccess() {
+  return requireRole(...COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES);
 }

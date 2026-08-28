@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AdminShell from "@/component/dashboard/AdminShell";
@@ -34,6 +35,12 @@ export default async function UsersPage() {
             Gérez les membres de l’équipe sans supprimer leur présence
             historique dans le CRM.
           </p>
+          <Link
+            href="/admin/performance-targets"
+            className="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            Objectifs commerciaux →
+          </Link>
         </header>
 
         <UserManagement users={users} />
