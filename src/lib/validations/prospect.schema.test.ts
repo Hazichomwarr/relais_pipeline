@@ -27,6 +27,32 @@ test("accepts a fully filled submission", () => {
   assert.equal(result.success, true);
 });
 
+test("Ticket 25H.1 §3: rejects creating a prospect directly with status WON — the follow-up workflow is the only authoritative WON transition boundary", () => {
+  const result = prospectSchema.safeParse({ ...validInput(), status: "WON" });
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.ok(
+      result.error.flatten().fieldErrors.status?.length,
+      "expected a validation error on the status field",
+    );
+  }
+});
+
+test("every other status remains a valid initial value at creation", () => {
+  for (const status of [
+    "NEW",
+    "TO_FOLLOW_UP",
+    "CONTACTED",
+    "QUALIFIED",
+    "PROPOSAL_SENT",
+    "LOST",
+  ]) {
+    const result = prospectSchema.safeParse({ ...validInput(), status });
+    assert.equal(result.success, true, `expected status "${status}" to be accepted`);
+  }
+});
+
 test("treats an unselected 'Présence en ligne' as no submission, not an error", () => {
   const result = prospectSchema.safeParse({
     ...validInput(),

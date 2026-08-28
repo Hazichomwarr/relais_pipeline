@@ -3,6 +3,7 @@ import type {
   ProspectConversionOutcome,
   ProspectConversionReason,
   ProspectStatus,
+  UserRole,
 } from "@prisma/client";
 
 import type { AuthenticatedUser } from "@/src/services/authorization.service-core";
@@ -10,6 +11,7 @@ import type { ValidatedProspectFollowUpWorkflowInput } from "@/src/lib/validatio
 import {
   buildWonTransitionActivityData,
   isWonTransition,
+  resolveWonCredit,
 } from "@/src/services/prospect-won-transition.service-core";
 import { isTerminalProspectStatus } from "@/src/services/prospect-status.service-core";
 import {
@@ -47,6 +49,11 @@ type FollowUpActivityData = {
   conversionOutcome?: ProspectConversionOutcome;
   conversionReason?: ProspectConversionReason;
   conversionReasonNote?: string;
+  // Ticket 25H.1 — only ever set by the WON_TRANSITION branch below; the
+  // ordinary FOLLOW_UP activity created every submission never sets these.
+  creditedUserId?: string | null;
+  creditedUserNameAtEvent?: string | null;
+  creditedUserRoleAtEvent?: UserRole | null;
 };
 
 type ProspectFollowUpStateUpdates = {
@@ -62,9 +69,20 @@ type ProspectFollowUpStateUpdates = {
  * like createCommercialActivity — this core never re-derives ownership.
  */
 export type ProspectFollowUpTransactionContext = {
-  findProspect: (
-    prospectId: string,
-  ) => Promise<{ id: string; status: ProspectStatus } | null>;
+  findProspect: (prospectId: string) => Promise<{
+    id: string;
+    status: ProspectStatus;
+    // Ticket 25H.1 — the authoritative ownership state resolveWonCredit
+    // needs, read inside this same transaction so credit always reflects
+    // the owner observed at the transition boundary, never a stale or
+    // out-of-transaction read.
+    assignedUserId: string | null;
+    assignedUser: {
+      firstName: string;
+      lastName: string;
+      role: UserRole;
+    } | null;
+  } | null>;
   updateProspect: (
     prospectId: string,
     data: ProspectFollowUpStateUpdates,
@@ -268,6 +286,7 @@ export async function submitProspectFollowUpCore(
             prospectId: input.prospectId,
             occurredAt,
             agentName,
+            credit: resolveWonCredit(prospect),
           }),
         );
       }

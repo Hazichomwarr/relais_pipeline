@@ -67,7 +67,16 @@ function actionRow(overrides: Partial<ProspectActionRow> = {}): ProspectActionRo
 }
 
 type FakeStoreOptions = {
-  prospect: { id: string; status: ProspectStatus; followUpDate: Date | null };
+  prospect: {
+    id: string;
+    status: ProspectStatus;
+    followUpDate: Date | null;
+    // Ticket 25H.1 — optional in the test fixture (most tests here aren't
+    // about WON credit at all); defaults to "unassigned" so every existing
+    // scenario keeps working unchanged, matching real Prisma nullability.
+    assignedUserId?: string | null;
+    assignedUser?: { firstName: string; lastName: string; role: UserRole } | null;
+  };
   actions?: ProspectActionRow[];
   users?: { id: string; active: boolean }[];
 };
@@ -79,7 +88,11 @@ type FakeStoreOptions = {
  * untouched — the same property a real prisma.$transaction guarantees.
  */
 function createFakeStore(options: FakeStoreOptions) {
-  let prospect = { ...options.prospect };
+  let prospect = {
+    assignedUserId: null,
+    assignedUser: null,
+    ...options.prospect,
+  };
   let actions = (options.actions ?? []).map((a) => ({ ...a }));
   const users = options.users ?? [{ id: "assignee-1", active: true }];
   const activities: Array<{
@@ -91,6 +104,9 @@ function createFakeStore(options: FakeStoreOptions) {
     conversionOutcome?: string;
     conversionReason?: string;
     conversionReasonNote?: string;
+    creditedUserId?: string | null;
+    creditedUserNameAtEvent?: string | null;
+    creditedUserRoleAtEvent?: string | null;
   }> = [];
   const updateCalls: Array<Record<string, unknown>> = [];
 
@@ -103,9 +119,7 @@ function createFakeStore(options: FakeStoreOptions) {
 
       const tx: ProspectFollowUpTransactionContext = {
         findProspect: async (id) =>
-          stagedProspect.id === id
-            ? { id: stagedProspect.id, status: stagedProspect.status }
-            : null,
+          stagedProspect.id === id ? { ...stagedProspect } : null,
         updateProspect: async (id, data) => {
           if (stagedProspect.id !== id) {
             throw new Error("unknown prospect in test fake");
@@ -177,6 +191,20 @@ function createFakeStore(options: FakeStoreOptions) {
     getActions: () => actions,
     getActivities: () => activities,
     getUpdateCalls: () => updateCalls,
+    /**
+     * Test-only: simulates ownership changing via some unrelated,
+     * out-of-band operation (Ticket 25H.1 §37) — submitProspectFollowUpCore
+     * itself has no path to reassign a prospect, so this exists purely to
+     * prove that mutating current ownership after a WON transition has
+     * already been recorded does not retroactively change the credit
+     * already written into that ProspectActivity row.
+     */
+    reassign: (
+      assignedUserId: string | null,
+      assignedUser: FakeStoreOptions["prospect"]["assignedUser"] = null,
+    ) => {
+      prospect = { ...prospect, assignedUserId, assignedUser };
+    },
   };
 }
 
@@ -794,4 +822,225 @@ test("an unexpected error inside the transaction is reported as a controlled SUB
   if (!result.success) {
     assert.equal(result.code, "SUBMIT_FAILED");
   }
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25H.1 — durable commercial result attribution on WON transitions
+// ---------------------------------------------------------------------------
+
+function wonInput(
+  overrides: Partial<ValidatedProspectFollowUpWorkflowInput> = {},
+): ValidatedProspectFollowUpWorkflowInput {
+  return baseInput({
+    status: "WON",
+    conversionOutcome: "WON",
+    conversionReason: "DEMO_CONVINCED",
+    nextActionTitle: undefined,
+    nextActionAssignedToUserId: undefined,
+    nextActionDueAt: undefined,
+    ...overrides,
+  });
+}
+
+function findWon(store: { getActivities: () => Array<{ type: string }> }) {
+  return store
+    .getActivities()
+    .find((item) => item.type === "WON_TRANSITION") as
+    | {
+        type: string;
+        agentName: string | undefined;
+        creditedUserId?: string | null;
+        creditedUserNameAtEvent?: string | null;
+        creditedUserRoleAtEvent?: string | null;
+      }
+    | undefined;
+}
+
+for (const managerRole of ["MANAGER", "ADMIN"] as const) {
+  test(`§18/§33/§34: a ${managerRole} closing a COMMERCIAL's prospect credits the COMMERCIAL, never the ${managerRole}`, async () => {
+    const store = createFakeStore({
+      prospect: {
+        id: "prospect-1",
+        status: "PROPOSAL_SENT",
+        followUpDate: null,
+        assignedUserId: "commercial-a",
+        assignedUser: {
+          firstName: "Aminata",
+          lastName: "Traoré",
+          role: "COMMERCIAL",
+        },
+      },
+    });
+
+    const result = await submitProspectFollowUpCore(
+      actor({
+        id: "manager-b",
+        firstName: "Amidou",
+        lastName: "Sawadogo",
+        role: managerRole,
+      }),
+      wonInput(),
+      store.dependencies,
+    );
+
+    assert.deepEqual(result, { success: true });
+    const won = findWon(store);
+    assert.ok(won);
+    assert.equal(won?.agentName, "Amidou Sawadogo");
+    assert.equal(won?.creditedUserId, "commercial-a");
+    assert.equal(won?.creditedUserNameAtEvent, "Aminata Traoré");
+    assert.equal(won?.creditedUserRoleAtEvent, "COMMERCIAL");
+  });
+}
+
+test("§19/§35: a COMMERCIAL closing their own prospect — actor and credited employee are the same person", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: {
+        firstName: "Aminata",
+        lastName: "Traoré",
+        role: "COMMERCIAL",
+      },
+    },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor({
+      id: "commercial-a",
+      firstName: "Aminata",
+      lastName: "Traoré",
+      role: "COMMERCIAL",
+    }),
+    wonInput(),
+    store.dependencies,
+  );
+
+  assert.deepEqual(result, { success: true });
+  const won = findWon(store);
+  assert.ok(won);
+  assert.equal(won?.agentName, "Aminata Traoré");
+  assert.equal(won?.creditedUserId, "commercial-a");
+});
+
+test("§17/§36: credit follows whoever is the authoritative owner at the moment of transition — reassigned-before-WON needs no special handling", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      // As if reassigned from Commercial A to Commercial B before this
+      // submission — resolveWonCredit only ever sees current, authoritative
+      // ownership, never a history it would need to reconstruct.
+      assignedUserId: "commercial-b",
+      assignedUser: {
+        firstName: "Fatou",
+        lastName: "Zongo",
+        role: "COMMERCIAL",
+      },
+    },
+  });
+
+  await submitProspectFollowUpCore(actor(), wonInput(), store.dependencies);
+
+  assert.equal(findWon(store)?.creditedUserId, "commercial-b");
+});
+
+test("§12/§39: a prospect that becomes WON while unassigned has no credited employee — never a fallback to the closing actor", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: null,
+      assignedUser: null,
+    },
+  });
+
+  const result = await submitProspectFollowUpCore(
+    actor({ id: "admin-1", role: "ADMIN" }),
+    wonInput(),
+    store.dependencies,
+  );
+
+  assert.deepEqual(result, { success: true });
+  const won = findWon(store);
+  assert.equal(won?.creditedUserId, null);
+  assert.equal(won?.creditedUserNameAtEvent, null);
+  assert.equal(won?.creditedUserRoleAtEvent, null);
+  // Never silently credited to the actor who happened to close it.
+  assert.notEqual(won?.creditedUserId, "admin-1");
+});
+
+test("§37: reassigning the prospect after WON does not rewrite the already-recorded credit", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: {
+        firstName: "Aminata",
+        lastName: "Traoré",
+        role: "COMMERCIAL",
+      },
+    },
+  });
+
+  await submitProspectFollowUpCore(actor(), wonInput(), store.dependencies);
+  assert.equal(findWon(store)?.creditedUserId, "commercial-a");
+
+  // Some unrelated later operation reassigns the (now-WON) prospect.
+  store.reassign("commercial-b", {
+    firstName: "Fatou",
+    lastName: "Zongo",
+    role: "COMMERCIAL",
+  });
+
+  assert.equal(store.getProspect().assignedUserId, "commercial-b");
+  assert.equal(findWon(store)?.creditedUserId, "commercial-a");
+  assert.equal(findWon(store)?.creditedUserNameAtEvent, "Aminata Traoré");
+});
+
+test("§25/§26: a prospect that leaves and re-enters WON produces two independent WON_TRANSITION events, each with its own credit snapshot", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: {
+        firstName: "Aminata",
+        lastName: "Traoré",
+        role: "COMMERCIAL",
+      },
+    },
+  });
+
+  await submitProspectFollowUpCore(actor(), wonInput(), store.dependencies);
+
+  // Reassigned, then the prospect leaves WON and comes back — nothing in
+  // this domain prevents that (Ticket 20A: no enforced state machine).
+  store.reassign("commercial-b", {
+    firstName: "Fatou",
+    lastName: "Zongo",
+    role: "COMMERCIAL",
+  });
+  await submitProspectFollowUpCore(
+    actor(),
+    baseInput({ status: "CONTACTED", conversionOutcome: "STALLED", conversionReason: "NEEDS_MORE_TIME" }),
+    store.dependencies,
+  );
+  await submitProspectFollowUpCore(actor(), wonInput(), store.dependencies);
+
+  const wonEvents = store
+    .getActivities()
+    .filter((item) => item.type === "WON_TRANSITION");
+
+  assert.equal(wonEvents.length, 2);
+  assert.equal(wonEvents[0].creditedUserId, "commercial-a");
+  assert.equal(wonEvents[1].creditedUserId, "commercial-b");
 });

@@ -258,6 +258,11 @@ model User {
   completedProspectActions ProspectAction[] @relation("ProspectActionCompleter")
   canceledProspectActions  ProspectAction[] @relation("ProspectActionCanceler")
 
+  // Ticket 25H.1 — commercial result credit, distinct from ProspectActivity's
+  // unrelated (string-only) agentName concept; see the field comment above
+  // `model ProspectActivity`.
+  creditedProspectActivities ProspectActivity[] @relation("ProspectActivityCreditedUser")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -493,11 +498,35 @@ model ProspectActivity {
   conversionReason     ProspectConversionReason?
   conversionReasonNote String?
 
+  // Ticket 25H.1 — durable commercial result credit, distinct from
+  // `agentName` above: `agentName` is who performed the closing operation
+  // (the actor submitting the follow-up); `creditedUserId` is who
+  // receives commercial result credit — the prospect's authoritative
+  // `assignedUserId` at the moment of the WON transition, never the actor
+  // by fallback (see resolveWonCredit in
+  // prospect-won-transition.service-core.ts). Populated only for
+  // WON_TRANSITION rows, enforced by application logic alone, same
+  // pattern as conversionOutcome/conversionReason above — every other
+  // activity type legitimately leaves these null. Pre-25H.1 WON_TRANSITION
+  // rows are not backfilled: neither `agentName` (proven not equivalent to
+  // credit) nor the prospect's current `assignedUserId` (may have changed
+  // since the win) is truthful evidence of who was actually credited at
+  // that moment, so those rows keep creditedUserId = null — "unknown",
+  // never fabricated. creditedUserNameAtEvent/creditedUserRoleAtEvent are
+  // frozen snapshots, exactly like UserCreationActivity.roleAtEvent — never
+  // re-derived from the User relation on read, so a later name change or
+  // role transition cannot rewrite what this event meant when it happened.
+  creditedUserId          String?
+  creditedUser            User?     @relation("ProspectActivityCreditedUser", fields: [creditedUserId], references: [id], onDelete: Restrict)
+  creditedUserNameAtEvent String?
+  creditedUserRoleAtEvent UserRole?
+
   createdAt DateTime @default(now())
 
   @@index([prospectId])
   @@index([prospectId, occurredAt])
   @@index([type])
+  @@index([creditedUserId, occurredAt])
 }
 
 // Ticket 20B — durable accountability: "what must happen, who must do

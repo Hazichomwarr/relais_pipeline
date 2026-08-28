@@ -19,7 +19,10 @@ import {
 } from "./daily-report.service-core";
 import { updateUserCore, type UserServiceDependencies } from "./user.service-core";
 import { isConversionReasonAllowedForOutcome } from "./prospect-conversion.service-core";
-import { buildWonTransitionActivityData } from "./prospect-won-transition.service-core";
+import {
+  buildWonTransitionActivityData,
+  resolveWonCredit,
+} from "./prospect-won-transition.service-core";
 
 /**
  * Ticket 21C — operational carryover across role transitions. 21A proved
@@ -160,18 +163,44 @@ test("ProspectActivity attribution (agentName) is a plain string snapshot, never
 
   assert.match(model, /agentName\s+String\?/);
   assert.doesNotMatch(model, /agentName\s+User/);
-  assert.doesNotMatch(model, /userId/i);
 });
 
-test("neither the conversion-compatibility authority nor the WON-transition builder reference UserRole — outcome/reason and WON history are pure facts about the event, not the actor's organizational role", () => {
-  for (const file of [
-    "src/services/prospect-conversion.service-core.ts",
-    "src/services/prospect-won-transition.service-core.ts",
-  ]) {
-    const source = readFileSync(file, "utf8");
-    assert.doesNotMatch(source, /UserRole/);
-    assert.doesNotMatch(source, /\.role/);
-  }
+test("Ticket 25H.1's creditedUserId is a deliberate, distinct new User relation — a different concept from agentName, not a reintroduction of the pattern the test above forbids", () => {
+  const schema = readFileSync("prisma/schema.prisma", "utf8");
+  const modelStart = schema.indexOf("model ProspectActivity {");
+  const modelEnd = schema.indexOf("\n}", modelStart);
+  const model = schema.slice(modelStart, modelEnd);
+
+  assert.match(model, /creditedUserId\s+String\?/);
+  assert.match(model, /creditedUser\s+User\?\s+@relation\("ProspectActivityCreditedUser"/);
+});
+
+test("the conversion-compatibility authority stays a pure function of outcome and reason alone — no UserRole, no actor role", () => {
+  const source = readFileSync("src/services/prospect-conversion.service-core.ts", "utf8");
+  assert.doesNotMatch(source, /UserRole/);
+  assert.doesNotMatch(source, /\.role/);
+});
+
+test("the WON-transition builder never performs a live role lookup — it only ever echoes the credit snapshot it's handed, never reads or re-derives a role itself", () => {
+  const source = readFileSync("src/services/prospect-won-transition.service-core.ts", "utf8");
+  assert.doesNotMatch(source, /from ["']@\/src\/lib\/prisma["']/);
+  assert.doesNotMatch(source, /prisma\./);
+});
+
+test("Ticket 25H.1 §38: a role change made to the source object after resolveWonCredit has already run does not affect the snapshot already taken — resolveWonCredit reads its input once and returns a plain value, not a live reference", () => {
+  const assignedUser = { firstName: "Amidou", lastName: "Sawadogo", role: "COMMERCIAL" as UserRole };
+  const source = { assignedUserId: "amidou", assignedUser };
+
+  const creditAtWon = resolveWonCredit(source);
+
+  // Simulate the same human being promoted afterward — a genuinely
+  // different object, exactly like a fresh Prisma read would return post-
+  // transition, never a mutation of what resolveWonCredit already saw.
+  const afterPromotion = { assignedUserId: "amidou", assignedUser: { ...assignedUser, role: "MANAGER" as UserRole } };
+  const creditIfResolvedAgain = resolveWonCredit(afterPromotion);
+
+  assert.equal(creditAtWon.creditedUserRoleAtEvent, "COMMERCIAL");
+  assert.equal(creditIfResolvedAgain.creditedUserRoleAtEvent, "MANAGER");
 });
 
 test("isConversionReasonAllowedForOutcome (the outcome/reason compatibility authority) is a pure function of outcome and reason alone", () => {
@@ -181,20 +210,33 @@ test("isConversionReasonAllowedForOutcome (the outcome/reason compatibility auth
   assert.equal(isConversionReasonAllowedForOutcome("ADVANCED", "DEMO_CONVINCED"), true);
 });
 
-test("buildWonTransitionActivityData carries only prospectId/occurredAt/agentName — no actor id, no role", () => {
+test("buildWonTransitionActivityData carries no actor id — agentName (a plain string) is still the only actor-identifying field, credit is a separate concept", () => {
   const data = buildWonTransitionActivityData({
     prospectId: "prospect-b",
     occurredAt: new Date("2026-07-01T10:00:00.000Z"),
     agentName: "Amidou Sawadogo",
+    credit: {
+      creditedUserId: "commercial-1",
+      creditedUserNameAtEvent: "Fatou Zongo",
+      creditedUserRoleAtEvent: "COMMERCIAL",
+    },
   });
 
   assert.deepEqual(Object.keys(data).sort(), [
     "agentName",
+    "creditedUserId",
+    "creditedUserNameAtEvent",
+    "creditedUserRoleAtEvent",
     "occurredAt",
     "prospectId",
     "summary",
     "type",
   ]);
+  // agentName (the actor) and creditedUserId (who receives credit) are
+  // deliberately different people in this fixture — Ticket 25H.1's core
+  // scenario (a manager or admin closing a commercial's prospect).
+  assert.equal(data.agentName, "Amidou Sawadogo");
+  assert.equal(data.creditedUserId, "commercial-1");
 });
 
 // ---------------------------------------------------------------------------

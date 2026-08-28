@@ -52,7 +52,14 @@ export async function submitProspectFollowUp(
           findProspect: (id) =>
             tx.prospect.findUnique({
               where: buildProspectWhere(actor, id),
-              select: { id: true, status: true },
+              select: {
+                id: true,
+                status: true,
+                assignedUserId: true,
+                assignedUser: {
+                  select: { firstName: true, lastName: true, role: true },
+                },
+              },
             }),
           updateProspect: async (id, data) => {
             await tx.prospect.update({

@@ -50,6 +50,9 @@ function activity(
     conversionOutcome: null,
     conversionReason: null,
     conversionReasonNote: null,
+    creditedUserId: null,
+    creditedUserNameAtEvent: null,
+    creditedUserRoleAtEvent: null,
     createdAt: new Date(createdAt),
     ...overrides,
   };

@@ -192,6 +192,21 @@ export const prospectSchema = z
         message: "Sélectionnez le type d’activité.",
       });
     }
+
+    // Ticket 25H.1 §3 — creation is not the authoritative WON transition
+    // boundary (submitProspectFollowUpCore is: it's the only path that
+    // writes a durable WON_TRANSITION activity and resolves commercial
+    // result credit). The UI never offers WON at creation, but this
+    // schema is reachable directly as a Server Action's input, so the
+    // restriction must be enforced here, not only by what the form shows.
+    if (data.status === "WON") {
+      context.addIssue({
+        code: "custom",
+        path: ["status"],
+        message:
+          "Un prospect ne peut pas être créé directement avec le statut Gagné — utilisez le suivi commercial.",
+      });
+    }
   });
 
 export type ProspectFormInput = z.input<typeof prospectSchema>;
