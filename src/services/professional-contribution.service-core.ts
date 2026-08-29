@@ -1,6 +1,10 @@
 import type { UserRole } from "@prisma/client";
 
-import { canAssessEmployeeInStructuredEvaluation } from "@/src/lib/employee-assessment-authorization";
+import {
+  canAssessEmployeeInStructuredEvaluation,
+  canDeleteStructuredEvaluationDraft,
+  canMutateOwnedStructuredEvaluation,
+} from "@/src/lib/employee-assessment-authorization";
 import {
   findProfessionalContributionTrait,
   isExtremeProfessionalContributionLevel,
@@ -324,7 +328,11 @@ export async function assessProfessionalContributionItemCore(
     };
   }
 
-  if (assessment.evaluatorUserId !== actor.id) {
+  // Ticket 25O §6/§7/§17: current ADMIN authority AND recorded-evaluator
+  // identity, not ownership alone — closes the mutation-layer gap 25L
+  // found (a pre-25O MANAGER-owned draft could otherwise still be
+  // edited by that MANAGER indefinitely).
+  if (!canMutateOwnedStructuredEvaluation(actor, assessment.evaluatorUserId)) {
     return {
       success: false,
       code: "ACCESS_DENIED",
@@ -433,7 +441,10 @@ export async function submitProfessionalContributionAssessmentCore(
     };
   }
 
-  if (assessment.evaluatorUserId !== actor.id) {
+  // Ticket 25O §7/§16: same current-role-plus-ownership rule as
+  // assess-item — a different ADMIN, or the recorded evaluator after
+  // losing ADMIN authority, may not submit this assessment.
+  if (!canMutateOwnedStructuredEvaluation(actor, assessment.evaluatorUserId)) {
     return {
       success: false,
       code: "ACCESS_DENIED",
@@ -514,11 +525,16 @@ export async function deleteProfessionalContributionAssessmentCore(
     };
   }
 
-  if (assessment.evaluatorUserId !== actor.id) {
+  // Ticket 25O §11/§15: ADMIN-only, deliberately NOT ownership-gated —
+  // this is what lets an ADMIN clean up a stranded MANAGER-owned (or
+  // another ADMIN's abandoned) draft. Deletion never falsifies who
+  // evaluated whom the way editing/submitting someone else's draft
+  // would; it only removes an incomplete, never-submitted row.
+  if (!canDeleteStructuredEvaluationDraft(actor)) {
     return {
       success: false,
       code: "ACCESS_DENIED",
-      message: "Seul l’évaluateur peut supprimer cette évaluation.",
+      message: "Seul un administrateur peut supprimer cette évaluation.",
     };
   }
 

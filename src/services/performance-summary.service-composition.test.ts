@@ -48,12 +48,16 @@ test("Ticket 25K.1 §15: role support is checked before querying either structur
 test("Ticket 25K.1 §15: an unsupported role composes to UNSUPPORTED_ROLE, never NOT_STARTED, for both structured-assessment dimensions", () => {
   assert.match(
     source,
-    /roleResponsibilities: roleResponsibilitySupported\s*\n\s*\? toStructuredAssessmentSummary\(roleResponsibilityRow, 20\)\s*\n\s*: \{ status: "UNSUPPORTED_ROLE", score: null, maxScore: 20, assessmentId: null \},/,
+    /roleResponsibilities: roleResponsibilitySupported\s*\n\s*\? toStructuredAssessmentSummary\(roleResponsibilityRow, 20\)\s*\n\s*: \{\s*\n\s*status: "UNSUPPORTED_ROLE",\s*\n\s*score: null,\s*\n\s*maxScore: 20,\s*\n\s*assessmentId: null,\s*\n\s*evaluatorUserId: null,\s*\n\s*\},/,
   );
   assert.match(
     source,
-    /professionalContribution: professionalContributionSupported\s*\n\s*\? toStructuredAssessmentSummary\(professionalContributionRow, 10\)\s*\n\s*: \{ status: "UNSUPPORTED_ROLE", score: null, maxScore: 10, assessmentId: null \},/,
+    /professionalContribution: professionalContributionSupported\s*\n\s*\? toStructuredAssessmentSummary\(professionalContributionRow, 10\)\s*\n\s*: \{\s*\n\s*status: "UNSUPPORTED_ROLE",\s*\n\s*score: null,\s*\n\s*maxScore: 10,\s*\n\s*assessmentId: null,\s*\n\s*evaluatorUserId: null,\s*\n\s*\},/,
   );
+});
+
+test("Ticket 25O §23: evaluatorUserId is propagated into the composed summary alongside assessmentId, so the dashboard can compute per-dimension canContinue without a second lookup", () => {
+  assert.match(source, /evaluatorUserId: row\.evaluatorUserId/);
 });
 
 test("Ticket 25K.1 §7: the assessment id is propagated into the composed summary so the navigation layer can deep-link without a second lookup", () => {

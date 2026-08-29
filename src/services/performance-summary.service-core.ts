@@ -88,12 +88,42 @@ export type PerformanceDimensionKey =
  * `assessmentId` is carried alongside DRAFT/SUBMITTED so the navigation
  * layer can deep-link straight to the existing detail/edit route without
  * a second lookup; it is `null` whenever no row exists at all.
+ *
+ * `evaluatorUserId` (Ticket 25O §23) is carried the same way, so the
+ * dashboard can decide `canContinue` (is *this* viewer the recorded
+ * evaluator, not just generically eligible to assess) without a second
+ * lookup either — this is what lets a DRAFT authored by someone else
+ * resolve to VIEW instead of CONTINUE.
  */
 export type StructuredAssessmentDimensionSummary =
-  | { status: "SUBMITTED"; score: number; maxScore: number; assessmentId: string }
-  | { status: "DRAFT"; score: null; maxScore: number; assessmentId: string }
-  | { status: "NOT_STARTED"; score: null; maxScore: number; assessmentId: null }
-  | { status: "UNSUPPORTED_ROLE"; score: null; maxScore: number; assessmentId: null };
+  | {
+      status: "SUBMITTED";
+      score: number;
+      maxScore: number;
+      assessmentId: string;
+      evaluatorUserId: string;
+    }
+  | {
+      status: "DRAFT";
+      score: null;
+      maxScore: number;
+      assessmentId: string;
+      evaluatorUserId: string;
+    }
+  | {
+      status: "NOT_STARTED";
+      score: null;
+      maxScore: number;
+      assessmentId: null;
+      evaluatorUserId: null;
+    }
+  | {
+      status: "UNSUPPORTED_ROLE";
+      score: null;
+      maxScore: number;
+      assessmentId: null;
+      evaluatorUserId: null;
+    };
 
 export type PerformanceDimensionBlocker = {
   dimension: PerformanceDimensionKey;

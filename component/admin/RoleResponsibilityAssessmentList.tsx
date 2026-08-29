@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { deleteRoleResponsibilityAssessmentAction } from "@/src/actions/role-responsibility-assessment.actions";
+import {
+  canDeleteStructuredEvaluationDraft,
+  canMutateOwnedStructuredEvaluation,
+  type EmployeeAssessmentActor,
+} from "@/src/lib/employee-assessment-authorization";
 
 export type RoleResponsibilityAssessmentListRow = {
   id: string;
@@ -16,11 +21,14 @@ export type RoleResponsibilityAssessmentListRow = {
   maxScore: number;
   roleAtEvaluation: UserRole;
   employee: { firstName: string; lastName: string };
+  evaluatorUserId: string;
   evaluator: { firstName: string; lastName: string };
 };
 
 type RoleResponsibilityAssessmentListProps = {
   assessments: RoleResponsibilityAssessmentListRow[];
+  /** Ticket 25O §11/§14/§25 — determines each row's action: an ADMIN sees Continuer for their own draft, Voir le détail + Supprimer (cleanup) for anyone else's, and a MANAGER (or COMMERCIAL) sees only Voir le détail, never a mutation control. */
+  actor: EmployeeAssessmentActor;
 };
 
 const MONTH_LABELS = [
@@ -45,6 +53,7 @@ function formatPeriod(periodStart: Date): string {
 
 export default function RoleResponsibilityAssessmentList({
   assessments,
+  actor,
 }: RoleResponsibilityAssessmentListProps) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -128,35 +137,49 @@ export default function RoleResponsibilityAssessmentList({
                   {assessment.evaluator.lastName}
                 </td>
                 <td className="py-2 pr-4">
-                  <div className="flex items-center gap-3">
-                    {assessment.status === "DRAFT" ? (
-                      <>
-                        <Link
-                          href={`/admin/performance-assessments/${assessment.id}`}
-                          className="inline-flex h-9 items-center justify-center rounded-lg bg-[#0f2557] px-3 text-xs font-semibold text-white transition hover:bg-[#0f2557]/90"
-                        >
-                          Continuer l’évaluation
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(assessment.id)}
-                          disabled={pendingId === assessment.id}
-                          className="text-xs font-medium text-slate-400 hover:text-red-600 disabled:opacity-60"
-                        >
-                          {pendingId === assessment.id
-                            ? "Suppression…"
-                            : "Supprimer"}
-                        </button>
-                      </>
-                    ) : (
-                      <Link
-                        href={`/admin/performance-assessments/${assessment.id}`}
-                        className="text-xs font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        Voir le détail
-                      </Link>
-                    )}
-                  </div>
+                  {(() => {
+                    const isDraft = assessment.status === "DRAFT";
+                    const canContinue =
+                      isDraft &&
+                      canMutateOwnedStructuredEvaluation(
+                        actor,
+                        assessment.evaluatorUserId,
+                      );
+                    const canDelete =
+                      isDraft && canDeleteStructuredEvaluationDraft(actor);
+
+                    return (
+                      <div className="flex items-center gap-3">
+                        {canContinue ? (
+                          <Link
+                            href={`/admin/performance-assessments/${assessment.id}`}
+                            className="inline-flex h-9 items-center justify-center rounded-lg bg-[#0f2557] px-3 text-xs font-semibold text-white transition hover:bg-[#0f2557]/90"
+                          >
+                            Continuer l’évaluation
+                          </Link>
+                        ) : (
+                          <Link
+                            href={`/admin/performance-assessments/${assessment.id}`}
+                            className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                          >
+                            Voir le détail
+                          </Link>
+                        )}
+                        {canDelete ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(assessment.id)}
+                            disabled={pendingId === assessment.id}
+                            className="text-xs font-medium text-slate-400 hover:text-red-600 disabled:opacity-60"
+                          >
+                            {pendingId === assessment.id
+                              ? "Suppression…"
+                              : "Supprimer"}
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </td>
               </tr>
             ))}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AdminShell from "@/component/dashboard/AdminShell";
+import { canMutateOwnedStructuredEvaluation } from "@/src/lib/employee-assessment-authorization";
 import {
   formatAchievementRate,
   formatPeriodLabel,
@@ -189,7 +190,8 @@ export default async function PerformanceDashboardPage({
               year={year}
               month={month}
               periodClosed={periodClosed}
-              canAssess={result.canAssess}
+              canCreate={result.canAssess}
+              actor={actor}
               summary={result.summary}
             />
           ) : null}
@@ -206,7 +208,8 @@ function PerformanceSummaryView({
   year,
   month,
   periodClosed,
-  canAssess,
+  canCreate,
+  actor,
   summary,
 }: {
   employeeId: string;
@@ -215,7 +218,8 @@ function PerformanceSummaryView({
   year: number;
   month: number;
   periodClosed: boolean;
-  canAssess: boolean;
+  canCreate: boolean;
+  actor: { id: string; role: "ADMIN" | "MANAGER" };
   summary: PerformanceEvaluationSummary;
 }) {
   return (
@@ -348,7 +352,8 @@ function PerformanceSummaryView({
               dimension="ROLE_RESPONSIBILITIES"
               summary={summary.roleResponsibilities}
               maxScore={20}
-              canAssess={canAssess}
+              canCreate={canCreate}
+              actor={actor}
               periodClosed={periodClosed}
               createHref={`/admin/performance-assessments?employeeId=${employeeId}&year=${year}&month=${month}#role-responsibility`}
               detailHrefBase="/admin/performance-assessments"
@@ -365,7 +370,8 @@ function PerformanceSummaryView({
               dimension="PROFESSIONAL_CONTRIBUTION"
               summary={summary.professionalContribution}
               maxScore={10}
-              canAssess={canAssess}
+              canCreate={canCreate}
+              actor={actor}
               periodClosed={periodClosed}
               createHref={`/admin/performance-assessments?employeeId=${employeeId}&year=${year}&month=${month}#professional-contribution`}
               detailHrefBase="/admin/performance-assessments/professional-contribution"
@@ -410,7 +416,8 @@ function HumanAssessedDimensionContent({
   dimension,
   summary,
   maxScore,
-  canAssess,
+  canCreate,
+  actor,
   periodClosed,
   createHref,
   detailHrefBase,
@@ -419,15 +426,28 @@ function HumanAssessedDimensionContent({
   dimension: "ROLE_RESPONSIBILITIES" | "PROFESSIONAL_CONTRIBUTION";
   summary: StructuredAssessmentDimensionSummary;
   maxScore: number;
-  canAssess: boolean;
+  canCreate: boolean;
+  actor: { id: string; role: "ADMIN" | "MANAGER" };
   periodClosed: boolean;
   createHref: string;
   detailHrefBase: string;
   createLabel: string;
 }) {
+  // Ticket 25O §23: canCreate ("eligible to start a new assessment for
+  // this employee") and canContinue ("is specifically the recorded
+  // evaluator of the existing DRAFT, currently authorized") are
+  // different questions once evaluator authority is ADMIN-only — an
+  // ADMIN can be eligible to assess an employee while unable to
+  // continue a draft someone else authored (or their own draft after
+  // losing ADMIN authority).
+  const canContinue =
+    summary.status === "DRAFT" &&
+    canMutateOwnedStructuredEvaluation(actor, summary.evaluatorUserId);
+
   const actionState: AssessmentActionState = getAssessmentActionState({
     status: summary.status,
-    canAssess,
+    canCreate,
+    canContinue,
     periodClosed,
   });
 
@@ -454,7 +474,7 @@ function HumanAssessedDimensionContent({
   // shouldn't be conflated with "not your call to make" either, so the
   // period-not-closed reason gets its own, more accurate message.
   const unavailabilitySourceStatus =
-    summary.status === "NOT_STARTED" && canAssess && !periodClosed
+    summary.status === "NOT_STARTED" && canCreate && !periodClosed
       ? "PERIOD_NOT_CLOSED"
       : summary.status;
 
@@ -472,6 +492,18 @@ function HumanAssessedDimensionContent({
           className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#0f2557] px-4 text-sm font-semibold text-white transition hover:bg-[#0f2557]/90"
         >
           Continuer l’évaluation
+        </Link>
+      ) : summary.status === "DRAFT" && actionState === "VIEW" ? (
+        // Ticket 25O §24/§25: an existing DRAFT this viewer cannot
+        // continue (e.g. a Manager's own old draft, post-25O; or an
+        // Admin viewing a different evaluator's draft) is still
+        // reachable read-only — never silently hidden, never presented
+        // as if it were submitted.
+        <Link
+          href={`${detailHrefBase}/${summary.assessmentId}`}
+          className="mt-3 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          Voir le détail →
         </Link>
       ) : summary.status === "NOT_STARTED" && actionState === "CREATE" ? (
         <Link

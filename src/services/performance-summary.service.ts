@@ -27,6 +27,16 @@ export type PerformanceSummaryResult =
        * the same shared primitive 25I/25J already gate creation with. Kept
        * entirely separate from canViewEmployeePerformance above: a viewer
        * can see this summary without being allowed to act on it.
+       *
+       * Ticket 25O §23: this specifically means "may this actor start a
+       * brand-new assessment for this employee" (general eligibility) —
+       * it does NOT mean "may this actor continue whatever assessment
+       * already exists." An ADMIN can be eligible to assess an employee
+       * (`canAssess: true`) while still being unable to continue an
+       * existing draft someone else authored; that per-dimension
+       * ownership check lives on each StructuredAssessmentDimensionSummary
+       * via `evaluatorUserId`, resolved by the presentation layer's
+       * getAssessmentActionState, not here.
        */
       canAssess: boolean;
     }
@@ -35,12 +45,24 @@ export type PerformanceSummaryResult =
 
 function toStructuredAssessmentSummary(
   row:
-    | { id: string; status: "DRAFT" | "SUBMITTED"; score: number | null; maxScore: number }
+    | {
+        id: string;
+        status: "DRAFT" | "SUBMITTED";
+        score: number | null;
+        maxScore: number;
+        evaluatorUserId: string;
+      }
     | null,
   maxScore: number,
 ): StructuredAssessmentDimensionSummary {
   if (!row) {
-    return { status: "NOT_STARTED", score: null, maxScore, assessmentId: null };
+    return {
+      status: "NOT_STARTED",
+      score: null,
+      maxScore,
+      assessmentId: null,
+      evaluatorUserId: null,
+    };
   }
   if (row.status === "SUBMITTED" && row.score !== null) {
     return {
@@ -48,6 +70,7 @@ function toStructuredAssessmentSummary(
       score: row.score,
       maxScore: row.maxScore,
       assessmentId: row.id,
+      evaluatorUserId: row.evaluatorUserId,
     };
   }
   return {
@@ -55,6 +78,7 @@ function toStructuredAssessmentSummary(
     score: null,
     maxScore: row.maxScore,
     assessmentId: row.id,
+    evaluatorUserId: row.evaluatorUserId,
   };
 }
 
@@ -121,10 +145,22 @@ export async function getEmployeePerformanceSummary(
     executionDiscipline,
     roleResponsibilities: roleResponsibilitySupported
       ? toStructuredAssessmentSummary(roleResponsibilityRow, 20)
-      : { status: "UNSUPPORTED_ROLE", score: null, maxScore: 20, assessmentId: null },
+      : {
+          status: "UNSUPPORTED_ROLE",
+          score: null,
+          maxScore: 20,
+          assessmentId: null,
+          evaluatorUserId: null,
+        },
     professionalContribution: professionalContributionSupported
       ? toStructuredAssessmentSummary(professionalContributionRow, 10)
-      : { status: "UNSUPPORTED_ROLE", score: null, maxScore: 10, assessmentId: null },
+      : {
+          status: "UNSUPPORTED_ROLE",
+          score: null,
+          maxScore: 10,
+          assessmentId: null,
+          evaluatorUserId: null,
+        },
   });
 
   const canAssess = canAssessEmployeeInStructuredEvaluation(

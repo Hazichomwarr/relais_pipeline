@@ -52,10 +52,14 @@ test("Ticket 25K.2 §27: an assessment id in the URL is untrusted — the page r
   );
 });
 
-test("Ticket 25K.2 §28/§29: canEdit requires both DRAFT status and evaluator ownership — never granted to a different authorized manager, mirroring 25J's own evaluatorUserId check", () => {
+test("Ticket 25O §12/§17: canEdit requires both DRAFT status and canMutateOwnedStructuredEvaluation (current ADMIN authority AND evaluator ownership) — a MANAGER-authored legacy draft, or another ADMIN's draft, is never editable here", () => {
   assert.match(
     source,
-    /const canEdit =\s*\n\s*assessment\.status === "DRAFT" && actor\.id === assessment\.evaluatorUserId;/,
+    /const canEdit =\s*\n\s*assessment\.status === "DRAFT" &&\s*\n\s*canMutateOwnedStructuredEvaluation\(actor, assessment\.evaluatorUserId\);/,
+  );
+  assert.match(
+    source,
+    /import \{ canMutateOwnedStructuredEvaluation \} from "@\/src\/lib\/employee-assessment-authorization";/,
   );
 });
 

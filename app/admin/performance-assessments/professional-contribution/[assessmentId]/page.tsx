@@ -8,6 +8,7 @@ import {
   AuthorizationError,
   requireProfessionalContributionAssessmentManagementAccess,
 } from "@/src/services/authorization.service";
+import { canMutateOwnedStructuredEvaluation } from "@/src/lib/employee-assessment-authorization";
 import { canViewEmployeePerformance } from "@/src/services/performance-summary.service-core";
 import { getProfessionalContributionAssessmentDetail } from "@/src/services/professional-contribution.service";
 
@@ -49,14 +50,15 @@ export default async function ProfessionalContributionAssessmentDetailPage({
     notFound();
   }
 
-  // Ticket 25K.2 §28/§29 — editing is evaluator-exclusive in 25J's own
-  // domain core (assessProfessionalContributionItemCore/submit/delete
-  // all reject any actor.id other than evaluatorUserId); this mirrors
-  // that shipped policy for the page's read-only/editable split rather
-  // than inventing a broader "any authorized manager may continue" rule
-  // the domain never actually offers.
+  // Ticket 25O §12/§17: editing requires current ADMIN authority AND
+  // recorded-evaluator identity — canMutateOwnedStructuredEvaluation is
+  // the exact same check assessProfessionalContributionItemCore/submit
+  // now enforce server-side, so a legacy MANAGER-owned draft (or an
+  // ADMIN viewing someone else's draft) correctly renders read-only
+  // here instead of offering controls that would fail on click.
   const canEdit =
-    assessment.status === "DRAFT" && actor.id === assessment.evaluatorUserId;
+    assessment.status === "DRAFT" &&
+    canMutateOwnedStructuredEvaluation(actor, assessment.evaluatorUserId);
 
   // Ticket 25K.1 §24 — derived from the assessment's own already-loaded
   // period/employee, not a forwarded query param: this link works

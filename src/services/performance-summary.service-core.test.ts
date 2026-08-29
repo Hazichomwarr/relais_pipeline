@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { CommercialResultsResult } from "./commercial-results.service-core";
 import type { ExecutionDisciplineResult } from "./execution-discipline.service-core";
+import { canAssessEmployeeInStructuredEvaluation } from "@/src/lib/employee-assessment-authorization";
 import {
   canViewEmployeePerformance,
   composePerformanceSummary,
@@ -121,7 +122,13 @@ function submittedAssessment(
   score: number,
   maxScore: number,
 ): StructuredAssessmentDimensionSummary {
-  return { status: "SUBMITTED", score, maxScore, assessmentId: "assessment-1" };
+  return {
+    status: "SUBMITTED",
+    score,
+    maxScore,
+    assessmentId: "assessment-1",
+    evaluatorUserId: "evaluator-1",
+  };
 }
 
 function notFinalizedAssessment(
@@ -129,8 +136,14 @@ function notFinalizedAssessment(
   maxScore: number,
 ): StructuredAssessmentDimensionSummary {
   return status === "DRAFT"
-    ? { status, score: null, maxScore, assessmentId: "assessment-1" }
-    : { status, score: null, maxScore, assessmentId: null };
+    ? {
+        status,
+        score: null,
+        maxScore,
+        assessmentId: "assessment-1",
+        evaluatorUserId: "evaluator-1",
+      }
+    : { status, score: null, maxScore, assessmentId: null, evaluatorUserId: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -330,8 +343,20 @@ test("Ticket 25K.1 §15: an ADMIN employee's human dimensions carry the true UNS
   const summary = composePerformanceSummary({
     results: blockedResults("UNSUPPORTED_ROLE"),
     executionDiscipline: blockedExecution("UNSUPPORTED_ROLE"),
-    roleResponsibilities: { status: "UNSUPPORTED_ROLE", score: null, maxScore: 20, assessmentId: null },
-    professionalContribution: { status: "UNSUPPORTED_ROLE", score: null, maxScore: 10, assessmentId: null },
+    roleResponsibilities: {
+      status: "UNSUPPORTED_ROLE",
+      score: null,
+      maxScore: 20,
+      assessmentId: null,
+      evaluatorUserId: null,
+    },
+    professionalContribution: {
+      status: "UNSUPPORTED_ROLE",
+      score: null,
+      maxScore: 10,
+      assessmentId: null,
+      evaluatorUserId: null,
+    },
   });
 
   assert.equal(summary.status, "INCOMPLETE");
@@ -370,4 +395,35 @@ test("§34: COMMERCIAL may never view the management dashboard, for any employee
   for (const employeeRole of ["COMMERCIAL", "MANAGER", "ADMIN"] as const) {
     assert.equal(canViewEmployeePerformance("COMMERCIAL", employeeRole), false);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25O §53: viewing and mutating remain two separate authorization
+// checks — narrowing evaluator authority to ADMIN must never touch who may
+// view the dashboard, and a viewer's eligibility must never leak into
+// assessment eligibility.
+// ---------------------------------------------------------------------------
+
+test("Ticket 25O §53: a MANAGER who is authorized to view a COMMERCIAL's performance dashboard is NOT thereby authorized to assess that COMMERCIAL's structured evaluations — viewing and evaluator authority are independent checks", () => {
+  assert.equal(canViewEmployeePerformance("MANAGER", "COMMERCIAL"), true);
+  assert.equal(
+    canAssessEmployeeInStructuredEvaluation(
+      { id: "manager-1", role: "MANAGER" },
+      "COMMERCIAL",
+      "commercial-1",
+    ),
+    false,
+  );
+});
+
+test("Ticket 25O §53: ADMIN is the only role for which viewing and structured-evaluation authority coincide — this is a coincidence of both matrices independently naming ADMIN, not a shared implementation", () => {
+  assert.equal(canViewEmployeePerformance("ADMIN", "COMMERCIAL"), true);
+  assert.equal(
+    canAssessEmployeeInStructuredEvaluation(
+      { id: "admin-1", role: "ADMIN" },
+      "COMMERCIAL",
+      "commercial-1",
+    ),
+    true,
+  );
 });

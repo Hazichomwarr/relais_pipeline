@@ -138,16 +138,26 @@ test("§65: latestClosedMonth correctly rolls back across a year boundary in Jan
 });
 
 // ---------------------------------------------------------------------------
-// Ticket 25K.1 §5/§6/§10/§11/§13/§15/§23: getAssessmentActionState
+// Ticket 25K.1 §5/§6/§10/§11/§13/§15/§23, Ticket 25O §23: getAssessmentActionState
 // ---------------------------------------------------------------------------
 
-test("Ticket 25K.1 §11: a SUBMITTED assessment always resolves to VIEW, regardless of assess authority", () => {
+test("Ticket 25K.1 §11: a SUBMITTED assessment always resolves to VIEW, regardless of create/continue authority", () => {
   assert.equal(
-    getAssessmentActionState({ status: "SUBMITTED", canAssess: true, periodClosed: true }),
+    getAssessmentActionState({
+      status: "SUBMITTED",
+      canCreate: true,
+      canContinue: true,
+      periodClosed: true,
+    }),
     "VIEW",
   );
   assert.equal(
-    getAssessmentActionState({ status: "SUBMITTED", canAssess: false, periodClosed: false }),
+    getAssessmentActionState({
+      status: "SUBMITTED",
+      canCreate: false,
+      canContinue: false,
+      periodClosed: false,
+    }),
     "VIEW",
   );
 });
@@ -156,51 +166,80 @@ test("Ticket 25K.1 §15: UNSUPPORTED_ROLE never offers a CTA, even to an otherwi
   assert.equal(
     getAssessmentActionState({
       status: "UNSUPPORTED_ROLE",
-      canAssess: true,
+      canCreate: true,
+      canContinue: true,
       periodClosed: true,
     }),
     "NONE",
   );
 });
 
-test("Ticket 25K.1 §13: an unauthorized viewer never sees a CREATE or CONTINUE CTA", () => {
+test("Ticket 25K.1 §13: a viewer who cannot create a new assessment sees no CTA for NOT_STARTED", () => {
   assert.equal(
     getAssessmentActionState({
       status: "NOT_STARTED",
-      canAssess: false,
+      canCreate: false,
+      canContinue: false,
       periodClosed: true,
     }),
     "NONE",
   );
-  assert.equal(
-    getAssessmentActionState({ status: "DRAFT", canAssess: false, periodClosed: true }),
-    "NONE",
-  );
 });
 
-test("Ticket 25K.1 §10: an existing DRAFT resolves to CONTINUE for an authorized evaluator, never a second CREATE", () => {
+test("Ticket 25K.1 §10: an existing DRAFT resolves to CONTINUE for its recorded evaluator, never a second CREATE", () => {
   assert.equal(
-    getAssessmentActionState({ status: "DRAFT", canAssess: true, periodClosed: true }),
+    getAssessmentActionState({
+      status: "DRAFT",
+      canCreate: true,
+      canContinue: true,
+      periodClosed: true,
+    }),
     "CONTINUE",
   );
 });
 
-test("Ticket 25K.1 §23: NOT_STARTED with an authorized evaluator but a still-open period offers no CTA (25I/25J refuse creation before period close)", () => {
+test("Ticket 25O §23: a DRAFT this viewer cannot continue (not its recorded evaluator, or not currently ADMIN) resolves to VIEW, not NONE — the existing assessment is never hidden entirely", () => {
+  assert.equal(
+    getAssessmentActionState({
+      status: "DRAFT",
+      canCreate: true,
+      canContinue: false,
+      periodClosed: true,
+    }),
+    "VIEW",
+  );
+  // Even a viewer with no create eligibility at all (e.g. a MANAGER,
+  // post-25O) still sees VIEW for an existing draft — canContinue is
+  // the only thing that gates DRAFT, not canCreate.
+  assert.equal(
+    getAssessmentActionState({
+      status: "DRAFT",
+      canCreate: false,
+      canContinue: false,
+      periodClosed: true,
+    }),
+    "VIEW",
+  );
+});
+
+test("Ticket 25K.1 §23: NOT_STARTED with create eligibility but a still-open period offers no CTA (25I/25J refuse creation before period close)", () => {
   assert.equal(
     getAssessmentActionState({
       status: "NOT_STARTED",
-      canAssess: true,
+      canCreate: true,
+      canContinue: false,
       periodClosed: false,
     }),
     "NONE",
   );
 });
 
-test("Ticket 25K.1 §5/§6: NOT_STARTED with an authorized evaluator and a closed period offers CREATE", () => {
+test("Ticket 25K.1 §5/§6: NOT_STARTED with create eligibility and a closed period offers CREATE", () => {
   assert.equal(
     getAssessmentActionState({
       status: "NOT_STARTED",
-      canAssess: true,
+      canCreate: true,
+      canContinue: false,
       periodClosed: true,
     }),
     "CREATE",

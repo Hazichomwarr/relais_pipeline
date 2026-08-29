@@ -173,7 +173,13 @@ export async function getProfessionalContributionAssessmentForEmployeePeriod(
         periodEnd: period.periodEnd,
       },
     },
-    select: { id: true, status: true, score: true, maxScore: true },
+    select: {
+      id: true,
+      status: true,
+      score: true,
+      maxScore: true,
+      evaluatorUserId: true,
+    },
   });
 }
 
@@ -206,6 +212,7 @@ export async function listProfessionalContributionAssessmentsForManagement(
       maxScore: true,
       roleAtEvaluation: true,
       employee: { select: { id: true, firstName: true, lastName: true } },
+      evaluatorUserId: true,
       evaluator: { select: { firstName: true, lastName: true } },
       createdAt: true,
     },

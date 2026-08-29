@@ -64,7 +64,7 @@ test("§66: the core file never imports Execution Discipline's or Results' scori
 });
 
 // ---------------------------------------------------------------------------
-// §67: authorization matrix
+// §67: authorization matrix (narrowed to ADMIN-only by Ticket 25O)
 // ---------------------------------------------------------------------------
 
 test("§67/§21: nobody can assess themselves, regardless of role", () => {
@@ -95,17 +95,23 @@ test("§67: a COMMERCIAL can never assess anyone", () => {
   );
 });
 
-test("§67: ADMIN and MANAGER may both assess a COMMERCIAL", () => {
-  for (const assessorRole of ["ADMIN", "MANAGER"] as const) {
-    assert.equal(
-      canAssessRoleResponsibilities(
-        actor("assessor-1", assessorRole),
-        "COMMERCIAL",
-        "commercial-b",
-      ),
-      true,
-    );
-  }
+test("Ticket 25O §4/§44: only ADMIN may assess a COMMERCIAL — MANAGER lost this authority (was previously allowed alongside ADMIN)", () => {
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("admin-1", "ADMIN"),
+      "COMMERCIAL",
+      "commercial-b",
+    ),
+    true,
+  );
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("manager-a", "MANAGER"),
+      "COMMERCIAL",
+      "commercial-b",
+    ),
+    false,
+  );
 });
 
 test("§67/§20: only ADMIN may assess a MANAGER — a peer MANAGER may not", () => {
@@ -137,6 +143,46 @@ test("§67/§6/§20: nobody may assess an ADMIN — no supported evaluator path 
       ),
       false,
     );
+  }
+});
+
+test("Ticket 25O §44: the complete evaluator authorization matrix — ADMIN may assess any supported subject; MANAGER, COMMERCIAL, and ASSISTANT may assess nobody, for any subject role", () => {
+  for (const employeeRole of ["COMMERCIAL", "MANAGER"] as const) {
+    assert.equal(
+      canAssessRoleResponsibilities(
+        actor("admin-1", "ADMIN"),
+        employeeRole,
+        `${employeeRole}-target`,
+      ),
+      true,
+      `ADMIN should be able to assess a supported ${employeeRole}`,
+    );
+
+    for (const assessorRole of ["MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+      assert.equal(
+        canAssessRoleResponsibilities(
+          actor("assessor-1", assessorRole),
+          employeeRole,
+          `${employeeRole}-target`,
+        ),
+        false,
+        `${assessorRole} should never be able to assess a ${employeeRole}`,
+      );
+    }
+  }
+
+  for (const unsupportedTargetRole of ["ADMIN", "ASSISTANT"] as const) {
+    for (const assessorRole of ["ADMIN", "MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+      assert.equal(
+        canAssessRoleResponsibilities(
+          actor("assessor-1", assessorRole),
+          unsupportedTargetRole,
+          `${unsupportedTargetRole}-target`,
+        ),
+        false,
+        `${assessorRole} should never be able to assess an unsupported ${unsupportedTargetRole} subject`,
+      );
+    }
   }
 });
 
@@ -617,7 +663,7 @@ test("§72/§14/§15: no N/A concept exists on the item — only UNASSESSED (nul
 // structural guarantee, not a live re-check
 // ---------------------------------------------------------------------------
 
-test("§75/§76: assessing, submitting, and deleting never re-fetch the employee or re-check anyone's current role — only identity (evaluatorUserId) and status are consulted", () => {
+test("§75/§76: assessing, submitting, and deleting never re-fetch the employee — Ticket 25O's actor.role re-check (§7) uses the already-passed actor parameter, not a new lookup", () => {
   const source = readFileSync(
     "src/services/role-responsibility-assessment.service-core.ts",
     "utf8",
@@ -626,4 +672,239 @@ test("§75/§76: assessing, submitting, and deleting never re-fetch the employee
 
   assert.doesNotMatch(afterCreate, /findEmployee/);
   assert.doesNotMatch(afterCreate, /\.role\s*!==\s*"COMMERCIAL"/);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25O §46-51: mutation-layer role re-check — closing the 25L gap
+// ---------------------------------------------------------------------------
+
+test("Ticket 25O §46: a legacy MANAGER-owned DRAFT can no longer be edited or submitted by that same MANAGER — this is the most important regression in 25O", async () => {
+  const legacyManagerDraft = draftAssessment({ evaluatorUserId: "manager-1" });
+
+  const assessResult = await assessRoleResponsibilityItemCore(
+    actor("manager-1", "MANAGER"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => legacyManagerDraft,
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("update must not be called for a MANAGER, even the recorded evaluator");
+      },
+    },
+  );
+  assert.equal(assessResult.success, false);
+  if (!assessResult.success) assert.equal(assessResult.code, "ACCESS_DENIED");
+
+  const submitResult = await submitRoleResponsibilityAssessmentCore(
+    actor("manager-1", "MANAGER"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "manager-1",
+        items: [{ id: "item-1", awardedPoints: 17 }],
+      }),
+      submit: async () => {
+        assert.fail("submit must not be called for a MANAGER, even the recorded evaluator");
+      },
+    },
+  );
+  assert.equal(submitResult.success, false);
+  if (!submitResult.success) assert.equal(submitResult.code, "ACCESS_DENIED");
+});
+
+test("Ticket 25O §47: an ADMIN who is not the recorded evaluator may not edit or submit someone else's draft — mutating it would silently transfer authorship", async () => {
+  const otherEvaluatorsDraft = draftAssessment({ evaluatorUserId: "manager-1" });
+
+  const assessResult = await assessRoleResponsibilityItemCore(
+    actor("admin-2", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => otherEvaluatorsDraft,
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("update must not be called for a non-recorded-evaluator ADMIN");
+      },
+    },
+  );
+  assert.equal(assessResult.success, false);
+  if (!assessResult.success) assert.equal(assessResult.code, "ACCESS_DENIED");
+
+  const submitResult = await submitRoleResponsibilityAssessmentCore(
+    actor("admin-2", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "manager-1",
+        items: [{ id: "item-1", awardedPoints: 17 }],
+      }),
+      submit: async () => {
+        assert.fail("submit must not be called for a non-recorded-evaluator ADMIN");
+      },
+    },
+  );
+  assert.equal(submitResult.success, false);
+  if (!submitResult.success) assert.equal(submitResult.code, "ACCESS_DENIED");
+});
+
+test("Ticket 25O §48: delete is deliberately NOT ownership-gated — an ADMIN may clean up a stranded MANAGER-owned DRAFT, but the MANAGER themself may not delete it, and nobody may delete a SUBMITTED assessment", async () => {
+  const adminCleanup = await deleteRoleResponsibilityAssessmentCore(
+    actor("admin-2", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "manager-1",
+      }),
+      delete: async () => {},
+    },
+  );
+  assert.equal(adminCleanup.success, true);
+
+  const managerSelfDelete = await deleteRoleResponsibilityAssessmentCore(
+    actor("manager-1", "MANAGER"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "manager-1",
+      }),
+      delete: async () => {
+        assert.fail("delete must not be called for a MANAGER, even the recorded evaluator");
+      },
+    },
+  );
+  assert.equal(managerSelfDelete.success, false);
+  if (!managerSelfDelete.success) assert.equal(managerSelfDelete.code, "ACCESS_DENIED");
+
+  const submittedDelete = await deleteRoleResponsibilityAssessmentCore(
+    actor("admin-2", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "SUBMITTED",
+        evaluatorUserId: "manager-1",
+      }),
+      delete: async () => {
+        assert.fail("delete must not be called on a SUBMITTED assessment, regardless of actor");
+      },
+    },
+  );
+  assert.equal(submittedDelete.success, false);
+  if (!submittedDelete.success) assert.equal(submittedDelete.code, "ASSESSMENT_LOCKED");
+});
+
+test("Ticket 25O §49: an ADMIN-owned DRAFT's own recorded evaluator can still assess an item and submit — the happy path is unaffected by the narrowing", async () => {
+  const ownDraft = draftAssessment({ evaluatorUserId: "admin-1" });
+
+  const assessResult = await assessRoleResponsibilityItemCore(
+    actor("admin-1", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => ownDraft,
+      findItem: async () => itemRow(),
+      update: async () => {},
+    },
+  );
+  assert.equal(assessResult.success, true);
+
+  const submitResult = await submitRoleResponsibilityAssessmentCore(
+    actor("admin-1", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessmentWithItems: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "admin-1",
+        items: [{ id: "item-1", awardedPoints: 17 }],
+      }),
+      submit: async () => {},
+    },
+  );
+  assert.equal(submitResult.success, true);
+});
+
+test("Ticket 25O §50: a different ADMIN than the recorded evaluator may delete an abandoned Admin-authored DRAFT (cleanup policy), even though they may not edit or submit it", async () => {
+  const adminADraft = draftAssessment({ evaluatorUserId: "admin-a" });
+
+  const editByAdminB = await assessRoleResponsibilityItemCore(
+    actor("admin-b", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => adminADraft,
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("update must not be called for a different ADMIN than the recorded evaluator");
+      },
+    },
+  );
+  assert.equal(editByAdminB.success, false);
+  if (!editByAdminB.success) assert.equal(editByAdminB.code, "ACCESS_DENIED");
+
+  const deleteByAdminB = await deleteRoleResponsibilityAssessmentCore(
+    actor("admin-b", "ADMIN"),
+    "assessment-1",
+    {
+      findAssessment: async () => ({
+        id: "assessment-1",
+        status: "DRAFT",
+        evaluatorUserId: "admin-a",
+      }),
+      delete: async () => {},
+    },
+  );
+  assert.equal(deleteByAdminB.success, true);
+});
+
+test("Ticket 25O §51: current role always wins over ownership — an evaluator who has since become MANAGER loses mutation rights on their own former-ADMIN draft, and one who has since become ADMIN gains them on their own legacy MANAGER-era draft", async () => {
+  const formerAdminDraft = draftAssessment({ evaluatorUserId: "user-1" });
+  const nowManager = await assessRoleResponsibilityItemCore(
+    actor("user-1", "MANAGER"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => formerAdminDraft,
+      findItem: async () => itemRow(),
+      update: async () => {
+        assert.fail("a demoted actor must lose mutation rights on their own former draft");
+      },
+    },
+  );
+  assert.equal(nowManager.success, false);
+  if (!nowManager.success) assert.equal(nowManager.code, "ACCESS_DENIED");
+
+  const legacyManagerEraDraft = draftAssessment({ evaluatorUserId: "user-2" });
+  const nowAdmin = await assessRoleResponsibilityItemCore(
+    actor("user-2", "ADMIN"),
+    "assessment-1",
+    "item-1",
+    "MET",
+    null,
+    {
+      findAssessment: async () => legacyManagerEraDraft,
+      findItem: async () => itemRow(),
+      update: async () => {},
+    },
+  );
+  assert.equal(nowAdmin.success, true);
 });

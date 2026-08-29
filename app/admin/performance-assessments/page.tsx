@@ -54,13 +54,18 @@ export default async function PerformanceAssessmentsPage({
 }: {
   searchParams: PerformanceAssessmentsSearchParams;
 }) {
+  let actor: { id: string; role: "ADMIN" | "MANAGER" };
   let actorRole: "ADMIN" | "MANAGER";
 
   try {
     // Both dimensions currently share the exact same coarse ADMIN/MANAGER
-    // gate; either require* wrapper resolves the same actor.
-    const actor = await requireRoleResponsibilityAssessmentManagementAccess();
-    actorRole = actor.role as "ADMIN" | "MANAGER";
+    // gate (Ticket 25O §3/§22: this is the VIEW boundary, preserved —
+    // Manager keeps read-only access to this list; only the create
+    // forms below are now ADMIN-only, and every mutation is
+    // independently re-authorized server-side regardless of this gate).
+    const authenticated = await requireRoleResponsibilityAssessmentManagementAccess();
+    actorRole = authenticated.role as "ADMIN" | "MANAGER";
+    actor = { id: authenticated.id, role: actorRole };
   } catch (error) {
     if (error instanceof AuthorizationError) {
       redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
@@ -111,17 +116,19 @@ export default async function PerformanceAssessmentsPage({
             Les responsabilités spécifiques au rôle de l’employé.
           </p>
 
-          <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-            <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
-              Nouvelle évaluation
-            </h3>
-            <RoleResponsibilityAssessmentForm
-              employees={roleResponsibilityEmployees}
-              initialEmployeeId={initialEmployeeId}
-              initialYear={initialYear}
-              initialMonth={initialMonth}
-            />
-          </div>
+          {actorRole === "ADMIN" ? (
+            <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+              <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
+                Nouvelle évaluation
+              </h3>
+              <RoleResponsibilityAssessmentForm
+                employees={roleResponsibilityEmployees}
+                initialEmployeeId={initialEmployeeId}
+                initialYear={initialYear}
+                initialMonth={initialMonth}
+              />
+            </div>
+          ) : null}
 
           <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
@@ -129,6 +136,7 @@ export default async function PerformanceAssessmentsPage({
             </h3>
             <RoleResponsibilityAssessmentList
               assessments={roleResponsibilityAssessments}
+              actor={actor}
             />
           </div>
         </section>
@@ -143,17 +151,19 @@ export default async function PerformanceAssessmentsPage({
             responsabilités de rôle.
           </p>
 
-          <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-            <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
-              Nouvelle évaluation
-            </h3>
-            <ProfessionalContributionAssessmentForm
-              employees={professionalContributionEmployees}
-              initialEmployeeId={initialEmployeeId}
-              initialYear={initialYear}
-              initialMonth={initialMonth}
-            />
-          </div>
+          {actorRole === "ADMIN" ? (
+            <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+              <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
+                Nouvelle évaluation
+              </h3>
+              <ProfessionalContributionAssessmentForm
+                employees={professionalContributionEmployees}
+                initialEmployeeId={initialEmployeeId}
+                initialYear={initialYear}
+                initialMonth={initialMonth}
+              />
+            </div>
+          ) : null}
 
           <div className="mt-4 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
             <h3 className="mb-4 text-lg font-semibold text-[#0f2557]">
@@ -161,6 +171,7 @@ export default async function PerformanceAssessmentsPage({
             </h3>
             <ProfessionalContributionAssessmentList
               assessments={professionalContributionAssessments}
+              actor={actor}
             />
           </div>
         </section>

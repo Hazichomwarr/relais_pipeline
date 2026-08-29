@@ -55,13 +55,30 @@ export function describeDimensionUnavailability(
  * action, if any, a Role Responsibilities/Professional Contribution card
  * offers. Pure and testable on purpose: the dashboard page must never
  * re-derive this matrix inline in JSX, and must never show a CTA to a
- * viewer `canAssess` says isn't authorized, regardless of status.
+ * viewer authorization says isn't allowed, regardless of status.
+ *
+ * Ticket 25O §23: split the old single `canAssess` input into two,
+ * because they answer genuinely different questions once evaluator
+ * authority narrowed to ADMIN-only:
+ * - `canCreate` — may this actor start a brand-new assessment for this
+ *   employee at all (general eligibility: ADMIN + supported subject).
+ * - `canContinue` — may this actor specifically continue the assessment
+ *   that already exists (current ADMIN authority AND being its recorded
+ *   evaluator — see canMutateOwnedStructuredEvaluation). An ADMIN can
+ *   have `canCreate: true` for an employee while `canContinue: false`
+ *   for that same employee's existing draft, if someone else authored
+ *   it (§14/§47) — the two were conflated pre-25O only because, before
+ *   ADMIN-only authority, nothing distinguished "eligible to assess"
+ *   from "the one who did." A DRAFT with `canContinue: false` now
+ *   resolves to VIEW, not NONE, so an existing assessment is never
+ *   hidden entirely just because this viewer can't mutate it.
  */
 export type AssessmentActionState = "NONE" | "CREATE" | "CONTINUE" | "VIEW";
 
 export function getAssessmentActionState(input: {
   status: "SUBMITTED" | "DRAFT" | "NOT_STARTED" | "UNSUPPORTED_ROLE";
-  canAssess: boolean;
+  canCreate: boolean;
+  canContinue: boolean;
   periodClosed: boolean;
 }): AssessmentActionState {
   if (input.status === "SUBMITTED") {
@@ -70,15 +87,16 @@ export function getAssessmentActionState(input: {
   if (input.status === "UNSUPPORTED_ROLE") {
     return "NONE";
   }
-  if (!input.canAssess) {
+  if (input.status === "DRAFT") {
+    return input.canContinue ? "CONTINUE" : "VIEW";
+  }
+  // NOT_STARTED
+  if (!input.canCreate) {
     return "NONE";
   }
-  if (input.status === "DRAFT") {
-    return "CONTINUE";
-  }
-  // NOT_STARTED: 25I/25J both refuse creation before the period closes
-  // (§23) — a CREATE CTA that would just bounce off that check on click
-  // is worse than no CTA at all.
+  // 25I/25J both refuse creation before the period closes (§23 of
+  // 25K.1) — a CREATE CTA that would just bounce off that check on
+  // click is worse than no CTA at all.
   return input.periodClosed ? "CREATE" : "NONE";
 }
 
