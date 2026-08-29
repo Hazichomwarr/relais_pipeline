@@ -37,6 +37,12 @@ export default async function UsersPage() {
           </p>
           <div className="mt-3 flex flex-wrap gap-4">
             <Link
+              href="/admin/performance"
+              className="text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
+              Performance : vue d’ensemble →
+            </Link>
+            <Link
               href="/admin/performance-targets"
               className="text-sm font-medium text-blue-600 hover:text-blue-700"
             >

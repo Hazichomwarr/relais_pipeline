@@ -7,6 +7,8 @@ import {
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  PERFORMANCE_DASHBOARD_ACCESS_ROLES,
+  PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
@@ -163,6 +165,48 @@ test("requireRoleCore denies COMMERCIAL the Role Responsibility assessment gate 
       requireRoleCore(
         { user: makeUser("COMMERCIAL") },
         ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
+      ),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER through the coarse Professional Contribution assessment gate (Ticket 25J)", () => {
+  for (const role of PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL the Professional Contribution assessment gate outright — no self-assessment path (Ticket 25J §39)", () => {
+  assert.throws(
+    () =>
+      requireRoleCore(
+        { user: makeUser("COMMERCIAL") },
+        PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
+      ),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER through the coarse performance dashboard gate (Ticket 25K)", () => {
+  for (const role of PERFORMANCE_DASHBOARD_ACCESS_ROLES) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      PERFORMANCE_DASHBOARD_ACCESS_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL the performance dashboard gate outright (Ticket 25K §34)", () => {
+  assert.throws(
+    () =>
+      requireRoleCore(
+        { user: makeUser("COMMERCIAL") },
+        PERFORMANCE_DASHBOARD_ACCESS_ROLES,
       ),
     hasCode("ACCESS_DENIED"),
   );

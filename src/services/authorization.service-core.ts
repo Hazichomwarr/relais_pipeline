@@ -104,6 +104,34 @@ export const ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES: UserRole[] = [
   "MANAGER",
 ];
 
+/**
+ * Ticket 25J — same coarse-gate shape as
+ * ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES, kept as its own
+ * constant rather than reused (the two features' access lists are
+ * identical today by coincidence, same reasoning documented on every
+ * other constant in this file) — the fine per-employee rule lives in
+ * canAssessProfessionalContribution / canAssessEmployeeInStructuredEvaluation
+ * (src/lib/employee-assessment-authorization.ts), not here.
+ */
+export const PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES: UserRole[] =
+  ["ADMIN", "MANAGER"];
+
+/**
+ * Ticket 25K — the coarse gate for the performance dashboard route
+ * itself: ADMIN or MANAGER may open it at all. Identical to the two
+ * assessment-management role lists today by coincidence, kept separate
+ * for the same reason every other constant in this file is. The finer
+ * "which specific employee may this actor view" rule is
+ * canViewEmployeePerformance (performance-summary.service-core.ts) —
+ * deliberately not reused from the assessment-authority rules, since
+ * viewing and assessing are different permissions (see that function's
+ * own comment).
+ */
+export const PERFORMANCE_DASHBOARD_ACCESS_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

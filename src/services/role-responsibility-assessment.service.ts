@@ -18,6 +18,7 @@ import {
   createRoleResponsibilityAssessmentCore,
   deleteRoleResponsibilityAssessmentCore,
   submitRoleResponsibilityAssessmentCore,
+  type RoleResponsibilityAssessmentPeriod,
 } from "@/src/services/role-responsibility-assessment.service-core";
 
 function toAnchors(value: unknown): readonly RoleResponsibilityAnchor[] {
@@ -241,6 +242,30 @@ export async function getRoleResponsibilityAssessmentDetail(
       anchorsSnapshot: toAnchors(item.anchorsSnapshot),
     })),
   };
+}
+
+/**
+ * Ticket 25K — exact-period lookup for dashboard composition, mirroring
+ * getCommercialPerformanceTarget's "no fallback" contract: `null` when
+ * no assessment exists for this exact period, never "the latest one."
+ * Deliberately minimal (no items) — the composition dashboard only needs
+ * status/score to decide dimension availability; the full detail route
+ * already exists at getRoleResponsibilityAssessmentDetail for drill-down.
+ */
+export async function getRoleResponsibilityAssessmentForEmployeePeriod(
+  employeeId: string,
+  period: RoleResponsibilityAssessmentPeriod,
+) {
+  return prisma.roleResponsibilityAssessment.findUnique({
+    where: {
+      employeeUserId_periodStart_periodEnd: {
+        employeeUserId: employeeId,
+        periodStart: period.periodStart,
+        periodEnd: period.periodEnd,
+      },
+    },
+    select: { id: true, status: true, score: true, maxScore: true },
+  });
 }
 
 /**

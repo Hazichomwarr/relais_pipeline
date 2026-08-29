@@ -1,5 +1,6 @@
 import type { UserRole } from "@prisma/client";
 
+import { canAssessEmployeeInStructuredEvaluation } from "@/src/lib/employee-assessment-authorization";
 import {
   findRoleResponsibilityDefinition,
   getRoleResponsibilityCatalogForRole,
@@ -39,38 +40,17 @@ export type RoleResponsibilityAssessmentEmployeeRecord = {
 /**
  * Ticket 25I §20/§21 — who may assess whom. Depends on the *target's*
  * role, not only the actor's, so this cannot live as a flat role-array
- * constant the way authorization.service-core.ts's other lists do:
+ * constant the way authorization.service-core.ts's other lists do.
  *
- * - COMMERCIAL assessed by: ADMIN or MANAGER (organization-wide, same
- *   limitation as CommercialPerformanceTarget's authority — no
- *   manager-of-employee hierarchy exists yet).
- * - MANAGER assessed by: ADMIN only. A peer MANAGER assessing another
- *   MANAGER, with no hierarchy to justify it, would be exactly the
- *   arbitrary authority the audit warned against — narrower is safer.
- * - ADMIN assessed by: nobody. No responsibility survived audit for
- *   ADMIN (see the catalog's own comment) and no valid internal
- *   evaluator exists for one even if a responsibility did.
- * - Self-assessment is never permitted, regardless of role (§21).
+ * Ticket 25J §8: this rule turned out to be exactly the evaluator
+ * authority Professional Contribution needs too, so the implementation
+ * now lives in the shared, neutral
+ * src/lib/employee-assessment-authorization.ts (see its own comment for
+ * the full matrix) — this is a thin re-export under the name every
+ * existing call site and test in this file already uses, not a new rule.
  */
-export function canAssessRoleResponsibilities(
-  actor: RoleResponsibilityAssessmentActor,
-  employeeRole: UserRole,
-  employeeId: string,
-): boolean {
-  if (actor.id === employeeId) {
-    return false;
-  }
-
-  if (employeeRole === "COMMERCIAL") {
-    return actor.role === "ADMIN" || actor.role === "MANAGER";
-  }
-
-  if (employeeRole === "MANAGER") {
-    return actor.role === "ADMIN";
-  }
-
-  return false;
-}
+export const canAssessRoleResponsibilities =
+  canAssessEmployeeInStructuredEvaluation;
 
 export type RoleResponsibilityAssessmentErrorCode =
   | "ACCESS_DENIED"

@@ -191,6 +191,16 @@ enum RoleResponsibilityEvidenceType {
   MACHINE_EVIDENCED
 }
 
+// Ticket 25J — same DRAFT/SUBMITTED shape as
+// RoleResponsibilityAssessmentStatus, a separate enum rather than reused
+// because Professional Contribution and Role Responsibilities are
+// deliberately distinct domains (25J §28: "do not force unrelated
+// semantics into the 25I model merely to reduce table count").
+enum ProfessionalContributionAssessmentStatus {
+  DRAFT
+  SUBMITTED
+}
+
 enum PersonalNoteCategory {
   URGENT_TODO
   COMMERCIAL_DEBRIEF
@@ -303,6 +313,10 @@ model User {
   // employee and the evaluator are different roles, both User.
   roleResponsibilityAssessmentsAsEmployee  RoleResponsibilityAssessment[] @relation("RoleResponsibilityAssessmentEmployee")
   roleResponsibilityAssessmentsAsEvaluator RoleResponsibilityAssessment[] @relation("RoleResponsibilityAssessmentEvaluator")
+
+  // Ticket 25J — same two-relation reasoning as Role Responsibilities.
+  professionalContributionAssessmentsAsEmployee  ProfessionalContributionAssessment[] @relation("ProfessionalContributionAssessmentEmployee")
+  professionalContributionAssessmentsAsEvaluator ProfessionalContributionAssessment[] @relation("ProfessionalContributionAssessmentEvaluator")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -802,5 +816,90 @@ model RoleResponsibilityAssessmentItem {
   updatedAt DateTime @updatedAt
 
   @@unique([assessmentId, responsibilityKey])
+  @@index([assessmentId])
+}
+
+// Ticket 25J — the fourth and final performance dimension, /10. A
+// deliberately separate model from RoleResponsibilityAssessment (§28 of
+// the ticket: distinct catalogs, distinct meaning — job duties vs.
+// cross-role professional behavior), sharing only the lifecycle shape
+// (DRAFT -> SUBMITTED, immutable once submitted, one row per employee
+// per exact period) and the evaluator-authorization rule (see
+// src/lib/employee-assessment-authorization.ts, reused because it is
+// genuinely identical, not because the two domains are coupled).
+//
+// roleAtEvaluation/evaluatorRoleAtEvent carry the same honest limitation
+// as RoleResponsibilityAssessment: a snapshot of the *current* role at
+// assessment-creation time, not a verified guarantee the employee held
+// that role for the entire period — this CRM has no dated role-change
+// history to check against.
+model ProfessionalContributionAssessment {
+  id String @id @default(cuid())
+
+  employeeUserId String
+  employee       User   @relation("ProfessionalContributionAssessmentEmployee", fields: [employeeUserId], references: [id], onDelete: Restrict)
+
+  roleAtEvaluation UserRole
+
+  periodStart DateTime
+  periodEnd   DateTime
+
+  policyVersion String
+
+  evaluatorUserId      String
+  evaluator            User     @relation("ProfessionalContributionAssessmentEvaluator", fields: [evaluatorUserId], references: [id], onDelete: Restrict)
+  evaluatorRoleAtEvent UserRole
+
+  status ProfessionalContributionAssessmentStatus @default(DRAFT)
+
+  score    Int?
+  maxScore Int  @default(10)
+
+  submittedAt DateTime?
+
+  items ProfessionalContributionAssessmentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeUserId, periodStart, periodEnd])
+  @@index([employeeUserId, periodStart])
+  @@index([evaluatorUserId])
+  @@index([status])
+}
+
+// Ticket 25J §30/§31 — the full trait definition, including all five
+// anchors' text, is frozen at assessment-creation time in
+// anchorsSnapshot. `awardedPoints` is a Float, not an Int like 25I's
+// item: the point mapping is a proportional formula
+// (maxPoints * (level - 1) / 4), not a fixed per-level table, so a
+// 3-point trait's intermediate levels are genuinely fractional (e.g.
+// 2.25) — only the *final* assessment-level score is rounded to an
+// integer, once, at submission (see
+// professional-contribution.service-core.ts's computeProfessionalContributionScore).
+model ProfessionalContributionAssessmentItem {
+  id String @id @default(cuid())
+
+  assessmentId String
+  assessment   ProfessionalContributionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  traitKey                String
+  labelAtEvaluation       String
+  descriptionAtEvaluation String
+  maxPoints               Int
+  anchorsSnapshot         Json
+
+  // Null = UNASSESSED. 1-5 once assessed; validated in application logic
+  // (no DB-level range check, matching this schema's existing convention
+  // of enforcing numeric ranges in the domain core, not via CHECK
+  // constraints).
+  selectedLevel Int?
+  awardedPoints Float?
+  observation   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([assessmentId, traitKey])
   @@index([assessmentId])
 }

@@ -9,6 +9,8 @@ import {
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
   MY_PROSPECTS_ROLES,
+  PERFORMANCE_DASHBOARD_ACCESS_ROLES,
+  PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   PROSPECT_ACTION_QUEUE_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
@@ -111,4 +113,23 @@ export async function requireCommercialPerformanceTargetManagementAccess() {
  */
 export async function requireRoleResponsibilityAssessmentManagementAccess() {
   return requireRole(...ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES);
+}
+
+/**
+ * Coarse gate for Professional Contribution assessment management
+ * (Ticket 25J) — ADMIN and MANAGER only. The finer "may this actor
+ * assess THIS employee" rule is domain-level; see
+ * canAssessProfessionalContribution.
+ */
+export async function requireProfessionalContributionAssessmentManagementAccess() {
+  return requireRole(...PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES);
+}
+
+/**
+ * Coarse gate for the performance dashboard route (Ticket 25K) — ADMIN
+ * and MANAGER only. The finer "may this actor view THIS employee's
+ * dashboard" rule is domain-level; see canViewEmployeePerformance.
+ */
+export async function requirePerformanceDashboardAccess() {
+  return requireRole(...PERFORMANCE_DASHBOARD_ACCESS_ROLES);
 }
