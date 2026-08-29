@@ -396,6 +396,23 @@ test("isScorableForExecutionDiscipline(COMMERCIAL) is true", () => {
   assert.equal(isScorableForExecutionDiscipline("COMMERCIAL"), true);
 });
 
+test("Ticket 25M §26/§27/§44: ASSISTANT is refused exactly like every other unsupported role — UNSUPPORTED_ROLE, never a fabricated zero", () => {
+  const result = computeExecutionDisciplineResult(
+    employee("user-1", "ASSISTANT"),
+    AUGUST,
+    [onTime(), onTime()],
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "UNSUPPORTED_ROLE");
+  assert.equal(result.score, null);
+  assert.equal(result.evidence, null);
+});
+
+test("Ticket 25M §26: isScorableForExecutionDiscipline(ASSISTANT) is false — adding the enum value did not silently widen this domain's eligibility", () => {
+  assert.equal(isScorableForExecutionDiscipline("ASSISTANT"), false);
+});
+
 // ---------------------------------------------------------------------------
 // Period closure (Ticket 25H §8)
 // ---------------------------------------------------------------------------

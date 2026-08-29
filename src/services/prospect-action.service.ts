@@ -109,7 +109,7 @@ export async function createProspectAction(
       findAssignee: (userId) =>
         tx.user.findUnique({
           where: { id: userId },
-          select: { id: true, active: true },
+          select: { id: true, active: true, role: true },
         }),
       create: (createdByUserId, fields) =>
         tx.prospectAction.create({

@@ -117,6 +117,7 @@ export type CreateProspectActionFields = {
 export type ProspectActionErrorCode =
   | "PROSPECT_NOT_FOUND"
   | "ASSIGNEE_NOT_AVAILABLE"
+  | "ASSIGNEE_NOT_ELIGIBLE"
   | "CREATE_FAILED"
   | "NOT_FOUND"
   | "ACCESS_DENIED"
@@ -130,11 +131,29 @@ export type CreateProspectActionResult =
   | { success: true; actionId: string }
   | { success: false; code: ProspectActionErrorCode; message: string };
 
+/**
+ * Ticket 25M §14/§15/§17 — a positive allow-list, not a
+ * `role !== "ASSISTANT"` exclusion scattered across call sites. Value set
+ * mirrors PROSPECT_OWNER_ROLES (prospect-creation.service-core.ts) today,
+ * but kept as its own constant so the two can diverge later — ownership
+ * and action-assignability are different domains that only coincide by
+ * value right now.
+ */
+export const PROSPECT_ACTION_ASSIGNEE_ROLES: readonly UserRole[] = [
+  "ADMIN",
+  "COMMERCIAL",
+  "MANAGER",
+];
+
+export function canBeAssignedProspectAction(role: UserRole): boolean {
+  return PROSPECT_ACTION_ASSIGNEE_ROLES.includes(role);
+}
+
 export type CreateProspectActionDependencies = {
   findProspect: (prospectId: string) => Promise<{ id: string } | null>;
   findAssignee: (
     userId: string,
-  ) => Promise<{ id: string; active: boolean } | null>;
+  ) => Promise<{ id: string; active: boolean; role: UserRole } | null>;
   create: (
     createdByUserId: string,
     fields: CreateProspectActionFields,
@@ -170,6 +189,17 @@ export async function createProspectActionCore(
       success: false,
       code: "ASSIGNEE_NOT_AVAILABLE",
       message: "Sélectionnez un utilisateur actif pour cette action.",
+    };
+  }
+
+  // Ticket 25M §15 — server-side, not just a dropdown filter: rejects a
+  // forged/direct request naming an ineligible assignee even if the UI
+  // never offered them as an option.
+  if (!canBeAssignedProspectAction(assignee.role)) {
+    return {
+      success: false,
+      code: "ASSIGNEE_NOT_ELIGIBLE",
+      message: "Cet utilisateur ne peut pas recevoir d’action commerciale.",
     };
   }
 

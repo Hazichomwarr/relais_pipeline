@@ -34,6 +34,7 @@ function actor(overrides: Partial<ProspectCreationActor> = {}): ProspectCreation
     id: "user-1",
     firstName: "Aminata",
     lastName: "Ouédraogo",
+    role: "COMMERCIAL",
     ...overrides,
   };
 }
@@ -56,10 +57,10 @@ test("creates a prospect owned by the actor, with a full-name snapshot", async (
 });
 
 for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
-  test(`accepts any authenticated actor regardless of role (${role})`, async () => {
+  test(`accepts every pre-25M eligible role as a prospect owner (${role})`, async () => {
     const scenario = createScenario();
     const result = await createProspectCore(
-      actor({ id: `user-${role}` }),
+      actor({ id: `user-${role}`, role }),
       validInput(),
       scenario.dependencies,
     );
@@ -68,6 +69,21 @@ for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
     assert.equal(scenario.createCalls, 1);
   });
 }
+
+test("Ticket 25M §10/§12: rejects ASSISTANT as a prospect owner, server-side, before any duplicate lookup or write", async () => {
+  const scenario = createScenario();
+  const result = await createProspectCore(
+    actor({ id: "user-assistant", role: "ASSISTANT" }),
+    validInput(),
+    scenario.dependencies,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "ROLE_NOT_ELIGIBLE_FOR_OWNERSHIP");
+  }
+  assert.equal(scenario.createCalls, 0);
+});
 
 test("never checks for duplicates on a non-KARMDA product", async () => {
   const scenario = createScenario([duplicate()]);

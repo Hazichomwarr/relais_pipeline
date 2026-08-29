@@ -37,7 +37,7 @@ async function main() {
     throw new Error("This user is inactive.");
   }
 
-  const allowedRoles = ["ADMIN", "MANAGER", "COMMERCIAL"] as const;
+  const allowedRoles = ["ADMIN", "ASSISTANT", "MANAGER", "COMMERCIAL"] as const;
 
   if (!allowedRoles.includes(user.role)) {
     throw new Error(`Cannot set a password for users with role ${user.role}.`);

@@ -33,6 +33,22 @@ test("valid login returns the identity without the password hash", async () => {
   assert.equal((identity as { passwordHash?: unknown }).passwordHash, undefined);
 });
 
+test("Ticket 25M §18/§42: an active ASSISTANT with valid credentials authenticates normally — no Assistant-specific bypass, no Assistant-specific rejection", async () => {
+  const user = makeUser("ASSISTANT");
+
+  const identity = await authenticateCore("assistant@relais.test", "correct-password", {
+    findUserByEmail: async () => user,
+    compare: async () => true,
+  });
+
+  assert.deepEqual(identity, {
+    id: "user-1",
+    firstName: "Awa",
+    lastName: "Traoré",
+    role: "ASSISTANT",
+  });
+});
+
 test("invalid password returns null", async () => {
   const identity = await authenticateCore("awa@relais.test", "wrong-password", {
     findUserByEmail: async () => makeUser("COMMERCIAL"),
@@ -137,10 +153,11 @@ test("changeOwnPasswordCore updates the password once the current one matches", 
  * Ticket 25F: the self-service password-change capability must work
  * identically for every role. changeOwnPasswordCore doesn't even accept a
  * role — this proves the underlying workflow is structurally
- * role-independent, not merely untested for ADMIN/MANAGER, for each of
- * the three current roles.
+ * role-independent, not merely untested for ADMIN/MANAGER, for each
+ * role, including Ticket 25M's new ASSISTANT (§18: no
+ * Assistant-specific authentication bypass, no exclusion either).
  */
-for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+for (const role of ["ADMIN", "MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
   test(`changeOwnPasswordCore updates the password for a ${role} account given the correct current password`, async () => {
     const user = makeUser(role);
     let updatedWith: string | undefined;

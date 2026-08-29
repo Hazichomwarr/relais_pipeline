@@ -22,7 +22,10 @@ export type CreateProspectResult =
     }
   | {
       success: false;
-      code: "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED" | "CREATE_FAILED";
+      code:
+        | "ROLE_NOT_ELIGIBLE_FOR_OWNERSHIP"
+        | "POSSIBLE_SCHOOL_DUPLICATE_REVIEW_REQUIRED"
+        | "CREATE_FAILED";
       message: string;
     };
 

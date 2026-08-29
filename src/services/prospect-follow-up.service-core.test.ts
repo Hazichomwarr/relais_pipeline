@@ -78,7 +78,7 @@ type FakeStoreOptions = {
     assignedUser?: { firstName: string; lastName: string; role: UserRole } | null;
   };
   actions?: ProspectActionRow[];
-  users?: { id: string; active: boolean }[];
+  users?: { id: string; active: boolean; role: UserRole }[];
 };
 
 /**
@@ -94,7 +94,9 @@ function createFakeStore(options: FakeStoreOptions) {
     ...options.prospect,
   };
   let actions = (options.actions ?? []).map((a) => ({ ...a }));
-  const users = options.users ?? [{ id: "assignee-1", active: true }];
+  const users = options.users ?? [
+    { id: "assignee-1", active: true, role: "COMMERCIAL" as UserRole },
+  ];
   const activities: Array<{
     prospectId: string;
     type: string;
@@ -545,7 +547,7 @@ test("assignee inactivation race: rejects next-action creation and rolls back an
   const store = createFakeStore({
     prospect: { id: "prospect-1", status: "CONTACTED", followUpDate: null },
     actions: [actionRow({ id: "action-A", status: "OPEN" })],
-    users: [{ id: "assignee-1", active: false }],
+    users: [{ id: "assignee-1", active: false, role: "COMMERCIAL" }],
   });
 
   const result = await submitProspectFollowUpCore(

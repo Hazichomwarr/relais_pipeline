@@ -348,15 +348,22 @@ test("Ticket 25K.1 §15: an ADMIN employee's human dimensions carry the true UNS
 // ---------------------------------------------------------------------------
 
 test("§34: ADMIN may view any employee's performance dashboard, regardless of the employee's role", () => {
-  for (const employeeRole of ["COMMERCIAL", "MANAGER", "ADMIN"] as const) {
+  for (const employeeRole of ["COMMERCIAL", "MANAGER", "ADMIN", "ASSISTANT"] as const) {
     assert.equal(canViewEmployeePerformance("ADMIN", employeeRole), true);
   }
 });
 
-test("§34/§35: MANAGER may view only COMMERCIAL employees — not another MANAGER, not an ADMIN", () => {
+test("§34/§35: MANAGER may view only COMMERCIAL employees — not another MANAGER, not an ADMIN, not an ASSISTANT", () => {
   assert.equal(canViewEmployeePerformance("MANAGER", "COMMERCIAL"), true);
   assert.equal(canViewEmployeePerformance("MANAGER", "MANAGER"), false);
   assert.equal(canViewEmployeePerformance("MANAGER", "ADMIN"), false);
+  assert.equal(canViewEmployeePerformance("MANAGER", "ASSISTANT"), false);
+});
+
+test("Ticket 25M §33/§44: ASSISTANT may never view the management performance dashboard, for any employee — adding the enum value did not accidentally grant this", () => {
+  for (const employeeRole of ["COMMERCIAL", "MANAGER", "ADMIN", "ASSISTANT"] as const) {
+    assert.equal(canViewEmployeePerformance("ASSISTANT", employeeRole), false);
+  }
 });
 
 test("§34: COMMERCIAL may never view the management dashboard, for any employee including themself", () => {

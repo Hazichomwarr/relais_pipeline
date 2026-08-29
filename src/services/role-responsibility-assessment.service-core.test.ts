@@ -140,6 +140,38 @@ test("§67/§6/§20: nobody may assess an ADMIN — no supported evaluator path 
   }
 });
 
+test("Ticket 25M §28/§44: an ASSISTANT can never assess anyone — adding the enum value did not accidentally make Assistant an evaluator", () => {
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("assistant-a", "ASSISTANT"),
+      "COMMERCIAL",
+      "commercial-b",
+    ),
+    false,
+  );
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("assistant-a", "ASSISTANT"),
+      "MANAGER",
+      "manager-b",
+    ),
+    false,
+  );
+});
+
+test("Ticket 25M §28: nobody may assess an ASSISTANT either — no Role Responsibility catalog or evaluator path exists for this role in 25M", () => {
+  for (const assessorRole of ["ADMIN", "MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+    assert.equal(
+      canAssessRoleResponsibilities(
+        actor("assessor-1", assessorRole),
+        "ASSISTANT",
+        "assistant-b",
+      ),
+      false,
+    );
+  }
+});
+
 // ---------------------------------------------------------------------------
 // §68: role catalog boundaries
 // ---------------------------------------------------------------------------

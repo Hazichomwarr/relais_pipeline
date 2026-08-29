@@ -239,3 +239,28 @@ test("the Paramètres link is highlighted when activeItem is profile", () => {
   assert.ok(profileLinkMatch, "expected a /profile link in the sidebar");
   assert.match(profileLinkMatch![0], /bg-blue-50/);
 });
+
+test("Ticket 25M §24/§25/§43: ASSISTANT sees only Mes notes, Mes rapports, and Paramètres — every other item leads into a route ASSISTANT can't reach in 25M and is hidden, not just capability-gated by chance", () => {
+  const html = renderToStaticMarkup(<Sidebar role="ASSISTANT" />);
+
+  for (const href of [
+    "/admin",
+    "/updates",
+    'href="/"',
+    "/actions",
+    "/admin/my-prospects",
+    "/products",
+    "/admin/follow-ups",
+    "/finances",
+    "/admin/analytics/funnel",
+    "/admin/reports",
+    "/admin/performance",
+    "/admin/users",
+  ]) {
+    assert.doesNotMatch(html, new RegExp(href.replace(/\//g, "\\/")));
+  }
+
+  assert.match(html, /href="\/notes"/);
+  assert.match(html, /href="\/reports"/);
+  assert.match(html, /href="\/profile"/);
+});

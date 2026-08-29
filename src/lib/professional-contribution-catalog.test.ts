@@ -80,6 +80,10 @@ test("COMMERCIAL and MANAGER are both supported by the same shared catalog; ADMI
   assert.equal(isRoleSupportedForProfessionalContribution("ADMIN"), false);
 });
 
+test("Ticket 25M §26/§27/§28/§59: ASSISTANT is unsupported in 25M even though the catalog is role-neutral in content — eligibility is a deliberate 25L/25M decision, not inferred from the catalog's wording", () => {
+  assert.equal(isRoleSupportedForProfessionalContribution("ASSISTANT"), false);
+});
+
 test("findProfessionalContributionTrait returns the exact match or undefined, never a fuzzy fallback", () => {
   assert.equal(findProfessionalContributionTrait("INITIATIVE")?.maxPoints, 4);
   assert.equal(findProfessionalContributionTrait("NOT_A_REAL_KEY"), undefined);

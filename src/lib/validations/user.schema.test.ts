@@ -74,6 +74,16 @@ test("validates the user role enum", () => {
   assert.equal(valid.success, true);
 });
 
+test("Ticket 25M §7: ASSISTANT is a valid role, not a job title like ACCOUNTANT or SECRETARY", () => {
+  const assistant = userSchema.safeParse({ ...validInput(), role: "ASSISTANT" });
+  const accountant = userSchema.safeParse({ ...validInput(), role: "ACCOUNTANT" });
+  const secretary = userSchema.safeParse({ ...validInput(), role: "SECRETARY" });
+
+  assert.equal(assistant.success, true);
+  assert.equal(accountant.success, false);
+  assert.equal(secretary.success, false);
+});
+
 test("defaults new users to active", () => {
   const result = userSchema.parse({ ...validInput(), active: undefined });
 

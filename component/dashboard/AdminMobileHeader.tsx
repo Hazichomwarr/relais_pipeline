@@ -22,28 +22,58 @@ import MobileNavDrawer, {
   type MobileNavItem,
 } from "@/component/dashboard/MobileNavDrawer";
 
+/**
+ * Ticket 25M §24/§25/§43 — ASSISTANT reuses this Admin-style shell for
+ * layout only, never for authority: shell choice must not imply
+ * permission. Every item that leads into a still-ADMIN/MANAGER-only
+ * route (or into a capability 25M deliberately doesn't grant yet, like
+ * prospecting) is explicitly excluded for ASSISTANT rather than left
+ * dangling on a route that would just reject them. What remains for
+ * ASSISTANT today — Mes notes, Mes rapports, Paramètres — are the only
+ * surfaces actually reachable by this role right now (role-neutral
+ * routes, per their own layouts). This is a narrow, temporary nav, not
+ * a final Assistant navigation design (§20).
+ */
 function getAdminNavItems(role?: UserRole): MobileNavItem[] {
+  const isAssistant = role === "ASSISTANT";
+
   return [
-    {
-      label: "Tableau de bord",
-      href: "/admin",
-      icon: <LayoutDashboard className="h-5 w-5" />,
-    },
-    {
-      label: "À la une",
-      href: "/updates",
-      icon: <Newspaper className="h-5 w-5" />,
-    },
-    {
-      label: "Nouveau prospect",
-      href: "/",
-      icon: <UserPlus className="h-5 w-5" />,
-    },
-    {
-      label: "Actions",
-      href: "/actions",
-      icon: <ListTodo className="h-5 w-5" />,
-    },
+    ...(!isAssistant
+      ? [
+          {
+            label: "Tableau de bord",
+            href: "/admin",
+            icon: <LayoutDashboard className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    ...(!isAssistant
+      ? [
+          {
+            label: "À la une",
+            href: "/updates",
+            icon: <Newspaper className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    ...(!isAssistant
+      ? [
+          {
+            label: "Nouveau prospect",
+            href: "/",
+            icon: <UserPlus className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    ...(!isAssistant
+      ? [
+          {
+            label: "Actions",
+            href: "/actions",
+            icon: <ListTodo className="h-5 w-5" />,
+          },
+        ]
+      : []),
     ...(role === "ADMIN" || role === "MANAGER"
       ? [
           {
@@ -53,16 +83,24 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
           },
         ]
       : []),
-    {
-      label: "Répertoire",
-      href: "/products",
-      icon: <Library className="h-5 w-5" />,
-    },
-    {
-      label: "Suivis",
-      href: "/admin/follow-ups",
-      icon: <ClipboardCheck className="h-5 w-5" />,
-    },
+    ...(!isAssistant
+      ? [
+          {
+            label: "Répertoire",
+            href: "/products",
+            icon: <Library className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    ...(!isAssistant
+      ? [
+          {
+            label: "Suivis",
+            href: "/admin/follow-ups",
+            icon: <ClipboardCheck className="h-5 w-5" />,
+          },
+        ]
+      : []),
     ...(role === "ADMIN"
       ? [
           {
@@ -72,11 +110,15 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
           },
         ]
       : []),
-    {
-      label: "Analyses",
-      href: "/admin/analytics/funnel",
-      icon: <BarChart3 className="h-5 w-5" />,
-    },
+    ...(!isAssistant
+      ? [
+          {
+            label: "Analyses",
+            href: "/admin/analytics/funnel",
+            icon: <BarChart3 className="h-5 w-5" />,
+          },
+        ]
+      : []),
     {
       label: "Mes notes",
       href: "/notes",
@@ -87,11 +129,15 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/reports",
       icon: <FileText className="h-5 w-5" />,
     },
-    {
-      label: "Rapports quotidiens",
-      href: "/admin/reports",
-      icon: <ClipboardList className="h-5 w-5" />,
-    },
+    ...(!isAssistant
+      ? [
+          {
+            label: "Rapports quotidiens",
+            href: "/admin/reports",
+            icon: <ClipboardList className="h-5 w-5" />,
+          },
+        ]
+      : []),
     ...(role === "ADMIN" || role === "MANAGER"
       ? [
           {

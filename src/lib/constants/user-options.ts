@@ -2,6 +2,7 @@ import type { UserRole } from "@prisma/client";
 
 export const userRoleOptions = [
   { value: "ADMIN", label: "Administrateur" },
+  { value: "ASSISTANT", label: "Assistant" },
   { value: "COMMERCIAL", label: "Commercial" },
   { value: "MANAGER", label: "Manager" },
 ] as const;

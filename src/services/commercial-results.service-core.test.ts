@@ -285,6 +285,24 @@ for (const role of ["ADMIN", "MANAGER"] as const) {
   });
 }
 
+test("Ticket 25M §26/§27/§44: ASSISTANT is refused by the orchestrator exactly like every other unsupported role — UNSUPPORTED_ROLE, never a fabricated zero", () => {
+  const result = computeCommercialResultsResult(
+    employee("user-1", "ASSISTANT"),
+    AUGUST,
+    [won({ creditedUserId: "user-1", creditedUserRoleAtEvent: "COMMERCIAL" })],
+    target(),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "UNSUPPORTED_ROLE");
+  assert.equal(result.score, null);
+  assert.equal(result.evidence, null);
+});
+
+test("Ticket 25M §26: isScorableForCommercialResults(ASSISTANT) is false — adding the enum value did not silently widen this domain's eligibility", () => {
+  assert.equal(isScorableForCommercialResults("ASSISTANT"), false);
+});
+
 test("isScorableForCommercialResults(COMMERCIAL) is true", () => {
   assert.equal(isScorableForCommercialResults("COMMERCIAL"), true);
 });

@@ -66,3 +66,10 @@ test("the /profile page never exposes the password hash — no field named passw
 
   assert.doesNotMatch(source, /passwordHash/);
 });
+
+test("Ticket 25M §20/§24: the shell decision is a binary COMMERCIAL-or-not check, so ASSISTANT falls into the AdminShell branch without a new explicit case — shell choice must not imply permission, only layout", () => {
+  const source = readFileSync("app/profile/layout.tsx", "utf8");
+
+  assert.match(source, /user\.role === "COMMERCIAL"/);
+  assert.match(source, /<AdminShell activeItem="profile">/);
+});

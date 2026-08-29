@@ -61,16 +61,39 @@ test("accomplishedToday and plannedTomorrow are required text columns (not nulla
   assert.match(createTableMatch[0], /"submittedAt" TIMESTAMP\(3\)(?!\s+NOT NULL)/);
 });
 
-test("DailyReportTemplateType and DailyReportStatus are documented as distinct from UserRole in the schema", () => {
+/**
+ * Ticket 25M §5/§4 — before 25M, this test proved the two enums were
+ * distinct by asserting UserRole contained neither of
+ * DailyReportTemplateType's values at all. That's no longer true:
+ * UserRole legitimately gained its own, unrelated ASSISTANT value in
+ * 25M. The two enums still share nothing but a name collision on that
+ * one string — proven here by (a) UserRole still never containing
+ * OPERATIONS_COORDINATOR (the one DailyReportTemplateType value that
+ * was never ambiguous), and (b) User.role and
+ * User.dailyReportTemplateType being two separately-typed fields, so
+ * Prisma/TypeScript itself treats "ASSISTANT the role" and "ASSISTANT
+ * the report template" as values of unrelated types, never
+ * interchangeable.
+ */
+test("UserRole and DailyReportTemplateType remain distinct domain concepts even though both now legitimately contain \"ASSISTANT\"", () => {
   const userRoleEnum = schema.match(/enum UserRole \{[\s\S]*?\n\}/);
   const templateTypeEnum = schema.match(/enum DailyReportTemplateType \{[\s\S]*?\n\}/);
 
   assert.ok(userRoleEnum, "UserRole enum not found in schema");
   assert.ok(templateTypeEnum, "DailyReportTemplateType enum not found in schema");
 
-  assert.doesNotMatch(userRoleEnum[0], /ASSISTANT|OPERATIONS_COORDINATOR/);
+  assert.match(userRoleEnum[0], /ASSISTANT/);
+  assert.doesNotMatch(userRoleEnum[0], /OPERATIONS_COORDINATOR/);
   assert.match(templateTypeEnum[0], /ASSISTANT/);
   assert.match(templateTypeEnum[0], /OPERATIONS_COORDINATOR/);
+
+  const userModel = schema.match(/model User \{[\s\S]*?\n\}/);
+  assert.ok(userModel, "User model not found in schema");
+  assert.match(userModel[0], /\n\s*role\s+UserRole\s*\n/);
+  assert.match(
+    userModel[0],
+    /\n\s*dailyReportTemplateType\s+DailyReportTemplateType\?\s*\n/,
+  );
 });
 
 test("DailyReport has no field snapshotting the owner's display name — presentation resolves it via the live User relation", () => {

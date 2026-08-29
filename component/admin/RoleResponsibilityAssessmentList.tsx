@@ -1,5 +1,6 @@
 "use client";
 
+import type { UserRole } from "@prisma/client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -13,7 +14,7 @@ export type RoleResponsibilityAssessmentListRow = {
   status: "DRAFT" | "SUBMITTED";
   score: number | null;
   maxScore: number;
-  roleAtEvaluation: "COMMERCIAL" | "MANAGER" | "ADMIN";
+  roleAtEvaluation: UserRole;
   employee: { firstName: string; lastName: string };
   evaluator: { firstName: string; lastName: string };
 };

@@ -4,17 +4,38 @@ import test from "node:test";
 import type { User, UserRole } from "@prisma/client";
 
 import type { ValidatedUserInput } from "@/src/lib/validations/user.schema";
+import type { ValidatedProspectInput } from "@/src/lib/validations/prospect.schema";
 import {
   createUserCore,
   updateUserCore,
   type UserServiceDependencies,
 } from "./user.service-core";
+import { createProspectCore } from "./prospect-creation.service-core";
 import { buildProspectWhere } from "./prospect-read.service-core";
 import { buildAdminMyProspectsWhere } from "./admin-my-prospects.service-core";
 import {
   buildCommercialProspectByIdWhere,
   buildCommercialProspectWhere,
 } from "./commercial-prospect.service-core";
+
+function validInput(
+  overrides: Partial<ValidatedProspectInput> = {},
+): ValidatedProspectInput {
+  return {
+    product: "KARMDA",
+    name: "École Wend-Panga",
+    prospectType: "École privée",
+    contactName: "Mme Kaboré",
+    phone: "70 12 34 56",
+    location: "Ouagadougou",
+    interest: "INTERESTED",
+    status: "NEW",
+    notes: "Le directeur souhaite organiser une démonstration.",
+    duplicateSchoolReviewed: false,
+    schoolType: "Privée",
+    ...overrides,
+  };
+}
 
 /**
  * Ticket 21A's core invariant: a role transition changes authorization,
@@ -99,6 +120,15 @@ function createUserStore(initialUsers: User[] = []) {
 // 1. The role-change mutation path never touches prospect ownership
 // ---------------------------------------------------------------------------
 
+/**
+ * Ticket 25M §37/§38 — the pre-25M matrix covered the 6 directed
+ * transitions among 3 roles (3×2). Adding ASSISTANT expands this to the
+ * full 4×3=12: the 6 below plus the 6 already listed. The test body
+ * itself is already role-agnostic (it only proves the mutation never
+ * touches a separately-stored prospect set), so no new fixtures are
+ * needed — just widening this list exercises every new transition
+ * through the same regression.
+ */
 const allTransitions: Array<[UserRole, UserRole]> = [
   ["COMMERCIAL", "MANAGER"],
   ["MANAGER", "COMMERCIAL"],
@@ -106,6 +136,12 @@ const allTransitions: Array<[UserRole, UserRole]> = [
   ["ADMIN", "COMMERCIAL"],
   ["MANAGER", "ADMIN"],
   ["ADMIN", "MANAGER"],
+  ["COMMERCIAL", "ASSISTANT"],
+  ["ASSISTANT", "COMMERCIAL"],
+  ["MANAGER", "ASSISTANT"],
+  ["ASSISTANT", "MANAGER"],
+  ["ADMIN", "ASSISTANT"],
+  ["ASSISTANT", "ADMIN"],
 ];
 
 for (const [fromRole, toRole] of allTransitions) {
@@ -171,7 +207,7 @@ test("the same buildProspectWhere({ userId }) call resolves the same owned prosp
     { id: "prospect-c", assignedUserId: "someone-else" },
   ];
 
-  for (const role of ["COMMERCIAL", "MANAGER", "ADMIN"] as UserRole[]) {
+  for (const role of ["COMMERCIAL", "MANAGER", "ADMIN", "ASSISTANT"] as UserRole[]) {
     // buildProspectWhere doesn't even accept a role argument — role is
     // passed here only to document the scenario each iteration models.
     void role;
@@ -299,4 +335,49 @@ test("prospect creation derives assignedUserId from the actor's identity, not th
   assert.match(source, /assignedUserId:\s*actor\.id/);
   assert.doesNotMatch(source, /role\s*===\s*"COMMERCIAL"/);
   assert.doesNotMatch(source, /requireCommercial/);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25M §13/§40 — existing ownership survives a transition to
+// ASSISTANT; only *new* assignment becomes forbidden
+// ---------------------------------------------------------------------------
+
+test("Ticket 25M §13/§40: a prospect assigned to A remains assigned to A after A transitions to ASSISTANT, but a NEW assignment to A is rejected", async () => {
+  const store = createUserStore([makeUser("amidou", { role: "COMMERCIAL" })]);
+  const prospects: FakeProspect[] = [{ id: "prospect-a", assignedUserId: "amidou" }];
+
+  const before = ids(queryByWhere(prospects, buildProspectWhere({ userId: "amidou" })));
+  assert.deepEqual(before, ["prospect-a"]);
+
+  const transition = await updateUserCore(
+    { userId: "amidou", ...validUserInput({ role: "ASSISTANT" }) },
+    "admin-1",
+    store.dependencies,
+  );
+  assert.equal(transition.success, true);
+  assert.equal(store.users[0].role, "ASSISTANT");
+
+  // History preserved — the read path never re-derives ownership from
+  // the now-stale role.
+  const after = ids(queryByWhere(prospects, buildProspectWhere({ userId: "amidou" })));
+  assert.deepEqual(after, before);
+
+  // But a brand-new assignment to the same, now-Assistant person is
+  // rejected by the create-time eligibility check (prospect-creation
+  // service-core.ts), not silently allowed just because they once held
+  // an eligible role.
+  const newAssignment = await createProspectCore(
+    { id: "amidou", firstName: "Amidou", lastName: "Sawadogo", role: "ASSISTANT" },
+    validInput(),
+    {
+      findPossibleDuplicates: async () => [],
+      create: async () => {
+        throw new Error("must not create a new prospect for an ineligible owner");
+      },
+    },
+  );
+  assert.equal(newAssignment.success, false);
+  if (!newAssignment.success) {
+    assert.equal(newAssignment.code, "ROLE_NOT_ELIGIBLE_FOR_OWNERSHIP");
+  }
 });

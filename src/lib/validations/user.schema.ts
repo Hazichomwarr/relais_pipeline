@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { dailyReportTemplateTypes } from "@/src/lib/validations/daily-report.schema";
 
-export const userRoles = ["ADMIN", "COMMERCIAL", "MANAGER"] as const;
+export const userRoles = ["ADMIN", "ASSISTANT", "COMMERCIAL", "MANAGER"] as const;
 
 /**
  * Ticket 19A — nullable: not every CRM user submits daily reports. Only

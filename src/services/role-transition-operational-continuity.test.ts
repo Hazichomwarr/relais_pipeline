@@ -9,6 +9,8 @@ import {
   canCancelProspectAction,
   canCompleteProspectAction,
   completeProspectActionCore,
+  createProspectActionCore,
+  type CreateProspectActionDependencies,
 } from "./prospect-action.service-core";
 import { resolveEffectiveAssignee } from "./prospect-action-queue.service-core";
 import {
@@ -34,6 +36,13 @@ import {
  * still allowed to change, exactly as it should.
  */
 
+/**
+ * Ticket 25M §37/§38 — widened from the pre-25M 6 (3×2) directed
+ * transitions to the full 12 (4×3) once ASSISTANT exists. Every test
+ * below is already role-agnostic in its assertions (identity-based
+ * fallbacks, snapshot fields, ownerUserId-only queries), so no new test
+ * bodies are needed — only this list.
+ */
 const allTransitions: Array<[UserRole, UserRole]> = [
   ["COMMERCIAL", "MANAGER"],
   ["MANAGER", "COMMERCIAL"],
@@ -41,6 +50,12 @@ const allTransitions: Array<[UserRole, UserRole]> = [
   ["ADMIN", "COMMERCIAL"],
   ["MANAGER", "ADMIN"],
   ["ADMIN", "MANAGER"],
+  ["COMMERCIAL", "ASSISTANT"],
+  ["ASSISTANT", "COMMERCIAL"],
+  ["MANAGER", "ASSISTANT"],
+  ["ASSISTANT", "MANAGER"],
+  ["ADMIN", "ASSISTANT"],
+  ["ASSISTANT", "ADMIN"],
 ];
 
 // ---------------------------------------------------------------------------
@@ -142,6 +157,48 @@ test("canCancelProspectAction: creator/assignee retain cancel rights after any r
   const action = { createdByUserId: "amidou", assignedToUserId: "someone-else" };
   for (const [, toRole] of allTransitions) {
     assert.equal(canCancelProspectAction({ id: "amidou", role: toRole }, action), true);
+  }
+});
+
+test("Ticket 25M §16/§41: an OPEN action assigned before a transition to ASSISTANT is preserved (never auto-canceled or reassigned), but a NEW action naming that same person as assignee is rejected", async () => {
+  // Existing action, assigned while still COMMERCIAL — preserved as a
+  // historical/operational fact. No mutation touches it here at all;
+  // this half of the test only documents that nothing in this file's
+  // role-transition path reaches ProspectAction rows (already proven
+  // structurally above), so the action simply keeps existing untouched.
+  const existingAction = { assignedToUserId: "amidou", createdByUserId: "someone-else" };
+  assert.equal(
+    canCompleteProspectAction({ id: "amidou", role: "ASSISTANT" }, existingAction),
+    true,
+    "the now-Assistant former assignee can still complete their own pre-existing action",
+  );
+
+  // A brand-new action naming the same, now-Assistant person as
+  // assignee is rejected server-side by the create-time eligibility
+  // check — this is the one thing that changes going forward.
+  const dependencies: CreateProspectActionDependencies = {
+    findProspect: async () => ({ id: "prospect-1" }),
+    findAssignee: async () => ({ id: "amidou", active: true, role: "ASSISTANT" }),
+    create: async () => {
+      throw new Error("must not create a new action for an ineligible assignee");
+    },
+  };
+
+  const result = await createProspectActionCore(
+    "creator-1",
+    {
+      prospectId: "prospect-1",
+      assignedToUserId: "amidou",
+      title: "Faire une démonstration",
+      description: undefined,
+      dueAt: new Date("2026-08-14T10:00:00.000Z"),
+    },
+    dependencies,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "ASSIGNEE_NOT_ELIGIBLE");
   }
 });
 

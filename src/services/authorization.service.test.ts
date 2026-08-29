@@ -212,6 +212,27 @@ test("requireRoleCore denies COMMERCIAL the performance dashboard gate outright 
   );
 });
 
+/**
+ * Ticket 25M §25/§45 — 25M introduces ASSISTANT but explicitly does NOT
+ * grant Finance access yet (that's 25N). requireAdmin() (app/finances/
+ * layout.tsx) wraps requireRole("ADMIN") — a single-role list — so this
+ * proves ADMIN is unaffected and every other role, including the new
+ * ASSISTANT, is denied exactly as before, without re-deriving Finance's
+ * own route wiring here.
+ */
+test("Ticket 25M §45: requireRoleCore still allows only ADMIN through a Finance-shaped single-role gate — MANAGER, COMMERCIAL, and the new ASSISTANT are all denied, unchanged", () => {
+  const user = requireRoleCore({ user: makeUser("ADMIN") }, ["ADMIN"]);
+  assert.equal(user.role, "ADMIN");
+
+  for (const role of ["MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, ["ADMIN"]),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied Finance-shaped ADMIN-only access`,
+    );
+  }
+});
+
 function hasCode(code: AuthorizationError["code"]) {
   return (error: unknown) =>
     error instanceof AuthorizationError && error.code === code;

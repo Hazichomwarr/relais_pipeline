@@ -6,7 +6,11 @@ import type { UserRole } from "@prisma/client";
 import type { ValidatedProspectInput } from "@/src/lib/validations/prospect.schema";
 import { buildAdminMyProspectsWhere } from "./admin-my-prospects.service-core";
 import { buildCommercialProspectWhere } from "./commercial-prospect.service-core";
-import { buildProspectData, type ProspectCreationActor } from "./prospect-creation.service-core";
+import {
+  buildProspectData,
+  canOwnProspect,
+  type ProspectCreationActor,
+} from "./prospect-creation.service-core";
 
 function validInput(overrides: Partial<ValidatedProspectInput> = {}): ValidatedProspectInput {
   return {
@@ -147,6 +151,7 @@ test("a prospect created by a MANAGER is immediately visible through buildAdminM
     id: "amidou-manager",
     firstName: "Amidou",
     lastName: "Sawadogo",
+    role: "MANAGER",
   };
   const data = buildProspectData(validInput(), managerActor);
 
@@ -158,10 +163,23 @@ test("a prospect created by a MANAGER is immediately visible through buildAdminM
   assert.deepEqual(ids(queryByWhere(prospects, where)), ["new-prospect"]);
 });
 
-test("prospect creation derives ownership from the actor's identity only — no role gate exists to restore a Commercial-only restriction", () => {
+/**
+ * Ticket 15H.1 established that ownership is never narrowed to
+ * COMMERCIAL-only — Ticket 25M's canOwnProspect allow-list preserves
+ * that (ADMIN/COMMERCIAL/MANAGER all remain eligible, unchanged) while
+ * adding exactly one exclusion: the new ASSISTANT role, which never
+ * existed when 15H.1 shipped and was never a candidate this invariant
+ * was protecting.
+ */
+test("prospect creation derives ownership from the actor's identity, not a Commercial-only restriction — every pre-25M role remains eligible", () => {
+  assert.equal(canOwnProspect("ADMIN"), true);
+  assert.equal(canOwnProspect("COMMERCIAL"), true);
+  assert.equal(canOwnProspect("MANAGER"), true);
+
   const source = readFileSync("src/services/prospect-creation.service-core.ts", "utf8");
   assert.match(source, /assignedUserId:\s*actor\.id/);
-  assert.doesNotMatch(source, /\.role\s*===/);
-  assert.doesNotMatch(source, /role:\s*"COMMERCIAL"/);
-  assert.doesNotMatch(source, /UserRole/);
+});
+
+test("Ticket 25M §10: ASSISTANT is the one role excluded from prospect ownership eligibility", () => {
+  assert.equal(canOwnProspect("ASSISTANT"), false);
 });

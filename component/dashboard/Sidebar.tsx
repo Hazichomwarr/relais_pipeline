@@ -20,6 +20,18 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 
+/**
+ * Ticket 25M §24/§25/§43 — ASSISTANT reuses this Admin-style shell for
+ * layout only, never for authority: shell choice must not imply
+ * permission. Every item that leads into a still-ADMIN/MANAGER-only
+ * route (or into a capability 25M deliberately doesn't grant yet, like
+ * prospecting) is explicitly hidden with `role !== "ASSISTANT"` rather
+ * than left visible and dangling on a route that would just reject them.
+ * What remains for ASSISTANT today — Mes notes, Mes rapports, Paramètres
+ * — are the only surfaces actually reachable by this role right now
+ * (role-neutral routes, per their own layouts). This is a narrow,
+ * temporary nav, not a final Assistant navigation design (§20).
+ */
 export default function Sidebar({
   activeItem = "dashboard",
   role,
@@ -61,52 +73,60 @@ export default function Sidebar({
 
       {/* NAV */}
       <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        <Link
-          href="/admin"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "dashboard"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <LayoutDashboard className="h-5 w-5" />
-          Tableau de bord
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/admin"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "dashboard"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <LayoutDashboard className="h-5 w-5" />
+            Tableau de bord
+          </Link>
+        )}
 
-        <Link
-          href="/updates"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "updates"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <Newspaper className="h-5 w-5" />À la une
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/updates"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "updates"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Newspaper className="h-5 w-5" />À la une
+          </Link>
+        )}
 
-        <Link
-          href="/"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "newProspect"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <UserPlus className="h-5 w-5" />
-          Nouveau prospect
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "newProspect"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <UserPlus className="h-5 w-5" />
+            Nouveau prospect
+          </Link>
+        )}
 
-        <Link
-          href="/actions"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "actions"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <ListTodo className="h-5 w-5" />
-          Actions
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/actions"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "actions"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ListTodo className="h-5 w-5" />
+            Actions
+          </Link>
+        )}
 
         {(role === "ADMIN" || role === "MANAGER") && (
           <Link
@@ -122,29 +142,33 @@ export default function Sidebar({
           </Link>
         )}
 
-        <Link
-          href="/products"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "products"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <Library className="h-5 w-5" />
-          Répertoire
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/products"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "products"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Library className="h-5 w-5" />
+            Répertoire
+          </Link>
+        )}
 
-        <Link
-          href="/admin/follow-ups"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "followUps"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <ClipboardCheck className="h-5 w-5" />
-          Suivis
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/admin/follow-ups"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "followUps"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ClipboardCheck className="h-5 w-5" />
+            Suivis
+          </Link>
+        )}
 
         {role === "ADMIN" && (
           <Link
@@ -160,17 +184,19 @@ export default function Sidebar({
           </Link>
         )}
 
-        <Link
-          href="/admin/analytics/funnel"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "analytics"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <BarChart3 className="h-5 w-5" />
-          Analyses
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/admin/analytics/funnel"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "analytics"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <BarChart3 className="h-5 w-5" />
+            Analyses
+          </Link>
+        )}
 
         <Link
           href="/notes"
@@ -196,17 +222,19 @@ export default function Sidebar({
           Mes rapports
         </Link>
 
-        <Link
-          href="/admin/reports"
-          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-            activeItem === "reportsManagement"
-              ? "bg-blue-50 text-blue-600"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          <ClipboardList className="h-5 w-5" />
-          Suivi des rapports
-        </Link>
+        {role !== "ASSISTANT" && (
+          <Link
+            href="/admin/reports"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "reportsManagement"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <ClipboardList className="h-5 w-5" />
+            Suivi des rapports
+          </Link>
+        )}
 
         {(role === "ADMIN" || role === "MANAGER") && (
           <Link

@@ -187,3 +187,43 @@ test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quoti
   assert.match(managementEntryMatch![0], /href: "\/admin\/reports"/);
   assert.doesNotMatch(managementEntryMatch![0], /disabled: true/);
 });
+
+test("Ticket 25M §24/§25/§43: every entry ASSISTANT can't reach in 25M is gated behind !isAssistant — Tableau de bord, À la une, Nouveau prospect, Actions, Répertoire, Suivis, Analyses, and Rapports quotidiens", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  assert.match(source, /const isAssistant = role === "ASSISTANT";/);
+
+  for (const label of [
+    "Tableau de bord",
+    "À la une",
+    "Nouveau prospect",
+    "Actions",
+    "Répertoire",
+    "Suivis",
+    "Analyses",
+    "Rapports quotidiens",
+  ]) {
+    const entryBlockMatch = source.match(
+      new RegExp(`\\.\\.\\.\\(!isAssistant[\\s\\S]{0,80}?label: "${label}"`),
+    );
+    assert.ok(entryBlockMatch, `expected "${label}" to be gated behind !isAssistant`);
+  }
+});
+
+test("Ticket 25M §24: Mes notes, Mes rapports, and Paramètres remain unconditional — the only three surfaces ASSISTANT can actually reach in 25M", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  for (const label of ["Mes notes", "Mes rapports", "Paramètres"]) {
+    const entryMatch = source.match(
+      new RegExp(`\\{\\s*label: "${label}",[\\s\\S]*?\\},`),
+    );
+    assert.ok(entryMatch, `expected an unconditional "${label}" entry`);
+    assert.doesNotMatch(entryMatch![0], /isAssistant/);
+  }
+});

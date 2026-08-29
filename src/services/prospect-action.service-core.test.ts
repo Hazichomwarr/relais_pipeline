@@ -209,7 +209,7 @@ test("createProspectActionCore creates an OPEN action when the prospect exists a
   const created: unknown[] = [];
   const dependencies: CreateProspectActionDependencies = {
     findProspect: async () => ({ id: "prospect-1" }),
-    findAssignee: async () => ({ id: "assignee-1", active: true }),
+    findAssignee: async () => ({ id: "assignee-1", active: true, role: "COMMERCIAL" }),
     create: async (createdByUserId, fields) => {
       created.push({ createdByUserId, ...fields });
       return { id: "action-1" };
@@ -262,7 +262,7 @@ test("createProspectActionCore rejects when the prospect is not found or not acc
 test("createProspectActionCore rejects an inactive assignee", async () => {
   const dependencies: CreateProspectActionDependencies = {
     findProspect: async () => ({ id: "prospect-1" }),
-    findAssignee: async () => ({ id: "assignee-1", active: false }),
+    findAssignee: async () => ({ id: "assignee-1", active: false, role: "COMMERCIAL" }),
     create: async () => {
       throw new Error("must not create with an inactive assignee");
     },
@@ -279,6 +279,45 @@ test("createProspectActionCore rejects an inactive assignee", async () => {
     assert.equal(result.code, "ASSIGNEE_NOT_AVAILABLE");
   }
 });
+
+test("Ticket 25M §14/§15: createProspectActionCore rejects ASSISTANT as an assignee server-side, even for an active user, even if a forged request bypasses the UI", async () => {
+  const dependencies: CreateProspectActionDependencies = {
+    findProspect: async () => ({ id: "prospect-1" }),
+    findAssignee: async () => ({ id: "assignee-1", active: true, role: "ASSISTANT" }),
+    create: async () => {
+      throw new Error("must not create with an ineligible assignee");
+    },
+  };
+
+  const result = await createProspectActionCore(
+    "creator-1",
+    validCreateInput(),
+    dependencies,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) {
+    assert.equal(result.code, "ASSIGNEE_NOT_ELIGIBLE");
+  }
+});
+
+for (const role of ["ADMIN", "MANAGER", "COMMERCIAL"] as const) {
+  test(`Ticket 25M §14: createProspectActionCore still accepts every pre-25M eligible assignee role (${role})`, async () => {
+    const dependencies: CreateProspectActionDependencies = {
+      findProspect: async () => ({ id: "prospect-1" }),
+      findAssignee: async () => ({ id: "assignee-1", active: true, role }),
+      create: async () => ({ id: "action-1" }),
+    };
+
+    const result = await createProspectActionCore(
+      "creator-1",
+      validCreateInput(),
+      dependencies,
+    );
+
+    assert.equal(result.success, true);
+  });
+}
 
 test("createProspectActionCore rejects an assignee that doesn't exist", async () => {
   const dependencies: CreateProspectActionDependencies = {
@@ -306,7 +345,7 @@ test("createProspectActionCore reports a controlled failure when the underlying 
 
   const dependencies: CreateProspectActionDependencies = {
     findProspect: async () => ({ id: "prospect-1" }),
-    findAssignee: async () => ({ id: "assignee-1", active: true }),
+    findAssignee: async () => ({ id: "assignee-1", active: true, role: "COMMERCIAL" }),
     create: async () => {
       throw new Error("simulated database failure");
     },
@@ -341,7 +380,7 @@ function autoProgressionDependencies(
     progressionCalls,
     dependencies: {
       findProspect: async () => prospect,
-      findAssignee: async () => ({ id: "assignee-1", active: true }),
+      findAssignee: async () => ({ id: "assignee-1", active: true, role: "COMMERCIAL" }),
       create: async (createdByUserId, fields) => {
         void createdByUserId;
         void fields;
@@ -407,7 +446,7 @@ test("createProspectActionWithAutoProgressionCore never progresses status when t
   const { dependencies, progressionCalls } = autoProgressionDependencies(
     { id: "prospect-1", status: "NEW" },
     {
-      findAssignee: async () => ({ id: "assignee-1", active: false }),
+      findAssignee: async () => ({ id: "assignee-1", active: false, role: "COMMERCIAL" }),
     },
   );
 
@@ -453,7 +492,7 @@ test("createProspectActionWithAutoProgressionCore only issues a single findProsp
       findProspectCalls += 1;
       return { id: "prospect-1", status: "NEW" };
     },
-    findAssignee: async () => ({ id: "assignee-1", active: true }),
+    findAssignee: async () => ({ id: "assignee-1", active: true, role: "COMMERCIAL" }),
     create: async () => ({ id: "action-1" }),
     progressNewProspectToFollowUp: async () => ({ count: 1 }),
   };

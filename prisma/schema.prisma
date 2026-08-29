@@ -156,8 +156,14 @@ enum UserStatusActivityType {
   DEACTIVATED
 }
 
+// Ticket 25M — ASSISTANT is a fourth authorization role (what this person
+// may do in the CRM), unrelated to DailyReportTemplateType.ASSISTANT (a
+// separate, independent enum naming a report-template kind, not an
+// authorization tier — see that enum's own comment). The two enums
+// legitimately share the string "ASSISTANT" for unrelated reasons.
 enum UserRole {
   ADMIN
+  ASSISTANT
   COMMERCIAL
   MANAGER
 }
@@ -228,6 +234,10 @@ enum PaymentMethod {
   OTHER
 }
 
+// Ticket 25M — this ASSISTANT is a Daily Report template kind (which
+// report form a user fills out), unrelated to UserRole.ASSISTANT (an
+// authorization role). The two enums legitimately share this string for
+// unrelated reasons; never infer one from the other.
 enum DailyReportTemplateType {
   ASSISTANT
   OPERATIONS_COORDINATOR

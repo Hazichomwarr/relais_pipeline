@@ -17,6 +17,7 @@ import {
   type UserStatusTransition,
 } from "@/src/services/user.service-core";
 import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
+import { PROSPECT_ACTION_ASSIGNEE_ROLES } from "@/src/services/prospect-action.service-core";
 
 const dependencies = {
   create: (data: ValidatedUserInput, actorUserId: string) =>
@@ -131,14 +132,19 @@ export async function listDashboardUserOptions() {
 }
 
 /**
- * Ticket 20B — role-neutral by design (any active User can receive a
- * ProspectAction; see the domain-map comment on `model ProspectAction`).
+ * Ticket 20B — any active User in one of the commercial-workflow roles
+ * can receive a ProspectAction (see the domain-map comment on `model
+ * ProspectAction`). Ticket 25M §14/§17: narrowed from an unconditional
+ * "any active User" to PROSPECT_ACTION_ASSIGNEE_ROLES — same value set
+ * as every pre-25M role, so this changes nothing for ADMIN/MANAGER/
+ * COMMERCIAL; it only keeps the new ASSISTANT role out of this dropdown,
+ * centralizing the rule here rather than filtering client-side.
  * Deliberately not `listAssignableUsers`, whose COMMERCIAL-only filter is
  * specific to Commercial prospect assignment, an unrelated concept.
  */
 export async function listActiveUsersForTaskAssignment() {
   return prisma.user.findMany({
-    where: { active: true },
+    where: { active: true, role: { in: [...PROSPECT_ACTION_ASSIGNEE_ROLES] } },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     select: {
       id: true,

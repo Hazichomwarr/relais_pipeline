@@ -74,6 +74,11 @@ test("COMMERCIAL and MANAGER are supported; ADMIN is not (Ticket 25I audit verdi
   assert.deepEqual(getRoleResponsibilityCatalogForRole("ADMIN"), []);
 });
 
+test("Ticket 25M §26/§27/§28: ASSISTANT is unsupported by default — no catalog entry exists, and none is invented in 25M", () => {
+  assert.equal(isRoleSupportedForRoleResponsibilityAssessment("ASSISTANT"), false);
+  assert.deepEqual(getRoleResponsibilityCatalogForRole("ASSISTANT"), []);
+});
+
 test("responsibility keys are globally unique — no two definitions collide", () => {
   const keys = ROLE_RESPONSIBILITY_CATALOG.map((item) => item.key);
   assert.equal(new Set(keys).size, keys.length);
