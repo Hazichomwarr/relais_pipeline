@@ -26,6 +26,19 @@ export type ProfessionalContributionAssessmentActionResult =
     };
 
 /**
+ * Ticket 25K.2 §3/§4 — creation is the one mutation whose caller needs a
+ * durable identifier back, so it can redirect straight into the new
+ * draft instead of leaving the evaluator at a bare success message.
+ */
+export type CreateProfessionalContributionAssessmentActionResult =
+  | { success: true; assessmentId: string }
+  | {
+      success: false;
+      message: string;
+      fieldErrors?: Record<string, string[] | undefined>;
+    };
+
+/**
  * The ADMIN/MANAGER gate here is the coarse one; the finer "may this
  * actor assess THIS employee's role" rule is re-checked independently
  * inside createProfessionalContributionAssessmentCore — never trusting
@@ -33,7 +46,7 @@ export type ProfessionalContributionAssessmentActionResult =
  */
 export async function createProfessionalContributionAssessmentAction(
   values: unknown,
-): Promise<ProfessionalContributionAssessmentActionResult> {
+): Promise<CreateProfessionalContributionAssessmentActionResult> {
   const authorization = await authorizeAction(() =>
     requireProfessionalContributionAssessmentManagementAccess(),
   );
@@ -64,7 +77,7 @@ export async function createProfessionalContributionAssessmentAction(
 
   revalidatePath("/admin/performance-assessments");
 
-  return { success: true };
+  return { success: true, assessmentId: result.assessmentId };
 }
 
 export async function assessProfessionalContributionItemAction(

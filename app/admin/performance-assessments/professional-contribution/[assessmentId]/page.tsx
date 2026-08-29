@@ -8,6 +8,7 @@ import {
   AuthorizationError,
   requireProfessionalContributionAssessmentManagementAccess,
 } from "@/src/services/authorization.service";
+import { canViewEmployeePerformance } from "@/src/services/performance-summary.service-core";
 import { getProfessionalContributionAssessmentDetail } from "@/src/services/professional-contribution.service";
 
 type PageParams = Promise<{ assessmentId: string }>;
@@ -17,8 +18,11 @@ export default async function ProfessionalContributionAssessmentDetailPage({
 }: {
   params: PageParams;
 }) {
+  let actor: { id: string; role: "ADMIN" | "MANAGER" };
+
   try {
-    await requireProfessionalContributionAssessmentManagementAccess();
+    const authenticated = await requireProfessionalContributionAssessmentManagementAccess();
+    actor = { id: authenticated.id, role: authenticated.role as "ADMIN" | "MANAGER" };
   } catch (error) {
     if (error instanceof AuthorizationError) {
       redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
@@ -34,6 +38,25 @@ export default async function ProfessionalContributionAssessmentDetailPage({
   if (!assessment) {
     notFound();
   }
+
+  // Ticket 25K.2 §27 — an assessment id in the URL is untrusted: the
+  // coarse ADMIN/MANAGER gate above proves nothing about THIS employee.
+  // Re-check the same view authority the 25K dashboard uses before
+  // rendering anything about this specific assessment. Not found rather
+  // than an access-denied message, so an unauthorized id doesn't confirm
+  // the assessment's existence.
+  if (!canViewEmployeePerformance(actor.role, assessment.roleAtEvaluation)) {
+    notFound();
+  }
+
+  // Ticket 25K.2 §28/§29 — editing is evaluator-exclusive in 25J's own
+  // domain core (assessProfessionalContributionItemCore/submit/delete
+  // all reject any actor.id other than evaluatorUserId); this mirrors
+  // that shipped policy for the page's read-only/editable split rather
+  // than inventing a broader "any authorized manager may continue" rule
+  // the domain never actually offers.
+  const canEdit =
+    assessment.status === "DRAFT" && actor.id === assessment.evaluatorUserId;
 
   // Ticket 25K.1 §24 — derived from the assessment's own already-loaded
   // period/employee, not a forwarded query param: this link works
@@ -77,6 +100,8 @@ export default async function ProfessionalContributionAssessmentDetailPage({
             score={assessment.score}
             maxScore={assessment.maxScore}
             employeeName={`${assessment.employee.firstName} ${assessment.employee.lastName}`}
+            evaluatorName={`${assessment.evaluator.firstName} ${assessment.evaluator.lastName}`}
+            canEdit={canEdit}
             items={assessment.items}
           />
         </div>

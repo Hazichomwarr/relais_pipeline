@@ -232,6 +232,7 @@ export async function getProfessionalContributionAssessmentDetail(
         maxScore: true,
         submittedAt: true,
         employee: { select: { firstName: true, lastName: true } },
+        evaluator: { select: { firstName: true, lastName: true } },
         items: {
           select: {
             id: true,

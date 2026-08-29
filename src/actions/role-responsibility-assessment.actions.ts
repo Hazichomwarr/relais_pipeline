@@ -26,6 +26,19 @@ export type RoleResponsibilityAssessmentActionResult =
     };
 
 /**
+ * Ticket 25K.2 §3/§4 — creation is the one mutation whose caller needs a
+ * durable identifier back, so it can redirect straight into the new
+ * draft instead of leaving the evaluator at a bare success message.
+ */
+export type CreateRoleResponsibilityAssessmentActionResult =
+  | { success: true; assessmentId: string }
+  | {
+      success: false;
+      message: string;
+      fieldErrors?: Record<string, string[] | undefined>;
+    };
+
+/**
  * The ADMIN/MANAGER gate here is the coarse one (§9/§44 of the ticket);
  * the finer "may this actor assess THIS employee's role" rule is
  * re-checked independently inside createRoleResponsibilityAssessmentCore
@@ -34,7 +47,7 @@ export type RoleResponsibilityAssessmentActionResult =
  */
 export async function createRoleResponsibilityAssessmentAction(
   values: unknown,
-): Promise<RoleResponsibilityAssessmentActionResult> {
+): Promise<CreateRoleResponsibilityAssessmentActionResult> {
   const authorization = await authorizeAction(() =>
     requireRoleResponsibilityAssessmentManagementAccess(),
   );
@@ -65,7 +78,7 @@ export async function createRoleResponsibilityAssessmentAction(
 
   revalidatePath("/admin/performance-assessments");
 
-  return { success: true };
+  return { success: true, assessmentId: result.assessmentId };
 }
 
 export async function assessRoleResponsibilityItemAction(

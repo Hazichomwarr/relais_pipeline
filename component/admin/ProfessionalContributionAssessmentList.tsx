@@ -128,18 +128,35 @@ export default function ProfessionalContributionAssessmentList({
                   {assessment.evaluator.lastName}
                 </td>
                 <td className="py-2 pr-4">
-                  {assessment.status === "DRAFT" ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(assessment.id)}
-                      disabled={pendingId === assessment.id}
-                      className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-60"
-                    >
-                      {pendingId === assessment.id
-                        ? "Suppression…"
-                        : "Supprimer"}
-                    </button>
-                  ) : null}
+                  <div className="flex items-center gap-3">
+                    {assessment.status === "DRAFT" ? (
+                      <>
+                        <Link
+                          href={`/admin/performance-assessments/professional-contribution/${assessment.id}`}
+                          className="inline-flex h-9 items-center justify-center rounded-lg bg-[#0f2557] px-3 text-xs font-semibold text-white transition hover:bg-[#0f2557]/90"
+                        >
+                          Continuer l’évaluation
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(assessment.id)}
+                          disabled={pendingId === assessment.id}
+                          className="text-xs font-medium text-slate-400 hover:text-red-600 disabled:opacity-60"
+                        >
+                          {pendingId === assessment.id
+                            ? "Suppression…"
+                            : "Supprimer"}
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href={`/admin/performance-assessments/professional-contribution/${assessment.id}`}
+                        className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        Voir le détail
+                      </Link>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

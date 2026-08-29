@@ -63,15 +63,12 @@ export default function RoleResponsibilityAssessmentForm({
   initialMonth,
 }: RoleResponsibilityAssessmentFormProps) {
   const router = useRouter();
-  const [feedback, setFeedback] = useState<
-    { type: "success" | "error"; message: string } | null
-  >(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const defaults = lastClosedMonthDefaults();
 
   const {
     register,
     handleSubmit,
-    reset,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<
@@ -90,7 +87,7 @@ export default function RoleResponsibilityAssessmentForm({
   async function onSubmit(
     values: ValidatedCreateRoleResponsibilityAssessmentInput,
   ) {
-    setFeedback(null);
+    setErrorMessage(null);
 
     const result = await createRoleResponsibilityAssessmentAction(values);
 
@@ -106,13 +103,14 @@ export default function RoleResponsibilityAssessmentForm({
           }
         }
       }
-      setFeedback({ type: "error", message: result.message });
+      setErrorMessage(result.message);
       return;
     }
 
-    reset({ employeeId: "", year: defaults.year, month: defaults.month });
-    setFeedback({ type: "success", message: "L’évaluation a été créée." });
-    router.refresh();
+    // Ticket 25K.2 §3/§4 — no dead-end success message: the evaluator is
+    // taken straight into the new draft, using the durable id the create
+    // action already returns, never re-located by employee+period+latest.
+    router.push(`/admin/performance-assessments/${result.assessmentId}`);
   }
 
   return (
@@ -175,16 +173,8 @@ export default function RoleResponsibilityAssessmentForm({
         </div>
       </div>
 
-      {feedback ? (
-        <p
-          className={
-            feedback.type === "success"
-              ? "text-sm font-medium text-emerald-600"
-              : "text-sm font-medium text-red-600"
-          }
-        >
-          {feedback.message}
-        </p>
+      {errorMessage ? (
+        <p className="text-sm font-medium text-red-600">{errorMessage}</p>
       ) : null}
 
       <button

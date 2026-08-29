@@ -36,3 +36,11 @@ test("Ticket 25K.1 §7: accepts optional initialEmployeeId/initialYear/initialMo
   assert.match(source, /year: initialYear \?\? defaults\.year,/);
   assert.match(source, /month: initialMonth \?\? defaults\.month,/);
 });
+
+test("Ticket 25K.2 §3/§4: on successful creation, redirects straight into the new draft using the durable assessmentId the action returns — no dead-end success message, no re-lookup by employee+period", () => {
+  assert.match(
+    source,
+    /router\.push\(`\/admin\/performance-assessments\/\$\{result\.assessmentId\}`\);/,
+  );
+  assert.doesNotMatch(source, /L.évaluation a été créée/);
+});
