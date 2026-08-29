@@ -18,8 +18,9 @@ type FinancialReportsSearchParams = Promise<{
 }>;
 
 /**
- * The layout already ran requireRole("ADMIN", "MANAGER") before any
- * children render, so no financial data is fetched pre-authorization.
+ * Ticket 25N: the layout already ran requireFinanceAccess() (ADMIN or
+ * ASSISTANT) before any children render, so no financial data is
+ * fetched pre-authorization.
  */
 export default async function FinancialReportsPage({
   searchParams,

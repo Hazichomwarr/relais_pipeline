@@ -132,6 +132,31 @@ export const PERFORMANCE_DASHBOARD_ACCESS_ROLES: UserRole[] = [
   "MANAGER",
 ];
 
+/**
+ * Ticket 25N — the single Finance capability, covering every operational
+ * Finance boundary this domain actually has: the /finances layout gate,
+ * ledger entry creation, and reversal. The 25L/25N mutation audit found
+ * no distinct read/write/administrative-configuration policies to
+ * justify splitting this into FINANCE_VIEW_ROLES/FINANCE_ENTRY_ROLES/
+ * FINANCE_REVERSAL_ROLES — every Finance operation in this codebase is
+ * ordinary operational accounting, so one constant governs all of it. A
+ * genuine split, if a future ticket ever finds one, should add named
+ * siblings here rather than special-casing role checks inline.
+ *
+ * Positive capability, not a role exclusion (`role !== "MANAGER" &&
+ * role !== "COMMERCIAL"`): this reads as "ADMIN and ASSISTANT may access
+ * Finance," not "everyone except these two roles" — the distinction the
+ * ticket itself calls out as mattering once role authority moves onto
+ * OrganizationMembership in Phase 26.
+ *
+ * Deliberately NOT reused for anything outside Finance, even where
+ * ADMIN-only checks exist elsewhere in this file (e.g. user
+ * administration, Section 36 of the ticket) — this constant grants
+ * exactly one capability, never a blanket ADMIN-equivalence for
+ * ASSISTANT.
+ */
+export const FINANCE_ACCESS_ROLES: UserRole[] = ["ADMIN", "ASSISTANT"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

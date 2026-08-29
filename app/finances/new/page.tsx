@@ -5,15 +5,17 @@ import { redirect } from "next/navigation";
 import LedgerEntryForm from "@/component/finances/LedgerEntryForm";
 import {
   AuthorizationError,
-  requireAdmin,
+  requireFinanceAccess,
 } from "@/src/services/authorization.service";
 
 type NewLedgerEntrySearchParams = Promise<{ type?: string }>;
 
 /**
- * Mutation access is ADMIN-only (Ticket 17B); a MANAGER who reaches
- * /finances is never shown the create buttons, and a direct visit here
- * is redirected server-side rather than merely hiding the form.
+ * Ticket 17B: mutation access was ADMIN-only. Ticket 25N: ADMIN or
+ * ASSISTANT via the shared Finance capability — a MANAGER or COMMERCIAL
+ * who reaches /finances is never shown the create buttons, and a direct
+ * visit here is redirected server-side rather than merely hiding the
+ * form.
  */
 export default async function NewLedgerEntryPage({
   searchParams,
@@ -21,7 +23,7 @@ export default async function NewLedgerEntryPage({
   searchParams: NewLedgerEntrySearchParams;
 }) {
   try {
-    await requireAdmin();
+    await requireFinanceAccess();
   } catch (error) {
     if (error instanceof AuthorizationError) {
       redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/finances");

@@ -95,19 +95,19 @@ test("ADMIN mobile navigation includes an active Finances entry pointing to /fin
   assert.doesNotMatch(financesEntryMatch![0], /disabled: true/);
 });
 
-test("Finances is only added for ADMIN, mirroring the Mes prospects/Utilisateurs role gate (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B)", () => {
+test("Ticket 25N: Finances is added for ADMIN or ASSISTANT (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B; 25N grants ASSISTANT the Finance capability)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
     "utf8",
   );
 
   const financesBlockMatch = source.match(
-    /role === "ADMIN"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Finances",/,
+    /role === "ADMIN" \|\| role === "ASSISTANT"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Finances",/,
   );
 
   assert.ok(
     financesBlockMatch,
-    "expected the Finances entry to be gated behind role === \"ADMIN\"",
+    "expected the Finances entry to be gated behind role === \"ADMIN\" || role === \"ASSISTANT\"",
   );
 });
 

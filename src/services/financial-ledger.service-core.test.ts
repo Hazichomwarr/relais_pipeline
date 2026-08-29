@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import type { ValidatedLedgerEntryInput } from "@/src/lib/validations/financial-ledger.schema";
@@ -945,4 +946,30 @@ test("concurrent double reversal: the atomic guard only lets one of two racing r
 
   const reversals = store.entries.filter((entry) => entry.reversalOfId === "out-1");
   assert.equal(reversals.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25N §16/§17/§27/§44 — Finance arithmetic and reads are role-blind
+// ---------------------------------------------------------------------------
+
+test("Ticket 25N §27/§44: no read/summary function in this file takes a role or actor parameter — Finance numbers are organization-level facts, computed identically no matter who is authorized to see them", () => {
+  const source = readFileSync("src/services/financial-ledger.service-core.ts", "utf8");
+
+  for (const signature of [
+    /export async function listLedgerEntriesCore\([\s\S]*?\)/,
+    /export async function getLedgerEntryByIdCore\([\s\S]*?\)/,
+    /export function computeFinancialLedgerSummaryCore\([\s\S]*?\)/,
+    /export async function getFinancialLedgerSummaryCore\([\s\S]*?\)/,
+    /export function computeEffectiveFinancialLedgerSummaryCore\([\s\S]*?\)/,
+    /export async function getEffectiveFinancialLedgerSummaryCore\([\s\S]*?\)/,
+  ]) {
+    const match = source.match(signature);
+    assert.ok(match, `expected to find signature matching ${signature}`);
+    assert.doesNotMatch(match![0], /role/i);
+    assert.doesNotMatch(match![0], /actor/i);
+  }
+
+  // Only the two mutations take an actor id at all, and only as a plain
+  // opaque string to attribute the write — never a role, never a branch.
+  assert.doesNotMatch(source, /actor\.role|user\.role|\brole\s*[:=]/);
 });

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
@@ -587,4 +588,20 @@ test("comparison passes the previous-period summary through and computes each ch
   // previous outflow 50000, current outflow 0 (no outflow entries this
   // period) -> a real, computable -100% change, not a null/fake value.
   assert.equal(report.comparison.outflowChangePercent, "-100.00");
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25N §18/§27/§44 — reports are role-blind by construction
+// ---------------------------------------------------------------------------
+
+test("Ticket 25N §18/§44: computeFinancialReportCore takes no role or actor parameter — an ADMIN and an ASSISTANT viewing the same period/data get identical numbers, not a role-forked calculation", () => {
+  const source = readFileSync("src/services/financial-report.service-core.ts", "utf8");
+
+  const signatureMatch = source.match(
+    /export function computeFinancialReportCore\(params: \{[\s\S]*?\}\)/,
+  );
+  assert.ok(signatureMatch, "expected to find computeFinancialReportCore's signature");
+  assert.doesNotMatch(signatureMatch![0], /role/i);
+  assert.doesNotMatch(signatureMatch![0], /actor/i);
+  assert.doesNotMatch(source, /actor\.role|user\.role|UserRole/);
 });

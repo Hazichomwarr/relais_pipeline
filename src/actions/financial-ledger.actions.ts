@@ -11,7 +11,7 @@ import {
   createLedgerEntry,
   reverseLedgerEntry,
 } from "@/src/services/financial-ledger.service";
-import { requireAdmin } from "@/src/services/authorization.service";
+import { requireFinanceAccess } from "@/src/services/authorization.service";
 
 export type CreateLedgerEntryActionResult =
   | { success: true; entryId: string }
@@ -32,7 +32,7 @@ export type ReverseLedgerEntryActionResult =
 export async function createLedgerEntryAction(
   values: unknown,
 ): Promise<CreateLedgerEntryActionResult> {
-  const authorization = await authorizeAction(() => requireAdmin());
+  const authorization = await authorizeAction(() => requireFinanceAccess());
 
   if (!authorization.ok) {
     return { success: false, message: authorization.message };
@@ -62,7 +62,7 @@ export async function createLedgerEntryAction(
 export async function reverseLedgerEntryAction(
   values: unknown,
 ): Promise<ReverseLedgerEntryActionResult> {
-  const authorization = await authorizeAction(() => requireAdmin());
+  const authorization = await authorizeAction(() => requireFinanceAccess());
 
   if (!authorization.ok) {
     return { success: false, message: authorization.message };

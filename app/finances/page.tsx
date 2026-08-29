@@ -20,9 +20,11 @@ type FinancesSearchParams = Promise<{
 }>;
 
 /**
- * The layout already ran requireRole("ADMIN", "MANAGER") — this call just
- * reads the role for UI visibility (the create buttons), not a second
- * authorization check.
+ * Ticket 25N: the layout already ran requireFinanceAccess() (ADMIN or
+ * ASSISTANT) — this call just reads the role for UI visibility (the
+ * create buttons), not a second authorization check. Mutation
+ * authorization itself lives at the Server Action layer
+ * (financial-ledger.actions.ts), never trusted from this boolean alone.
  */
 export default async function FinancesPage({
   searchParams,
@@ -31,7 +33,7 @@ export default async function FinancesPage({
 }) {
   const params = await searchParams;
   const user = await requireAuthenticatedUser();
-  const canCreate = user.role === "ADMIN";
+  const canCreate = user.role === "ADMIN" || user.role === "ASSISTANT";
 
   const filter = parseLedgerHistoryFilter(params);
 

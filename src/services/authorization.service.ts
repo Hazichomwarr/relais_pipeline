@@ -8,6 +8,7 @@ import {
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  FINANCE_ACCESS_ROLES,
   MY_PROSPECTS_ROLES,
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
@@ -132,4 +133,15 @@ export async function requireProfessionalContributionAssessmentManagementAccess(
  */
 export async function requirePerformanceDashboardAccess() {
   return requireRole(...PERFORMANCE_DASHBOARD_ACCESS_ROLES);
+}
+
+/**
+ * Ticket 25N — the one Finance authorization boundary: ADMIN or
+ * ASSISTANT. Deliberately not requireAdmin() itself (§5 of the ticket):
+ * that helper stays genuinely ADMIN-only everywhere else it's used (user
+ * administration, targets, etc.) — granting Finance access must never
+ * silently widen those unrelated surfaces to ASSISTANT.
+ */
+export async function requireFinanceAccess() {
+  return requireRole(...FINANCE_ACCESS_ROLES);
 }

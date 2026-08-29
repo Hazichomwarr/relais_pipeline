@@ -35,8 +35,12 @@ export default async function LedgerEntryDetailPage({
     notFound();
   }
 
+  // Ticket 25N: reversal is ordinary operational Finance work, same
+  // capability as creation — ADMIN or ASSISTANT, never trusted here
+  // alone (the reverseLedgerEntryAction Server Action re-authorizes via
+  // requireFinanceAccess()).
   const canReverse =
-    user.role === "ADMIN" &&
+    (user.role === "ADMIN" || user.role === "ASSISTANT") &&
     entry.status === "POSTED" &&
     entry.reversalOfId === null;
 

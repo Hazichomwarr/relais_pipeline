@@ -11,10 +11,11 @@ import test from "node:test";
  * the source directly instead.
  */
 
-test("the finances layout gates read access to ADMIN only (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B)", () => {
+test("the finances layout gates read access to the Finance capability (Ticket 20G.1 — MANAGER lost the read access it had under Ticket 17B; Ticket 25N — ADMIN + ASSISTANT, not literal ADMIN identity)", () => {
   const source = readFileSync("app/finances/layout.tsx", "utf8");
 
-  assert.match(source, /requireAdmin\(\)/);
+  assert.match(source, /requireFinanceAccess\(\)/);
+  assert.doesNotMatch(source, /requireAdmin\(\)/);
   assert.doesNotMatch(source, /requireRole\(/);
   assert.match(
     source,
@@ -38,17 +39,21 @@ test("the finances dashboard reuses the Ticket 17A list service and the Ticket 2
   assert.doesNotMatch(source, /prisma\./);
 });
 
-test("the finances dashboard only shows create buttons when the user is ADMIN", () => {
+test("Ticket 25N: the finances dashboard shows create buttons for ADMIN or ASSISTANT — never trusted as authorization on its own", () => {
   const source = readFileSync("app/finances/page.tsx", "utf8");
 
-  assert.match(source, /canCreate = user\.role === "ADMIN"/);
+  assert.match(
+    source,
+    /canCreate = user\.role === "ADMIN" \|\| user\.role === "ASSISTANT"/,
+  );
   assert.match(source, /\{canCreate && \(/);
 });
 
-test("the create-entry page is gated by requireAdmin, redirecting MANAGER back to /finances", () => {
+test("Ticket 25N: the create-entry page is gated by requireFinanceAccess, redirecting MANAGER/COMMERCIAL back to /finances", () => {
   const source = readFileSync("app/finances/new/page.tsx", "utf8");
 
-  assert.match(source, /requireAdmin\(\)/);
+  assert.match(source, /requireFinanceAccess\(\)/);
+  assert.doesNotMatch(source, /requireAdmin\(\)/);
   assert.match(
     source,
     /redirect\(error\.code === "UNAUTHENTICATED" \? "\/login" : "\/finances"\)/,
@@ -78,12 +83,12 @@ test("the ledger detail page calls notFound() for an unknown entry", () => {
   assert.match(source, /if \(!entry\) \{\s*notFound\(\);/);
 });
 
-test("the ledger detail page only offers reversal to ADMIN on a still-POSTED, non-reversal entry", () => {
+test("Ticket 25N: the ledger detail page offers reversal to ADMIN or ASSISTANT on a still-POSTED, non-reversal entry", () => {
   const source = readFileSync("app/finances/ledger/[entryId]/page.tsx", "utf8");
 
   assert.match(
     source,
-    /canReverse =\s*\n\s*user\.role === "ADMIN" &&\s*\n\s*entry\.status === "POSTED" &&\s*\n\s*entry\.reversalOfId === null/,
+    /canReverse =\s*\n\s*\(user\.role === "ADMIN" \|\| user\.role === "ASSISTANT"\) &&\s*\n\s*entry\.status === "POSTED" &&\s*\n\s*entry\.reversalOfId === null/,
   );
   assert.match(source, /\{canReverse && \(/);
 });

@@ -174,13 +174,14 @@ for (const functionName of [
   "createLedgerEntryAction",
   "reverseLedgerEntryAction",
 ]) {
-  test(`${functionName} authorizes via requireAdmin — financial mutations are ADMIN-only (Ticket 17A)`, () => {
+  test(`${functionName} authorizes via requireFinanceAccess — Ticket 17A's ADMIN-only financial mutations became the ADMIN+ASSISTANT Finance capability in Ticket 25N`, () => {
     const functionBody = extractFunctionBody(
       "src/actions/financial-ledger.actions.ts",
       functionName,
     );
 
-    assert.match(functionBody, /requireAdmin\(\)/);
+    assert.match(functionBody, /requireFinanceAccess\(\)/);
+    assert.doesNotMatch(functionBody, /requireAdmin\(\)/);
     assert.doesNotMatch(
       functionBody,
       /requireRole\(\s*"ADMIN"\s*,\s*"MANAGER"\s*\)/,

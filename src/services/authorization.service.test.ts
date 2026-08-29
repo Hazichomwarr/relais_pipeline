@@ -7,6 +7,7 @@ import {
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  FINANCE_ACCESS_ROLES,
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
@@ -213,14 +214,16 @@ test("requireRoleCore denies COMMERCIAL the performance dashboard gate outright 
 });
 
 /**
- * Ticket 25M §25/§45 — 25M introduces ASSISTANT but explicitly does NOT
- * grant Finance access yet (that's 25N). requireAdmin() (app/finances/
- * layout.tsx) wraps requireRole("ADMIN") — a single-role list — so this
- * proves ADMIN is unaffected and every other role, including the new
- * ASSISTANT, is denied exactly as before, without re-deriving Finance's
- * own route wiring here.
+ * Ticket 25N §5/§37 — one of the most important safety tests in this
+ * ticket: granting ASSISTANT the Finance capability must never widen
+ * requireAdmin() itself. requireAdmin() wraps requireRole("ADMIN") — a
+ * literal single-role list untouched by 25N — so ADMIN still succeeds
+ * and every other role, including ASSISTANT, is still denied exactly as
+ * before. This is a direct regression on the real `["ADMIN"]` shape used
+ * throughout the codebase for genuine administrative boundaries (user
+ * management, targets, etc.), not a simulation.
  */
-test("Ticket 25M §45: requireRoleCore still allows only ADMIN through a Finance-shaped single-role gate — MANAGER, COMMERCIAL, and the new ASSISTANT are all denied, unchanged", () => {
+test("Ticket 25N §5/§37: requireRoleCore against the real ADMIN-only shape still allows only ADMIN — ASSISTANT's new Finance capability never widened it", () => {
   const user = requireRoleCore({ user: makeUser("ADMIN") }, ["ADMIN"]);
   assert.equal(user.role, "ADMIN");
 
@@ -228,9 +231,36 @@ test("Ticket 25M §45: requireRoleCore still allows only ADMIN through a Finance
     assert.throws(
       () => requireRoleCore({ user: makeUser(role) }, ["ADMIN"]),
       hasCode("ACCESS_DENIED"),
-      `expected ${role} to be denied Finance-shaped ADMIN-only access`,
+      `expected ${role} to still be denied genuine ADMIN-only access`,
     );
   }
+});
+
+/**
+ * Ticket 25N §2/§38 — the actual Finance capability: a positive
+ * allow-list, ADMIN + ASSISTANT, tested against all four roles (no
+ * partial enumeration).
+ */
+test("Ticket 25N §38: requireRoleCore against FINANCE_ACCESS_ROLES allows ADMIN and ASSISTANT, denies MANAGER and COMMERCIAL", () => {
+  for (const role of ["ADMIN", "ASSISTANT"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, FINANCE_ACCESS_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["MANAGER", "COMMERCIAL"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, FINANCE_ACCESS_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied Finance access`,
+    );
+  }
+});
+
+test("Ticket 25N §46: an anonymous visitor is denied Finance access with UNAUTHENTICATED, not ACCESS_DENIED", () => {
+  assert.throws(
+    () => requireRoleCore(null, FINANCE_ACCESS_ROLES),
+    hasCode("UNAUTHENTICATED"),
+  );
 });
 
 function hasCode(code: AuthorizationError["code"]) {

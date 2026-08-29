@@ -27,10 +27,12 @@ import Link from "next/link";
  * route (or into a capability 25M deliberately doesn't grant yet, like
  * prospecting) is explicitly hidden with `role !== "ASSISTANT"` rather
  * than left visible and dangling on a route that would just reject them.
- * What remains for ASSISTANT today — Mes notes, Mes rapports, Paramètres
- * — are the only surfaces actually reachable by this role right now
- * (role-neutral routes, per their own layouts). This is a narrow,
- * temporary nav, not a final Assistant navigation design (§20).
+ * Ticket 25N adds exactly one item back for this role — Finances, the
+ * new real capability — alongside the pre-existing role-neutral routes
+ * (Mes notes, Mes rapports, Paramètres). Still a narrow, deliberately
+ * incremental nav, not a final Assistant navigation design (§20): each
+ * future capability grant gets its own explicit item, never a blanket
+ * re-enablement of the Admin/Manager sidebar.
  */
 export default function Sidebar({
   activeItem = "dashboard",
@@ -170,7 +172,7 @@ export default function Sidebar({
           </Link>
         )}
 
-        {role === "ADMIN" && (
+        {(role === "ADMIN" || role === "ASSISTANT") && (
           <Link
             href="/finances"
             className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${

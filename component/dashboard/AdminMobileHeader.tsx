@@ -28,11 +28,13 @@ import MobileNavDrawer, {
  * permission. Every item that leads into a still-ADMIN/MANAGER-only
  * route (or into a capability 25M deliberately doesn't grant yet, like
  * prospecting) is explicitly excluded for ASSISTANT rather than left
- * dangling on a route that would just reject them. What remains for
- * ASSISTANT today — Mes notes, Mes rapports, Paramètres — are the only
- * surfaces actually reachable by this role right now (role-neutral
- * routes, per their own layouts). This is a narrow, temporary nav, not
- * a final Assistant navigation design (§20).
+ * dangling on a route that would just reject them. Ticket 25N adds
+ * exactly one item back for this role — Finances, the new real
+ * capability — alongside the pre-existing role-neutral routes (Mes
+ * notes, Mes rapports, Paramètres). Still a narrow, deliberately
+ * incremental nav, not a final Assistant navigation design (§20): each
+ * future capability grant gets its own explicit item, never a blanket
+ * re-enablement of the Admin/Manager sidebar.
  */
 function getAdminNavItems(role?: UserRole): MobileNavItem[] {
   const isAssistant = role === "ASSISTANT";
@@ -101,7 +103,7 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
           },
         ]
       : []),
-    ...(role === "ADMIN"
+    ...(role === "ADMIN" || role === "ASSISTANT"
       ? [
           {
             label: "Finances",
