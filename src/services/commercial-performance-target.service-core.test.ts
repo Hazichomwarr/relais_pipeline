@@ -114,11 +114,12 @@ test("§50/§9: COMMERCIAL cannot manage commercial performance targets — no s
   );
 });
 
-test("§51: COMMERCIAL is eligible to have a target", () => {
+test("Ticket 25P §11/§46: COMMERCIAL and MANAGER are both eligible to have a target", () => {
   assert.equal(isEligibleForCommercialPerformanceTarget("COMMERCIAL"), true);
+  assert.equal(isEligibleForCommercialPerformanceTarget("MANAGER"), true);
 });
 
-for (const role of ["MANAGER", "ADMIN"] as const) {
+for (const role of ["ADMIN", "ASSISTANT"] as const) {
   test(`§51: ${role} is not eligible to have a Commercial performance target`, () => {
     assert.equal(isEligibleForCommercialPerformanceTarget(role), false);
   });
@@ -177,10 +178,10 @@ test("§50: a COMMERCIAL cannot create a target, even for themselves", async () 
 });
 
 // ---------------------------------------------------------------------------
-// §51: employee eligibility
+// §51/Ticket 25P §36/§52: employee eligibility
 // ---------------------------------------------------------------------------
 
-test("§51: a target for a MANAGER employee is rejected", async () => {
+test("Ticket 25P §36/§52: a target for a MANAGER employee now succeeds — this was EMPLOYEE_NOT_ELIGIBLE before 25P", async () => {
   const result = await createCommercialPerformanceTargetCore(
     actor("admin-1", "ADMIN"),
     baseInput(),
@@ -188,8 +189,7 @@ test("§51: a target for a MANAGER employee is rejected", async () => {
     NOW_MID_AUGUST,
   );
 
-  assert.equal(result.success, false);
-  if (!result.success) assert.equal(result.code, "EMPLOYEE_NOT_ELIGIBLE");
+  assert.equal(result.success, true);
 });
 
 test("§51: a target for an ADMIN employee is rejected", async () => {
@@ -197,6 +197,18 @@ test("§51: a target for an ADMIN employee is rejected", async () => {
     actor("admin-1", "ADMIN"),
     baseInput(),
     createDeps({ findEmployee: async () => employee({ role: "ADMIN" }) }),
+    NOW_MID_AUGUST,
+  );
+
+  assert.equal(result.success, false);
+  if (!result.success) assert.equal(result.code, "EMPLOYEE_NOT_ELIGIBLE");
+});
+
+test("Ticket 25P §36/§52: a target for an ASSISTANT employee is rejected", async () => {
+  const result = await createCommercialPerformanceTargetCore(
+    actor("admin-1", "ADMIN"),
+    baseInput(),
+    createDeps({ findEmployee: async () => employee({ role: "ASSISTANT" }) }),
     NOW_MID_AUGUST,
   );
 
@@ -464,6 +476,25 @@ test("§58: roleAtAssignment is captured from the employee's role at creation ti
   assert.equal(capturedRole, "COMMERCIAL");
   // The employee being promoted afterward has no code path back into an
   // already-created row: update/delete never touch roleAtAssignment.
+});
+
+test("Ticket 25P §13/§53: a target created for a MANAGER employee snapshots roleAtAssignment = MANAGER — no normalization to COMMERCIAL", async () => {
+  let capturedRole: UserRole | undefined;
+
+  await createCommercialPerformanceTargetCore(
+    actor("admin-1", "ADMIN"),
+    baseInput(),
+    createDeps({
+      findEmployee: async () => employee({ role: "MANAGER" }),
+      create: async (fields: CreateCommercialPerformanceTargetFields) => {
+        capturedRole = fields.roleAtAssignment;
+        return { id: "target-1" };
+      },
+    }),
+    NOW_MID_AUGUST,
+  );
+
+  assert.equal(capturedRole, "MANAGER");
 });
 
 test("§59: createdByRoleAtEvent is captured from the actor at creation time, independent of what that actor's role becomes later", async () => {

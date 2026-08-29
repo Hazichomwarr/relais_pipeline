@@ -12,14 +12,15 @@ import {
   type ValidatedCreateCommercialPerformanceTargetInput,
 } from "@/src/lib/validations/commercial-performance-target.schema";
 
-type CommercialOption = {
+type EligibleEmployeeOption = {
   id: string;
   firstName: string;
   lastName: string;
 };
 
 type CommercialPerformanceTargetFormProps = {
-  commercials: CommercialOption[];
+  /** Ticket 25P §34: COMMERCIAL and MANAGER employees — no longer Commercial-only. */
+  eligibleEmployees: EligibleEmployeeOption[];
 };
 
 const inputClassName =
@@ -50,13 +51,15 @@ function nextMonthDefaults(): { year: number; month: number } {
 }
 
 /**
- * Ticket 25H.2A §40 — the small creation surface: select a Commercial,
- * select an upcoming month, enter the target wins. Defaults to next
- * month, since this month (and every past one) is already locked by the
- * time this form can be used (§17/§18: no retroactive creation).
+ * Ticket 25H.2A §40 — the small creation surface: select an eligible
+ * employee, select an upcoming month, enter the target wins. Defaults to
+ * next month, since this month (and every past one) is already locked by
+ * the time this form can be used (§17/§18: no retroactive creation).
+ * Ticket 25P §34: the employee list is COMMERCIAL + MANAGER, not
+ * Commercial-only — server-filtered by the caller, never by this form.
  */
 export default function CommercialPerformanceTargetForm({
-  commercials,
+  eligibleEmployees,
 }: CommercialPerformanceTargetFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<
@@ -122,13 +125,13 @@ export default function CommercialPerformanceTargetForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">
-            Commercial
+            Commercial ou manager
           </label>
           <select className={inputClassName} {...register("userId")}>
-            <option value="">Sélectionnez un commercial</option>
-            {commercials.map((commercial) => (
-              <option key={commercial.id} value={commercial.id}>
-                {commercial.firstName} {commercial.lastName}
+            <option value="">Sélectionnez un employé</option>
+            {eligibleEmployees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.firstName} {employee.lastName}
               </option>
             ))}
           </select>

@@ -26,6 +26,10 @@ test("defaults to next month, never the current or a past month — this month i
   assert.doesNotMatch(source, /getUTCMonth\(\)\s*\+\s*0\b/);
 });
 
-test("the commercial select is populated from the commercials prop, not a hardcoded list", () => {
-  assert.match(source, /commercials\.map\(/);
+test("the employee select is populated from the eligibleEmployees prop, not a hardcoded list", () => {
+  assert.match(source, /eligibleEmployees\.map\(/);
+});
+
+test("Ticket 25P §34: the select label reflects both eligible roles, not Commercial-only", () => {
+  assert.match(source, /Commercial ou manager/);
 });

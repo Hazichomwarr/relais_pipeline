@@ -86,7 +86,7 @@ export default function CommercialPerformanceTargetList({
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              <th className="py-2 pr-4">Commercial</th>
+              <th className="py-2 pr-4">Employé</th>
               <th className="py-2 pr-4">Période</th>
               <th className="py-2 pr-4">Objectif</th>
               <th className="py-2 pr-4">Statut</th>

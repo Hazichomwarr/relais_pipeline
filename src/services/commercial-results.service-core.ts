@@ -26,18 +26,34 @@ export const COMMERCIAL_RESULTS_MAX_SCORE = 40;
 export type CommercialResultsPeriod = ExecutionDisciplinePeriod;
 
 /**
- * Ticket 25G §6/§27, same reasoning as Execution Discipline: only
- * COMMERCIAL has audited Results evidence today. This gates whether the
- * top-level orchestrator (computeCommercialResultsResult) will produce a
- * Results dimension for this person's *current* profile at all — it does
- * NOT gate which historical WON events count as evidence once evidence
- * collection runs (see collectCommercialResultsEvidence's own comment on
- * why current role and event-time role are deliberately independent).
+ * Ticket 25G §6/§27: originally COMMERCIAL only. Ticket 25P broadens this
+ * to COMMERCIAL and MANAGER — a MANAGER now has audited Results evidence
+ * eligibility identical to a COMMERCIAL's, per the ticket's own directive
+ * to make Manager "a legitimate subject of the Results /40 dimension."
+ * ADMIN and ASSISTANT remain unsupported; no schema or evidence-collection
+ * change makes either of those roles scorable.
+ *
+ * This set gates two related but distinct questions (25P §6):
+ * 1. Whether the top-level orchestrator (computeCommercialResultsResult)
+ *    will produce a Results dimension for this person's *current* profile
+ *    at all (via isScorableForCommercialResults, below).
+ * 2. Whether a historical WON event's frozen creditedUserRoleAtEvent
+ *    counts as valid evidence at all (via collectCommercialResultsEvidence,
+ *    further down) — this does NOT read the employee's current role.
+ *
+ * Both questions happen to resolve against the same role set after 25P,
+ * but they are kept as two separately-named call sites rather than one
+ * shared check, so a future divergence between "who is a Results subject
+ * today" and "which frozen event-role is valid evidence" doesn't require
+ * hunting down every call site — only the two functions below.
  */
-const SCORABLE_ROLES: ReadonlySet<UserRole> = new Set(["COMMERCIAL"]);
+const RESULTS_ELIGIBLE_ROLES: ReadonlySet<UserRole> = new Set([
+  "COMMERCIAL",
+  "MANAGER",
+]);
 
 export function isScorableForCommercialResults(role: UserRole): boolean {
-  return SCORABLE_ROLES.has(role);
+  return RESULTS_ELIGIBLE_ROLES.has(role);
 }
 
 export type CommercialResultsEmployee = {
@@ -66,8 +82,8 @@ export type CommercialResultsEvidence = {
   creditedWins: number;
   /** The same wins before de-duplication by prospect — >= creditedWins; lets a reader see whether de-duplication actually mattered. */
   rawCreditedWinEvents: number;
-  /** Wins credited to this same employee id, but with creditedUserRoleAtEvent other than COMMERCIAL (e.g. they were a MANAGER when it happened) — visible, per §17/§33, but never counted toward creditedWins. */
-  excludedNonCommercialRoleWins: number;
+  /** Wins credited to this same employee id, but with a creditedUserRoleAtEvent outside RESULTS_ELIGIBLE_ROLES (e.g. they were ADMIN or ASSISTANT when it happened) — visible, per §17/§33/Ticket 25P §27, but never counted toward creditedWins. Renamed from `excludedNonCommercialRoleWins` in 25P: since MANAGER-at-event wins are now eligible and no longer land in this bucket, the old name would have misleadingly implied they still did. */
+  excludedIneligibleRoleWins: number;
   /** Period-wide (not scoped to this employee) count of distinct prospects with a WON_TRANSITION whose creditedUserId is null — pre-25H.1 history with unknown attribution (Ticket 25H.2 §5/§26). Never assigned to anyone. */
   legacyUnattributedWinsInPeriod: number;
   /** PARTIAL_LEGACY_ATTRIBUTION whenever legacyUnattributedWinsInPeriod > 0 — this period's picture may be incomplete company-wide, not just for this one employee. */
@@ -90,13 +106,17 @@ function distinctProspectCount(
  * re-check) so its correctness never depends on the caller's query alone.
  *
  * Eligibility for `employeeId`'s own credited wins is governed **only**
- * by `creditedUserRoleAtEvent === "COMMERCIAL"` — never by `employeeId`'s
- * current role, which this function doesn't even receive. This is
- * deliberate: Ticket 25H.2 §17/§32 requires a result credited while
- * COMMERCIAL to remain eligible after the person is later promoted to
- * MANAGER, and §33 requires the reverse (credited while MANAGER, now
- * COMMERCIAL, still excluded) — both are satisfied automatically by
- * keying purely off the frozen `creditedUserRoleAtEvent` snapshot.
+ * by `creditedUserRoleAtEvent ∈ RESULTS_ELIGIBLE_ROLES` — never by
+ * `employeeId`'s current role, which this function doesn't even receive.
+ * This is deliberate: Ticket 25H.2 §17/§32 requires a result credited
+ * while COMMERCIAL to remain eligible after the person is later promoted
+ * to MANAGER, and (post-25P) a result credited while MANAGER remains
+ * eligible after a demotion to COMMERCIAL — both directions are satisfied
+ * automatically by keying purely off the frozen `creditedUserRoleAtEvent`
+ * snapshot. A win credited while ADMIN or ASSISTANT remains excluded
+ * regardless of the employee's current role (25P §25/§26) — current
+ * Manager or Commercial status never retroactively validates an
+ * ineligible historical event-role.
  */
 export function collectCommercialResultsEvidence(
   employeeId: string,
@@ -114,10 +134,14 @@ export function collectCommercialResultsEvidence(
     (event) => event.creditedUserId === employeeId,
   );
   const eligible = creditedToEmployee.filter(
-    (event) => event.creditedUserRoleAtEvent === "COMMERCIAL",
+    (event) =>
+      event.creditedUserRoleAtEvent !== null &&
+      RESULTS_ELIGIBLE_ROLES.has(event.creditedUserRoleAtEvent),
   );
-  const excludedNonCommercial = creditedToEmployee.filter(
-    (event) => event.creditedUserRoleAtEvent !== "COMMERCIAL",
+  const excludedIneligible = creditedToEmployee.filter(
+    (event) =>
+      event.creditedUserRoleAtEvent === null ||
+      !RESULTS_ELIGIBLE_ROLES.has(event.creditedUserRoleAtEvent),
   );
   const legacyUnattributed = inPeriod.filter(
     (event) => event.creditedUserId === null,
@@ -129,9 +153,7 @@ export function collectCommercialResultsEvidence(
   return {
     creditedWins: distinctProspectCount(eligible),
     rawCreditedWinEvents: eligible.length,
-    excludedNonCommercialRoleWins: distinctProspectCount(
-      excludedNonCommercial,
-    ),
+    excludedIneligibleRoleWins: distinctProspectCount(excludedIneligible),
     legacyUnattributedWinsInPeriod,
     coverageStatus:
       legacyUnattributedWinsInPeriod > 0
@@ -145,8 +167,14 @@ export function collectCommercialResultsEvidence(
  * deliberately narrower than commercial-performance-target.service-core.ts's
  * full CommercialPerformanceTargetRow, since scoring only ever reads
  * these two fields. `roleAtAssignment` is re-validated defensively here
- * (§5) even though 25H.2A's write path already guarantees it's always
- * "COMMERCIAL" — this file never trusts a table name alone.
+ * (§5) even though the write path already guarantees it's always a
+ * RESULTS_ELIGIBLE_ROLES member (COMMERCIAL or MANAGER, since Ticket
+ * 25P) — this file never trusts a table name alone. This check validates
+ * the target's own historical snapshot value, never the employee's
+ * *current* role — a target created for a since-promoted-or-demoted
+ * employee remains valid based purely on what it recorded at assignment
+ * time (Ticket 25P §37: "roleAtAssignment is historical metadata, not a
+ * mutable compatibility lock").
  */
 export type CommercialResultsTarget = {
   targetWins: number;
@@ -277,11 +305,14 @@ export function computeCommercialResultsAchievementRate(
  * The role gate checks the employee's *current* role — a product-level
  * decision about whether to present a Results dimension for this
  * person's profile at all today, independent of
- * collectCommercialResultsEvidence's event-time eligibility rule. A
- * currently-MANAGER employee's past COMMERCIAL-earned evidence still
- * exists and is still correct — call collectCommercialResultsEvidence
- * directly for that case, as a future historical-record viewer would
- * (§4/§24, unchanged from 25H.2's own reasoning).
+ * collectCommercialResultsEvidence's event-time eligibility rule. Since
+ * Ticket 25P, both COMMERCIAL and MANAGER pass this gate; a currently-
+ * ASSISTANT (or ADMIN) employee's past COMMERCIAL-or-MANAGER-earned
+ * evidence still exists and is still correct — call
+ * collectCommercialResultsEvidence directly for that case, as a future
+ * historical-record viewer would (§4/§24, unchanged from 25H.2's own
+ * reasoning; 25P §24 restates this explicitly for the newly-possible
+ * Manager-to-Assistant transition).
  */
 export function computeCommercialResultsResult(
   employee: CommercialResultsEmployee,
@@ -326,7 +357,7 @@ export function computeCommercialResultsResult(
   }
 
   if (
-    target.roleAtAssignment !== "COMMERCIAL" ||
+    !RESULTS_ELIGIBLE_ROLES.has(target.roleAtAssignment) ||
     !Number.isInteger(target.targetWins) ||
     target.targetWins <= 0
   ) {

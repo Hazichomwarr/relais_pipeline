@@ -25,6 +25,15 @@ export type CommercialPerformanceTargetActor = {
  * established precedent). Organization-wide, not team-scoped: no
  * manager-of-employee hierarchy exists yet (25G §6/§27) — this is a
  * documented limitation, not an oversight.
+ *
+ * Ticket 25P §15/§45 audit finding: this authority is deliberately left
+ * untouched by 25P. Target-*management* authority (who may create/edit/
+ * delete a target) and target-*subject* eligibility (who may receive one,
+ * just below) are independent policies — Manager becoming a valid target
+ * subject does not grant Manager any new authority, and a MANAGER already
+ * had management authority before 25P for unrelated reasons (25H.2A's own
+ * org-wide V1 scope). Do not merge these two constants into one generic
+ * "performance roles" array (25P §45).
  */
 const TARGET_MANAGEMENT_ROLES: ReadonlySet<UserRole> = new Set([
   "ADMIN",
@@ -37,8 +46,32 @@ export function canManageCommercialPerformanceTargets(actor: {
   return TARGET_MANAGEMENT_ROLES.has(actor.role);
 }
 
-/** Ticket 25H.2A §3 — V1 targets exist for COMMERCIAL only, matching 25H/25H.2's own Results-evidence scope. */
-const ELIGIBLE_EMPLOYEE_ROLES: ReadonlySet<UserRole> = new Set(["COMMERCIAL"]);
+/**
+ * Ticket 25H.2A §3 — V1 targets existed for COMMERCIAL only, matching
+ * 25H/25H.2's own Results-evidence scope at the time. Ticket 25P widens
+ * this to COMMERCIAL and MANAGER, matching commercial-results.service-core.ts's
+ * own RESULTS_ELIGIBLE_ROLES widening — a Manager who can now be scored
+ * on Results /40 must also be a valid target subject, or NO_TARGET would
+ * be permanent for every Manager. Kept as this file's own independent
+ * constant rather than importing RESULTS_ELIGIBLE_ROLES from
+ * commercial-results.service-core.ts (established precedent: this file
+ * never imports the scoring engine, and the scoring engine's own
+ * `CommercialResultsTarget.roleAtAssignment` check likewise never imports
+ * this file) — the two policies currently agree by design, not by
+ * shared code, so either can diverge later without editing the other.
+ */
+const ELIGIBLE_EMPLOYEE_ROLES: ReadonlySet<UserRole> = new Set([
+  "COMMERCIAL",
+  "MANAGER",
+]);
+
+/**
+ * Exported so the employee-listing query that populates the target-
+ * creation dropdown (user.service.ts) can filter by this exact policy
+ * instead of duplicating the role literals (Ticket 25P §34).
+ */
+export const COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES: readonly UserRole[] =
+  Array.from(ELIGIBLE_EMPLOYEE_ROLES);
 
 export function isEligibleForCommercialPerformanceTarget(
   role: UserRole,
@@ -232,7 +265,7 @@ export async function createCommercialPerformanceTargetCore(
       success: false,
       code: "EMPLOYEE_NOT_ELIGIBLE",
       message:
-        "Seuls les commerciaux peuvent recevoir un objectif de résultats.",
+        "Seuls les commerciaux et les managers peuvent recevoir un objectif de résultats.",
     };
   }
 

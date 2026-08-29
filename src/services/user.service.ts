@@ -18,6 +18,7 @@ import {
 } from "@/src/services/user.service-core";
 import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
 import { PROSPECT_ACTION_ASSIGNEE_ROLES } from "@/src/services/prospect-action.service-core";
+import { COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES } from "@/src/services/commercial-performance-target.service-core";
 
 const dependencies = {
   create: (data: ValidatedUserInput, actorUserId: string) =>
@@ -155,6 +156,33 @@ export async function listActiveUsersForTaskAssignment() {
   });
 }
 
+/**
+ * Ticket 25P §11/§34 — target-subject eligibility (COMMERCIAL, MANAGER),
+ * used to populate the target-creation employee dropdown. Deliberately
+ * not `listAssignableUsers` (COMMERCIAL-only, a distinct "Commercial
+ * prospect assignment" concept — 25P §42 leaves that policy untouched)
+ * and not `listActiveUsersForTaskAssignment` (ProspectAction assignee
+ * eligibility, also a distinct policy) — this filters by its own
+ * exported role constant so the dropdown can never silently drift from
+ * server-side eligibility.
+ */
+export async function listCommercialResultsTargetEligibleUsers() {
+  return prisma.user.findMany({
+    where: {
+      active: true,
+      role: { in: [...COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES] },
+    },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      email: true,
+      phone: true,
+    },
+  });
+}
+
 export type UserListItem = Awaited<ReturnType<typeof listUsers>>[number];
 export type AssignableUser = Awaited<
   ReturnType<typeof listAssignableUsers>
@@ -164,4 +192,7 @@ export type DashboardUserOption = Awaited<
 >[number];
 export type ActiveUserForTaskAssignment = Awaited<
   ReturnType<typeof listActiveUsersForTaskAssignment>
+>[number];
+export type CommercialResultsTargetEligibleUser = Awaited<
+  ReturnType<typeof listCommercialResultsTargetEligibleUsers>
 >[number];

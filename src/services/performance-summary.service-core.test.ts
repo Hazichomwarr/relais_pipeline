@@ -22,7 +22,7 @@ function scoredResults(score: number): CommercialResultsResult {
     evidence: {
       creditedWins: 4,
       rawCreditedWinEvents: 4,
-      excludedNonCommercialRoleWins: 0,
+      excludedIneligibleRoleWins: 0,
       legacyUnattributedWinsInPeriod: 0,
       coverageStatus: "COMPLETE",
     },
@@ -41,7 +41,7 @@ function blockedResults(
       evidence: {
         creditedWins: 0,
         rawCreditedWinEvents: 0,
-        excludedNonCommercialRoleWins: 0,
+        excludedIneligibleRoleWins: 0,
         legacyUnattributedWinsInPeriod: 0,
         coverageStatus: "COMPLETE",
       },
@@ -57,7 +57,7 @@ function blockedResults(
       evidence: {
         creditedWins: 1,
         rawCreditedWinEvents: 1,
-        excludedNonCommercialRoleWins: 0,
+        excludedIneligibleRoleWins: 0,
         legacyUnattributedWinsInPeriod: 2,
         coverageStatus: "PARTIAL_LEGACY_ATTRIBUTION",
       },
@@ -236,6 +236,84 @@ test("§76: a DRAFT (not yet submitted) Professional Contribution assessment blo
   assert.deepEqual(summary.blockers, [
     { dimension: "PROFESSIONAL_CONTRIBUTION", sourceStatus: "DRAFT" },
   ]);
+});
+
+test("Ticket 25P §30/§31: a Manager with a real SCORED Results dimension but still-UNSUPPORTED_ROLE Execution Discipline composes to INCOMPLETE with overall null — a scored machine dimension is never allowed to paper over the missing one", () => {
+  const summary = composePerformanceSummary({
+    results: scoredResults(30),
+    executionDiscipline: blockedExecution("UNSUPPORTED_ROLE"),
+    roleResponsibilities: submittedAssessment(18, 20),
+    professionalContribution: submittedAssessment(8, 10),
+  });
+
+  assert.equal(summary.status, "INCOMPLETE");
+  assert.equal(summary.overall, null);
+  assert.equal(summary.machineDerivedSubtotal, null);
+  assert.deepEqual(summary.blockers, [
+    { dimension: "EXECUTION_DISCIPLINE", sourceStatus: "UNSUPPORTED_ROLE" },
+  ]);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25Q §52-55: the Manager full-composition regression 25P could not
+// satisfy on its own — now that both machine dimensions are Manager-
+// eligible, a Manager can reach a genuine /100 through the exact same
+// composePerformanceSummary used for Commercial. No Manager-specific
+// composition path exists or is added.
+// ---------------------------------------------------------------------------
+
+test("Ticket 25Q §52/§53: a Manager with all four dimensions SCORED/SUBMITTED composes the exact sum out of 100, via the unmodified 25K composer", () => {
+  const summary = composePerformanceSummary({
+    results: scoredResults(32),
+    executionDiscipline: scoredExecution(24),
+    roleResponsibilities: submittedAssessment(18, 20),
+    professionalContribution: submittedAssessment(8, 10),
+  });
+
+  assert.equal(summary.status, "COMPLETE");
+  assert.deepEqual(summary.overall, { score: 82, maxScore: 100 });
+  assert.deepEqual(summary.machineDerivedSubtotal, { score: 56, maxScore: 70 });
+  assert.deepEqual(summary.humanAssessedSubtotal, { score: 26, maxScore: 30 });
+  assert.deepEqual(summary.blockers, []);
+});
+
+test("Ticket 25Q §54: a Manager missing any one dimension (Results NO_TARGET) still yields overall null — no normalization to /60 or /70", () => {
+  const summary = composePerformanceSummary({
+    results: blockedResults("NO_TARGET"),
+    executionDiscipline: scoredExecution(24),
+    roleResponsibilities: submittedAssessment(18, 20),
+    professionalContribution: submittedAssessment(8, 10),
+  });
+
+  assert.equal(summary.status, "INCOMPLETE");
+  assert.equal(summary.overall, null);
+  assert.deepEqual(summary.blockers, [
+    { dimension: "RESULTS", sourceStatus: "NO_TARGET" },
+  ]);
+});
+
+test("Ticket 25Q §54: a Manager with Execution PERIOD_NOT_CLOSED also yields overall null — same missing-dimension rule regardless of which machine dimension is blocked", () => {
+  const summary = composePerformanceSummary({
+    results: scoredResults(32),
+    executionDiscipline: blockedExecution("PERIOD_NOT_CLOSED"),
+    roleResponsibilities: submittedAssessment(18, 20),
+    professionalContribution: submittedAssessment(8, 10),
+  });
+
+  assert.equal(summary.status, "INCOMPLETE");
+  assert.equal(summary.overall, null);
+});
+
+test("Ticket 25Q §55: a Manager's genuine Execution score of 0 composes into overall — zero is a real score, not a missing dimension", () => {
+  const summary = composePerformanceSummary({
+    results: scoredResults(32),
+    executionDiscipline: scoredExecution(0),
+    roleResponsibilities: submittedAssessment(18, 20),
+    professionalContribution: submittedAssessment(8, 10),
+  });
+
+  assert.equal(summary.status, "COMPLETE");
+  assert.deepEqual(summary.overall, { score: 58, maxScore: 100 });
 });
 
 test("original source status is always preserved on a blocker, never collapsed to a generic MISSING", () => {

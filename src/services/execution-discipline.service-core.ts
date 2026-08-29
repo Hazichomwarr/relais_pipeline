@@ -23,12 +23,33 @@ export const EXECUTION_DISCIPLINE_MAX_SCORE = 30;
 export const EXECUTION_DISCIPLINE_LATE_CREDIT_WEIGHT = 0.5;
 
 /**
- * Ticket 25G §6/§27: only COMMERCIAL has audited, reliable Execution
- * Discipline evidence today — MANAGER/ADMIN have no manager-of-employee
- * hierarchy or equivalent assigned-work concept to score against. Do not
- * add roles here without a fresh audit; see 25G §6.
+ * Ticket 25G §6/§27: originally COMMERCIAL only. Ticket 25Q widens this
+ * to COMMERCIAL and MANAGER, matching commercial-results.service-core.ts's
+ * own RESULTS_ELIGIBLE_ROLES widening (25P) — a Manager who can now be
+ * scored on Results /40 must also be a valid Execution Discipline /30
+ * subject, or Manager could never reach a complete /100.
+ *
+ * Unlike Results, there is no second, event-role evidence gate to widen
+ * here (25Q §18): `ExecutionDisciplineActionRow` has no role-at-event
+ * snapshot at all — `buildExecutionDisciplineEvidence` below filters
+ * purely by durable `assignedToUserId` and `dueAt` period membership,
+ * both unaffected by this constant. Widening this one gate is the
+ * entire code change 25Q needs in this file; §7's policy — "current role
+ * determines eligibility; once eligible, durable actions assigned to
+ * that user are evaluated regardless of what role they held at the
+ * time" — falls out automatically from that absence, not from new logic.
+ *
+ * ADMIN and ASSISTANT remain unsupported; no schema change makes either
+ * role scorable, and neither historical fact is fabricated when a
+ * current MANAGER's assigned actions include periods predating their
+ * promotion (or, symmetrically, predating a demotion from MANAGER) —
+ * the database never recorded a role-at-assignment snapshot to filter
+ * by, so none is invented (25Q §6/§8/§13).
  */
-const SCORABLE_ROLES: ReadonlySet<UserRole> = new Set(["COMMERCIAL"]);
+const SCORABLE_ROLES: ReadonlySet<UserRole> = new Set([
+  "COMMERCIAL",
+  "MANAGER",
+]);
 
 export type ExecutionDisciplineEmployee = {
   id: string;
@@ -110,9 +131,11 @@ function notScored(
 }
 
 /**
- * Ticket 25H §2: only a COMMERCIAL may be scored on this dimension.
- * Exported so a caller (e.g. a future results/role-responsibility engine)
- * can reuse the same eligibility rule without re-deriving it.
+ * Ticket 25H §2: originally COMMERCIAL only; Ticket 25Q widened this to
+ * COMMERCIAL and MANAGER (see SCORABLE_ROLES above for the full
+ * reasoning). Exported so a caller (e.g. a future results/role-
+ * responsibility engine) can reuse the same eligibility rule without
+ * re-deriving it.
  */
 export function isScorableForExecutionDiscipline(role: UserRole): boolean {
   return SCORABLE_ROLES.has(role);

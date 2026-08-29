@@ -99,15 +99,37 @@ test("§32: a win credited while COMMERCIAL remains eligible evidence even for a
   assert.equal(evidence.creditedWins, 1);
 });
 
-test("§33: a win credited while MANAGER is excluded from Commercial Results, even for a currently-COMMERCIAL employee id", () => {
+test("Ticket 25P §47: a win credited while MANAGER now counts as Results evidence, even for a currently-COMMERCIAL employee id", () => {
   const events = [
     won({ creditedUserId: "amidou", creditedUserRoleAtEvent: "MANAGER" }),
   ];
 
   const evidence = collectCommercialResultsEvidence("amidou", AUGUST, events);
 
+  assert.equal(evidence.creditedWins, 1);
+  assert.equal(evidence.excludedIneligibleRoleWins, 0);
+});
+
+test("Ticket 25P §26/§27: a win credited while ADMIN remains excluded from Results evidence, even for a currently-MANAGER employee id", () => {
+  const events = [
+    won({ creditedUserId: "amidou", creditedUserRoleAtEvent: "ADMIN" }),
+  ];
+
+  const evidence = collectCommercialResultsEvidence("amidou", AUGUST, events);
+
   assert.equal(evidence.creditedWins, 0);
-  assert.equal(evidence.excludedNonCommercialRoleWins, 1);
+  assert.equal(evidence.excludedIneligibleRoleWins, 1);
+});
+
+test("Ticket 25P §25: a win credited while ASSISTANT remains excluded from Results evidence, even for a currently-MANAGER employee id", () => {
+  const events = [
+    won({ creditedUserId: "amidou", creditedUserRoleAtEvent: "ASSISTANT" }),
+  ];
+
+  const evidence = collectCommercialResultsEvidence("amidou", AUGUST, events);
+
+  assert.equal(evidence.creditedWins, 0);
+  assert.equal(evidence.excludedIneligibleRoleWins, 1);
 });
 
 test("the top-level orchestrator's UNSUPPORTED_ROLE gate checks current role for whether to present a Results dimension at all — it is a separate concern from event-time eligibility above", () => {
@@ -116,7 +138,7 @@ test("the top-level orchestrator's UNSUPPORTED_ROLE gate checks current role for
   ];
 
   const result = computeCommercialResultsResult(
-    employee("amidou", "MANAGER"),
+    employee("amidou", "ASSISTANT"),
     AUGUST,
     events,
     target(),
@@ -125,6 +147,75 @@ test("the top-level orchestrator's UNSUPPORTED_ROLE gate checks current role for
 
   assert.equal(result.status, "UNSUPPORTED_ROLE");
   assert.equal(result.evidence, null);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25P §22/§23/§48/§55: mixed-role and demotion periods
+// ---------------------------------------------------------------------------
+
+test("Ticket 25P §22/§48: a mixed-role period (2 COMMERCIAL-at-event + 2 MANAGER-at-event + 1 ADMIN-at-event + 1 ASSISTANT-at-event) credits exactly the 4 eligible wins, excluding the other 2", () => {
+  const events = [
+    won({ prospectId: "p1", creditedUserRoleAtEvent: "COMMERCIAL" }),
+    won({ prospectId: "p2", creditedUserRoleAtEvent: "COMMERCIAL" }),
+    won({ prospectId: "p3", creditedUserRoleAtEvent: "MANAGER" }),
+    won({ prospectId: "p4", creditedUserRoleAtEvent: "MANAGER" }),
+    won({ prospectId: "p5", creditedUserRoleAtEvent: "ADMIN" }),
+    won({ prospectId: "p6", creditedUserRoleAtEvent: "ASSISTANT" }),
+  ];
+
+  const evidence = collectCommercialResultsEvidence(
+    "commercial-a",
+    AUGUST,
+    events,
+  );
+
+  assert.equal(evidence.creditedWins, 4);
+  assert.equal(evidence.excludedIneligibleRoleWins, 2);
+});
+
+test("Ticket 25P §23: a demotion within the period (MANAGER-at-event then COMMERCIAL-at-event) counts both sides — no role-transition penalty", () => {
+  const events = [
+    won({
+      prospectId: "p1",
+      creditedUserRoleAtEvent: "MANAGER",
+      occurredAt: new Date("2026-08-05T10:00:00.000Z"),
+    }),
+    won({
+      prospectId: "p2",
+      creditedUserRoleAtEvent: "COMMERCIAL",
+      occurredAt: new Date("2026-08-20T10:00:00.000Z"),
+    }),
+  ];
+
+  const evidence = collectCommercialResultsEvidence(
+    "commercial-a",
+    AUGUST,
+    events,
+  );
+
+  assert.equal(evidence.creditedWins, 2);
+});
+
+test("Ticket 25P §55: mixed-role wins (2 Commercial-at-event, 1 Manager-at-event) against one target of 4 score 30/40 with creditedWins = 3 — no period split", () => {
+  const events = [
+    won({ prospectId: "p1", creditedUserRoleAtEvent: "COMMERCIAL" }),
+    won({ prospectId: "p2", creditedUserRoleAtEvent: "COMMERCIAL" }),
+    won({ prospectId: "p3", creditedUserRoleAtEvent: "MANAGER" }),
+  ];
+
+  const result = computeCommercialResultsResult(
+    employee("commercial-a"),
+    AUGUST,
+    events,
+    target({ targetWins: 4 }),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 30);
+  if (result.status === "SCORED") {
+    assert.equal(result.creditedWins, 3);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -262,10 +353,10 @@ test("§36: two WON_TRANSITION events for different prospects count as two credi
 });
 
 // ---------------------------------------------------------------------------
-// §37: unsupported roles
+// §37/Ticket 25P §46: unsupported vs. now-supported roles
 // ---------------------------------------------------------------------------
 
-for (const role of ["ADMIN", "MANAGER"] as const) {
+for (const role of ["ADMIN", "ASSISTANT"] as const) {
   test(`§37: ${role} is refused by the orchestrator, never silently handed a Commercial Results evaluation`, () => {
     const result = computeCommercialResultsResult(
       employee("user-1", role),
@@ -285,26 +376,24 @@ for (const role of ["ADMIN", "MANAGER"] as const) {
   });
 }
 
-test("Ticket 25M §26/§27/§44: ASSISTANT is refused by the orchestrator exactly like every other unsupported role — UNSUPPORTED_ROLE, never a fabricated zero", () => {
-  const result = computeCommercialResultsResult(
-    employee("user-1", "ASSISTANT"),
-    AUGUST,
-    [won({ creditedUserId: "user-1", creditedUserRoleAtEvent: "COMMERCIAL" })],
-    target(),
-    AFTER_AUGUST,
-  );
-
-  assert.equal(result.status, "UNSUPPORTED_ROLE");
-  assert.equal(result.score, null);
-  assert.equal(result.evidence, null);
-});
-
-test("Ticket 25M §26: isScorableForCommercialResults(ASSISTANT) is false — adding the enum value did not silently widen this domain's eligibility", () => {
+test("Ticket 25P §46: the complete current-role subject matrix — COMMERCIAL and MANAGER are supported; ADMIN and ASSISTANT are not", () => {
+  assert.equal(isScorableForCommercialResults("COMMERCIAL"), true);
+  assert.equal(isScorableForCommercialResults("MANAGER"), true);
+  assert.equal(isScorableForCommercialResults("ADMIN"), false);
   assert.equal(isScorableForCommercialResults("ASSISTANT"), false);
 });
 
-test("isScorableForCommercialResults(COMMERCIAL) is true", () => {
-  assert.equal(isScorableForCommercialResults("COMMERCIAL"), true);
+test("Ticket 25P §1/§4: MANAGER is no longer refused by the orchestrator — a MANAGER with valid evidence and a valid target now scores exactly like a COMMERCIAL would", () => {
+  const result = computeCommercialResultsResult(
+    employee("manager-1", "MANAGER"),
+    AUGUST,
+    [won({ creditedUserId: "manager-1", creditedUserRoleAtEvent: "MANAGER" })],
+    target({ targetWins: 4, roleAtAssignment: "MANAGER" }),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 10); // 1/4
 });
 
 // ---------------------------------------------------------------------------
@@ -458,7 +547,8 @@ for (const malformed of [
   { targetWins: 0, roleAtAssignment: "COMMERCIAL" as const },
   { targetWins: -4, roleAtAssignment: "COMMERCIAL" as const },
   { targetWins: 1.5, roleAtAssignment: "COMMERCIAL" as const },
-  { targetWins: 4, roleAtAssignment: "MANAGER" as const },
+  { targetWins: 4, roleAtAssignment: "ADMIN" as const },
+  { targetWins: 4, roleAtAssignment: "ASSISTANT" as const },
 ]) {
   test(`25H.2B §5/§6/§34: a malformed target (${JSON.stringify(malformed)}) is refused as INVALID_TARGET, never NaN/Infinity`, () => {
     const result = computeCommercialResultsResult(
@@ -473,6 +563,32 @@ for (const malformed of [
     assert.equal(result.score, null); // never NaN or Infinity — a controlled null, not a math artifact
   });
 }
+
+test("Ticket 25P §1/§37: a target with roleAtAssignment = MANAGER is now a VALID target — this used to be INVALID_TARGET before 25P", () => {
+  const result = computeCommercialResultsResult(
+    employee("manager-a", "MANAGER"),
+    AUGUST,
+    manyWins(2, { creditedUserId: "manager-a", creditedUserRoleAtEvent: "MANAGER" }),
+    { targetWins: 4, roleAtAssignment: "MANAGER" },
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 20); // 2/4
+});
+
+test("Ticket 25P §37/§54: a target snapshotted roleAtAssignment = COMMERCIAL remains valid for a since-promoted, currently-MANAGER employee — roleAtAssignment is historical metadata, not a live compatibility lock against the employee's current role", () => {
+  const result = computeCommercialResultsResult(
+    employee("promoted-a", "MANAGER"),
+    AUGUST,
+    manyWins(2, { creditedUserId: "promoted-a", creditedUserRoleAtEvent: "COMMERCIAL" }),
+    { targetWins: 4, roleAtAssignment: "COMMERCIAL" },
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 20); // 2/4
+});
 
 // ---------------------------------------------------------------------------
 // 25H.2B §8/§9/§37/§38: legacy attribution coverage blocks the score even
@@ -555,6 +671,99 @@ test("25H.2B §40: two WON events on the same prospect still only count once tow
 
   assert.equal(result.status, "SCORED");
   assert.equal(result.score, 10); // creditedWins = 1, not 2
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25P §18-21/§49-51: Manager scoring — the unchanged /40 formula
+// applied to a Manager subject, mirroring every Commercial-formula test
+// above with no Manager-specific variant of the arithmetic.
+// ---------------------------------------------------------------------------
+
+test("Ticket 25P §18/§49: a current MANAGER with no exact target returns NO_TARGET, never UNSUPPORTED_ROLE", () => {
+  const result = computeCommercialResultsResult(
+    employee("manager-a", "MANAGER"),
+    AUGUST,
+    [],
+    null,
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "NO_TARGET");
+  assert.equal(result.score, null);
+});
+
+test("Ticket 25P §19: a current MANAGER with a valid target and zero credited wins scores a real 0/40 — zero is a legitimate score, not a blocked state", () => {
+  const result = computeCommercialResultsResult(
+    employee("manager-a", "MANAGER"),
+    AUGUST,
+    [],
+    target({ targetWins: 4, roleAtAssignment: "MANAGER" }),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 0);
+  if (result.status === "SCORED") {
+    assert.equal(result.achievementRate, 0);
+  }
+});
+
+for (const [wins, expectedScore] of [
+  [0, 0],
+  [1, 10],
+  [3, 30],
+  [4, 40],
+] as const) {
+  test(`Ticket 25P §20/§50: a MANAGER with ${wins} credited win(s) against a target of 4 scores ${expectedScore}/40 — same formula as Commercial`, () => {
+    const result = computeCommercialResultsResult(
+      employee("manager-a", "MANAGER"),
+      AUGUST,
+      manyWins(wins, { creditedUserId: "manager-a", creditedUserRoleAtEvent: "MANAGER" }),
+      target({ targetWins: 4, roleAtAssignment: "MANAGER" }),
+      AFTER_AUGUST,
+    );
+
+    assert.equal(result.status, "SCORED");
+    assert.equal(result.score, expectedScore);
+  });
+}
+
+test("Ticket 25P §21: a MANAGER over target caps the score at 40 while achievementRate stays unclamped — no role-specific cap", () => {
+  const result = computeCommercialResultsResult(
+    employee("manager-a", "MANAGER"),
+    AUGUST,
+    manyWins(6, { creditedUserId: "manager-a", creditedUserRoleAtEvent: "MANAGER" }),
+    target({ targetWins: 4, roleAtAssignment: "MANAGER" }),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 40);
+  if (result.status === "SCORED") {
+    assert.equal(result.achievementRate, 1.5);
+  }
+});
+
+test("Ticket 25P §51: legacy unattributed evidence still blocks a current MANAGER with LEGACY_ATTRIBUTION_INCOMPLETE, taking precedence over a valid target — Manager eligibility does not weaken this existing state ordering", () => {
+  const events = [
+    ...manyWins(2, { creditedUserId: "manager-a", creditedUserRoleAtEvent: "MANAGER" }),
+    won({
+      prospectId: "prospect-legacy",
+      creditedUserId: null,
+      creditedUserRoleAtEvent: null,
+    }),
+  ];
+
+  const result = computeCommercialResultsResult(
+    employee("manager-a", "MANAGER"),
+    AUGUST,
+    events,
+    target({ targetWins: 4, roleAtAssignment: "MANAGER" }),
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "LEGACY_ATTRIBUTION_INCOMPLETE");
+  assert.equal(result.score, null);
 });
 
 // ---------------------------------------------------------------------------

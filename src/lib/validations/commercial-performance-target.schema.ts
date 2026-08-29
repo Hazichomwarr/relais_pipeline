@@ -41,8 +41,8 @@ export const createCommercialPerformanceTargetSchema = z.object({
   userId: z
     .string()
     .trim()
-    .min(1, "Sélectionnez un commercial.")
-    .max(100, "L’identifiant du commercial est invalide."),
+    .min(1, "Sélectionnez un employé.")
+    .max(100, "L’identifiant de l’employé est invalide."),
   year: yearSchema,
   month: monthSchema,
   targetWins: targetWinsSchema,

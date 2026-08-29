@@ -1,7 +1,7 @@
 import AdminShell from "@/component/dashboard/AdminShell";
 import CommercialPerformanceTargetForm from "@/component/admin/CommercialPerformanceTargetForm";
 import CommercialPerformanceTargetList from "@/component/admin/CommercialPerformanceTargetList";
-import { listAssignableUsers } from "@/src/services/user.service";
+import { listCommercialResultsTargetEligibleUsers } from "@/src/services/user.service";
 import { listCommercialPerformanceTargetsForManagement } from "@/src/services/commercial-performance-target.service";
 
 /**
@@ -10,10 +10,15 @@ import { listCommercialPerformanceTargetsForManagement } from "@/src/services/co
  * exactly COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES, so no separate
  * page-level check is needed here (unlike /admin/users, which narrows
  * further to ADMIN-only). Server Actions still authorize independently.
+ *
+ * Ticket 25P §34: the employee list now comes from
+ * listCommercialResultsTargetEligibleUsers (COMMERCIAL + MANAGER) — a
+ * dedicated eligibility query, not the Commercial-only helper this page
+ * used before.
  */
 export default async function CommercialPerformanceTargetsPage() {
-  const [commercials, targets] = await Promise.all([
-    listAssignableUsers(),
+  const [eligibleEmployees, targets] = await Promise.all([
+    listCommercialResultsTargetEligibleUsers(),
     listCommercialPerformanceTargetsForManagement(),
   ]);
 
@@ -29,9 +34,9 @@ export default async function CommercialPerformanceTargetsPage() {
           </h1>
           <p className="mt-3 max-w-2xl text-slate-500">
             Définissez le nombre de prospects gagnés attendu pour un
-            commercial sur un mois à venir. Une fois le mois commencé,
-            l’objectif est verrouillé afin de préserver l’historique de
-            l’évaluation.
+            commercial ou un manager sur un mois à venir. Une fois le mois
+            commencé, l’objectif est verrouillé afin de préserver
+            l’historique de l’évaluation.
           </p>
         </header>
 
@@ -39,7 +44,7 @@ export default async function CommercialPerformanceTargetsPage() {
           <h2 className="mb-4 text-lg font-semibold text-[#0f2557]">
             Nouvel objectif
           </h2>
-          <CommercialPerformanceTargetForm commercials={commercials} />
+          <CommercialPerformanceTargetForm eligibleEmployees={eligibleEmployees} />
         </section>
 
         <section className="mt-6 rounded-4xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">

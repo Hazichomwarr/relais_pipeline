@@ -908,3 +908,19 @@ test("Ticket 25O §51: current role always wins over ownership — an evaluator 
   );
   assert.equal(nowAdmin.success, true);
 });
+
+// ---------------------------------------------------------------------------
+// Ticket 25Q §32/§57: being a fully performance-eligible /100 subject is
+// independent of evaluator authority — 25O remains authoritative
+// ---------------------------------------------------------------------------
+
+test("Ticket 25Q §32/§57: a MANAGER who is now eligible for both Results /40 and Execution /30 (25P/25Q) still cannot create a structured assessment for a COMMERCIAL — being evaluated and evaluating others remain separate capabilities", () => {
+  assert.equal(
+    canAssessRoleResponsibilities(
+      actor("manager-1", "MANAGER"),
+      "COMMERCIAL",
+      "commercial-a",
+    ),
+    false,
+  );
+});

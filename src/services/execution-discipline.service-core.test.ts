@@ -370,10 +370,10 @@ test("every applicable action lands in exactly one evidence bucket — none disa
 });
 
 // ---------------------------------------------------------------------------
-// Unsupported roles (Ticket 25H §2/§32)
+// Unsupported vs. now-supported roles (Ticket 25H §2/§32; Ticket 25Q §41/§46)
 // ---------------------------------------------------------------------------
 
-for (const role of ["ADMIN", "MANAGER"] as const) {
+for (const role of ["ADMIN", "ASSISTANT"] as const) {
   test(`${role} is refused, never silently scored with Commercial metrics`, () => {
     const result = computeExecutionDisciplineResult(
       employee("user-1", role),
@@ -392,25 +392,127 @@ for (const role of ["ADMIN", "MANAGER"] as const) {
   });
 }
 
-test("isScorableForExecutionDiscipline(COMMERCIAL) is true", () => {
+test("Ticket 25Q §41: the complete current-role subject matrix — COMMERCIAL and MANAGER are supported; ADMIN and ASSISTANT are not", () => {
   assert.equal(isScorableForExecutionDiscipline("COMMERCIAL"), true);
+  assert.equal(isScorableForExecutionDiscipline("MANAGER"), true);
+  assert.equal(isScorableForExecutionDiscipline("ADMIN"), false);
+  assert.equal(isScorableForExecutionDiscipline("ASSISTANT"), false);
 });
 
-test("Ticket 25M §26/§27/§44: ASSISTANT is refused exactly like every other unsupported role — UNSUPPORTED_ROLE, never a fabricated zero", () => {
+test("Ticket 25Q §1/§17: MANAGER is no longer refused by the orchestrator — a MANAGER with valid evidence now scores exactly like a COMMERCIAL would", () => {
   const result = computeExecutionDisciplineResult(
-    employee("user-1", "ASSISTANT"),
+    employee("manager-1", "MANAGER"),
     AUGUST,
-    [onTime(), onTime()],
+    [
+      onTime({ assignedToUserId: "manager-1" }),
+      onTime({ assignedToUserId: "manager-1" }),
+      onTime({ assignedToUserId: "manager-1" }),
+    ],
     AFTER_AUGUST,
   );
 
-  assert.equal(result.status, "UNSUPPORTED_ROLE");
-  assert.equal(result.score, null);
-  assert.equal(result.evidence, null);
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 30);
 });
 
-test("Ticket 25M §26: isScorableForExecutionDiscipline(ASSISTANT) is false — adding the enum value did not silently widen this domain's eligibility", () => {
-  assert.equal(isScorableForExecutionDiscipline("ASSISTANT"), false);
+test("Ticket 25Q §46: a current MANAGER with an open (not yet closed) period returns PERIOD_NOT_CLOSED, never UNSUPPORTED_ROLE — proof the role gate was actually widened, not merely bypassed for closed periods", () => {
+  const midAugust = new Date("2026-08-15T00:00:00.000Z");
+  const result = computeExecutionDisciplineResult(
+    employee("manager-1", "MANAGER"),
+    AUGUST,
+    [onTime({ assignedToUserId: "manager-1" })],
+    midAugust,
+  );
+
+  assert.equal(result.status, "PERIOD_NOT_CLOSED");
+});
+
+test("Ticket 25Q §45: a current MANAGER with no qualifying actions returns the same INSUFFICIENT_EVIDENCE state as a COMMERCIAL — no Manager-specific zero", () => {
+  const result = computeExecutionDisciplineResult(
+    employee("manager-1", "MANAGER"),
+    AUGUST,
+    [],
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "INSUFFICIENT_EVIDENCE");
+  assert.equal(result.score, null);
+});
+
+test("Ticket 25Q §44: canceled actions are excluded from a MANAGER's sampleSize exactly as for a COMMERCIAL, and stay visible in evidence", () => {
+  const result = computeExecutionDisciplineResult(
+    employee("manager-1", "MANAGER"),
+    AUGUST,
+    [
+      canceled({ assignedToUserId: "manager-1" }),
+      onTime({ assignedToUserId: "manager-1" }),
+      onTime({ assignedToUserId: "manager-1" }),
+    ],
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 30);
+  if (result.status === "SCORED") {
+    assert.equal(result.evidence.canceled, 1);
+    assert.equal(result.evidence.sampleSize, 2);
+    assert.equal(result.evidence.applicableActions, 3);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25Q §9/§10/§47/§48/§51: no historical role snapshot exists —
+// durable assignedToUserId is the sole authority, regardless of what
+// role the employee currently holds or held historically
+// ---------------------------------------------------------------------------
+
+test("Ticket 25Q §47: historical actions assigned to a user now currently MANAGER are included — there is no historical-role snapshot to filter by, so current-role eligibility alone governs", () => {
+  const result = computeExecutionDisciplineResult(
+    employee("amidou", "MANAGER"),
+    AUGUST,
+    [onTime({ assignedToUserId: "amidou" }), late({ assignedToUserId: "amidou" })],
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 23); // weighted = 1 + 0.5 = 1.5, sampleSize 2
+});
+
+test("Ticket 25Q §48: the identical durable action evidence, same employee id, but currently COMMERCIAL, is included exactly the same way — the historical role claim is never made in either direction", () => {
+  const result = computeExecutionDisciplineResult(
+    employee("amidou", "COMMERCIAL"),
+    AUGUST,
+    [onTime({ assignedToUserId: "amidou" }), late({ assignedToUserId: "amidou" })],
+    AFTER_AUGUST,
+  );
+
+  assert.equal(result.status, "SCORED");
+  assert.equal(result.score, 23);
+});
+
+test("Ticket 25Q §51: the same employee id with the same historical actions is scorable as COMMERCIAL, scorable as MANAGER, but UNSUPPORTED_ROLE as ASSISTANT or ADMIN — current role alone decides, since no historical role fact exists to consult instead", () => {
+  const actions = [onTime({ assignedToUserId: "amidou" }), onTime({ assignedToUserId: "amidou" })];
+
+  for (const role of ["COMMERCIAL", "MANAGER"] as const) {
+    const result = computeExecutionDisciplineResult(
+      employee("amidou", role),
+      AUGUST,
+      actions,
+      AFTER_AUGUST,
+    );
+    assert.equal(result.status, "SCORED", `expected ${role} to be scorable`);
+  }
+
+  for (const role of ["ASSISTANT", "ADMIN"] as const) {
+    const result = computeExecutionDisciplineResult(
+      employee("amidou", role),
+      AUGUST,
+      actions,
+      AFTER_AUGUST,
+    );
+    assert.equal(result.status, "UNSUPPORTED_ROLE", `expected ${role} to be unsupported`);
+    assert.equal(result.evidence, null);
+  }
 });
 
 // ---------------------------------------------------------------------------
