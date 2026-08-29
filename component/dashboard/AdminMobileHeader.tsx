@@ -26,29 +26,26 @@ import MobileNavDrawer, {
  * Ticket 25M §24/§25/§43 — ASSISTANT reuses this Admin-style shell for
  * layout only, never for authority: shell choice must not imply
  * permission. Every item that leads into a still-ADMIN/MANAGER-only
- * route (or into a capability 25M deliberately doesn't grant yet, like
- * prospecting) is explicitly excluded for ASSISTANT rather than left
- * dangling on a route that would just reject them. Ticket 25N adds
- * exactly one item back for this role — Finances, the new real
- * capability — alongside the pre-existing role-neutral routes (Mes
- * notes, Mes rapports, Paramètres). Still a narrow, deliberately
- * incremental nav, not a final Assistant navigation design (§20): each
- * future capability grant gets its own explicit item, never a blanket
- * re-enablement of the Admin/Manager sidebar.
+ * route (or into a capability this role doesn't have) is explicitly
+ * excluded for ASSISTANT rather than left dangling on a route that would
+ * just reject them. Ticket 25N added Finances; Ticket 25R adds Tableau
+ * de bord (now unconditional, matching Mes notes/Mes rapports/
+ * Paramètres) — the dashboard-shell capability ASSISTANT now has (see
+ * app/admin/layout.tsx's requireDashboardAccess() and app/admin/page.tsx's
+ * own, deliberately minimal ASSISTANT content). Still a narrow,
+ * deliberately incremental nav, not a blanket re-enablement of the
+ * Admin/Manager sidebar: each capability grant gets its own explicit
+ * item.
  */
 function getAdminNavItems(role?: UserRole): MobileNavItem[] {
   const isAssistant = role === "ASSISTANT";
 
   return [
-    ...(!isAssistant
-      ? [
-          {
-            label: "Tableau de bord",
-            href: "/admin",
-            icon: <LayoutDashboard className="h-5 w-5" />,
-          },
-        ]
-      : []),
+    {
+      label: "Tableau de bord",
+      href: "/admin",
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
     ...(!isAssistant
       ? [
           {

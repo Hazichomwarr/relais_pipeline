@@ -24,15 +24,16 @@ import Link from "next/link";
  * Ticket 25M §24/§25/§43 — ASSISTANT reuses this Admin-style shell for
  * layout only, never for authority: shell choice must not imply
  * permission. Every item that leads into a still-ADMIN/MANAGER-only
- * route (or into a capability 25M deliberately doesn't grant yet, like
- * prospecting) is explicitly hidden with `role !== "ASSISTANT"` rather
- * than left visible and dangling on a route that would just reject them.
- * Ticket 25N adds exactly one item back for this role — Finances, the
- * new real capability — alongside the pre-existing role-neutral routes
- * (Mes notes, Mes rapports, Paramètres). Still a narrow, deliberately
- * incremental nav, not a final Assistant navigation design (§20): each
- * future capability grant gets its own explicit item, never a blanket
- * re-enablement of the Admin/Manager sidebar.
+ * route (or into a capability this role doesn't have) is explicitly
+ * hidden with `role !== "ASSISTANT"` rather than left visible and
+ * dangling on a route that would just reject them. Ticket 25N added
+ * Finances; Ticket 25R adds Tableau de bord (now unconditional, matching
+ * Mes notes/Mes rapports/Paramètres) — the dashboard-shell capability
+ * ASSISTANT now has (see app/admin/layout.tsx's requireDashboardAccess()
+ * and app/admin/page.tsx's own, deliberately minimal ASSISTANT content).
+ * Still a narrow, deliberately incremental nav, not a blanket
+ * re-enablement of the Admin/Manager sidebar: each capability grant gets
+ * its own explicit item.
  */
 export default function Sidebar({
   activeItem = "dashboard",
@@ -75,19 +76,17 @@ export default function Sidebar({
 
       {/* NAV */}
       <nav className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-        {role !== "ASSISTANT" && (
-          <Link
-            href="/admin"
-            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
-              activeItem === "dashboard"
-                ? "bg-blue-50 text-blue-600"
-                : "text-slate-600 hover:bg-slate-100"
-            }`}
-          >
-            <LayoutDashboard className="h-5 w-5" />
-            Tableau de bord
-          </Link>
-        )}
+        <Link
+          href="/admin"
+          className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+            activeItem === "dashboard"
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-600 hover:bg-slate-100"
+          }`}
+        >
+          <LayoutDashboard className="h-5 w-5" />
+          Tableau de bord
+        </Link>
 
         {role !== "ASSISTANT" && (
           <Link

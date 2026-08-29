@@ -24,8 +24,12 @@ type AdminShellProps = {
 
 /**
  * Rendered only inside /admin/**, which app/admin/layout.tsx already gates
- * to ADMIN/MANAGER — so reading the role here is purely for UI visibility
- * (hiding "Utilisateurs" from MANAGER), not a second authorization check.
+ * via requireDashboardAccess() (ADMIN, MANAGER, and — since Ticket 25R —
+ * ASSISTANT) — so reading the role here is purely for UI visibility
+ * (hiding "Utilisateurs" from MANAGER, hiding most items from ASSISTANT),
+ * not a second authorization check. Ticket 25R §63: this component's name
+ * is unchanged — "AdminShell" remains a UI composition name, not a claim
+ * about the viewer's role.
  */
 export default async function AdminShell({
   activeItem,

@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import type { UserRole } from "@prisma/client";
 
+import { isScorableForCommercialResults } from "./commercial-results.service-core";
+import { isScorableForExecutionDiscipline } from "./execution-discipline.service-core";
 import {
   assertCanChangePasswordCore,
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  DASHBOARD_ACCESS_ROLES,
   FINANCE_ACCESS_ROLES,
+  FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
@@ -261,6 +265,73 @@ test("Ticket 25N §46: an anonymous visitor is denied Finance access with UNAUTH
     () => requireRoleCore(null, FINANCE_ACCESS_ROLES),
     hasCode("UNAUTHENTICATED"),
   );
+});
+
+/**
+ * Ticket 25R §5-8/§47: the new /admin shell capability. ADMIN and MANAGER
+ * keep their pre-existing dashboard access exactly as before; ASSISTANT
+ * is newly admitted; COMMERCIAL remains denied — this route was never
+ * COMMERCIAL's, and 25R does not change that (COMMERCIAL has its own
+ * /dashboard/commercial instead).
+ */
+test("Ticket 25R §5-8/§47: requireRoleCore against DASHBOARD_ACCESS_ROLES allows ADMIN, MANAGER, and ASSISTANT; denies COMMERCIAL", () => {
+  for (const role of ["ADMIN", "MANAGER", "ASSISTANT"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, DASHBOARD_ACCESS_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  assert.throws(
+    () => requireRoleCore({ user: makeUser("COMMERCIAL") }, DASHBOARD_ACCESS_ROLES),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("Ticket 25R §30/§55: ASSISTANT is in DASHBOARD_ACCESS_ROLES but not a Results or Execution Discipline performance subject — dashboard-shell access grants no performance eligibility, and ADMIN is exempt from both for the same reason it never gets a fabricated dashboard-driven score", () => {
+  assert.ok(DASHBOARD_ACCESS_ROLES.includes("ASSISTANT"));
+  assert.equal(isScorableForCommercialResults("ASSISTANT"), false);
+  assert.equal(isScorableForExecutionDiscipline("ASSISTANT"), false);
+
+  assert.ok(DASHBOARD_ACCESS_ROLES.includes("ADMIN"));
+  assert.equal(isScorableForCommercialResults("ADMIN"), false);
+  assert.equal(isScorableForExecutionDiscipline("ADMIN"), false);
+});
+
+test("Ticket 25R §8: requireRoleCore against the real ADMIN-only shape still allows only ADMIN — the new dashboard-shell capability never widened it, exactly like Finance in 25N", () => {
+  const user = requireRoleCore({ user: makeUser("ADMIN") }, ["ADMIN"]);
+  assert.equal(user.role, "ADMIN");
+
+  for (const role of ["MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, ["ADMIN"]),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to still be denied genuine ADMIN-only access`,
+    );
+  }
+});
+
+/**
+ * Ticket 25R §10/§12: closing the gap the dashboard-shell widening
+ * opened — /admin/follow-ups had no authorization call of its own before
+ * this ticket. Its new boundary keeps ASSISTANT and COMMERCIAL out,
+ * exactly as the inherited shell gate did before it admitted ASSISTANT.
+ */
+test("Ticket 25R §10/§12: requireRoleCore against FOLLOW_UP_QUEUE_MANAGEMENT_ROLES allows ADMIN and MANAGER, denies COMMERCIAL and ASSISTANT", () => {
+  for (const role of ["ADMIN", "MANAGER"] as const) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () =>
+        requireRoleCore({ user: makeUser(role) }, FOLLOW_UP_QUEUE_MANAGEMENT_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied the follow-up queue`,
+    );
+  }
 });
 
 function hasCode(code: AuthorizationError["code"]) {

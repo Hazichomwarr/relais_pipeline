@@ -188,7 +188,7 @@ test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quoti
   assert.doesNotMatch(managementEntryMatch![0], /disabled: true/);
 });
 
-test("Ticket 25M §24/§25/§43: every entry ASSISTANT can't reach in 25M is gated behind !isAssistant — Tableau de bord, À la une, Nouveau prospect, Actions, Répertoire, Suivis, Analyses, and Rapports quotidiens", () => {
+test("Ticket 25M §24/§25/§43: every entry ASSISTANT can't reach is gated behind !isAssistant — À la une, Nouveau prospect, Actions, Répertoire, Suivis, Analyses, and Rapports quotidiens", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
     "utf8",
@@ -197,7 +197,6 @@ test("Ticket 25M §24/§25/§43: every entry ASSISTANT can't reach in 25M is gat
   assert.match(source, /const isAssistant = role === "ASSISTANT";/);
 
   for (const label of [
-    "Tableau de bord",
     "À la une",
     "Nouveau prospect",
     "Actions",
@@ -213,13 +212,13 @@ test("Ticket 25M §24/§25/§43: every entry ASSISTANT can't reach in 25M is gat
   }
 });
 
-test("Ticket 25M §24: Mes notes, Mes rapports, and Paramètres remain unconditional — the only three surfaces ASSISTANT can actually reach in 25M", () => {
+test("Ticket 25R §14/§49/§50: Tableau de bord, Mes notes, Mes rapports, and Paramètres remain unconditional — Tableau de bord is the new dashboard-shell capability this ticket grants ASSISTANT, alongside the pre-existing role-neutral surfaces", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",
     "utf8",
   );
 
-  for (const label of ["Mes notes", "Mes rapports", "Paramètres"]) {
+  for (const label of ["Tableau de bord", "Mes notes", "Mes rapports", "Paramètres"]) {
     const entryMatch = source.match(
       new RegExp(`\\{\\s*label: "${label}",[\\s\\S]*?\\},`),
     );

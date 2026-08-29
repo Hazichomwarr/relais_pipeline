@@ -67,3 +67,8 @@ test("Ticket 25K.1 §7: the assessment id is propagated into the composed summar
 test("the actor parameter now requires an id (needed for self-assessment exclusion), not just a role", () => {
   assert.match(source, /actor: \{ id: string; role: UserRole \}/);
 });
+
+test("Ticket 25R §39/§40: performance subject eligibility never imports the target-eligibility policy — the two currently overlap (COMMERCIAL, MANAGER) by coincidence, not by shared code", () => {
+  assert.doesNotMatch(source, /commercial-performance-target\.service-core/);
+  assert.doesNotMatch(source, /COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES/);
+});

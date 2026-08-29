@@ -8,7 +8,9 @@ import {
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  DASHBOARD_ACCESS_ROLES,
   FINANCE_ACCESS_ROLES,
+  FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
   MY_PROSPECTS_ROLES,
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
@@ -144,4 +146,29 @@ export async function requirePerformanceDashboardAccess() {
  */
 export async function requireFinanceAccess() {
   return requireRole(...FINANCE_ACCESS_ROLES);
+}
+
+/**
+ * Ticket 25R — the coarse gate for the shared /admin shell (dashboard
+ * overview route and any nested route with no narrower authorization of
+ * its own). ADMIN, MANAGER, and — new in this ticket — ASSISTANT. This
+ * is a *shell/view* capability, never a stand-in for `requireAdmin()`:
+ * routes carrying real data must keep their own independent, narrower
+ * check (see DASHBOARD_ACCESS_ROLES's own comment for the full list this
+ * ticket audited).
+ */
+export async function requireDashboardAccess() {
+  return requireRole(...DASHBOARD_ACCESS_ROLES);
+}
+
+/**
+ * Ticket 25R §10/§12 — the commercial follow-up queue (/admin/follow-ups)
+ * had no authorization call of its own before this ticket, relying
+ * entirely on the /admin shell's own gate. Now that the shell gate
+ * (requireDashboardAccess) admits ASSISTANT, this route needs its own
+ * explicit, narrower boundary to keep excluding ASSISTANT and COMMERCIAL
+ * from this sensitive commercial data.
+ */
+export async function requireFollowUpQueueManagementAccess() {
+  return requireRole(...FOLLOW_UP_QUEUE_MANAGEMENT_ROLES);
 }

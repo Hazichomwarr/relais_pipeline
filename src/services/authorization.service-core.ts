@@ -157,6 +157,50 @@ export const PERFORMANCE_DASHBOARD_ACCESS_ROLES: UserRole[] = [
  */
 export const FINANCE_ACCESS_ROLES: UserRole[] = ["ADMIN", "ASSISTANT"];
 
+/**
+ * Ticket 25R §5-7 — the coarse gate for the shared `/admin` shell itself
+ * (the dashboard overview route and everything nested under it that has
+ * no narrower authorization of its own — see app/admin/layout.tsx).
+ * Replaces that layout's previously inline `requireRole("ADMIN",
+ * "MANAGER")` with a named capability so ASSISTANT's new dashboard grant
+ * is visible here rather than buried in a route file, and so it can
+ * never be confused with `requireAdmin()` (ADMIN-only, untouched).
+ *
+ * This is deliberately a *shell* capability, not a blanket `/admin/*`
+ * grant: every route nested under `/admin` that carries real data —
+ * `/admin/users`, `/admin/performance`, `/admin/my-prospects`,
+ * `/admin/follow-ups`, `/admin/performance-targets`, `/admin/reports`
+ * (its own nested layout), `/admin/prospects/[id]` — already has (or, for
+ * the two gaps 25R closed, now has) its own independent, narrower
+ * authorization call. Widening this one constant to admit ASSISTANT does
+ * not widen any of those; each was individually audited (25R §10) before
+ * this constant was introduced. See app/admin/page.tsx for why ASSISTANT
+ * passing this gate does not mean ASSISTANT sees the same dashboard
+ * content as ADMIN/MANAGER — dashboard *access* and dashboard *content*
+ * are handled as two separate concerns.
+ */
+export const DASHBOARD_ACCESS_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+  "ASSISTANT",
+];
+
+/**
+ * Ticket 25R §10/§12 — `/admin/follow-ups` (the commercial follow-up
+ * queue: prospect names, products, interest levels) had no authorization
+ * call of its own before this ticket; it relied entirely on
+ * app/admin/layout.tsx's then-`requireRole("ADMIN", "MANAGER")` gate.
+ * Once that gate widened to admit ASSISTANT (DASHBOARD_ACCESS_ROLES,
+ * above), this page needed its own explicit, narrower boundary to keep
+ * excluding ASSISTANT (and COMMERCIAL) from this sensitive commercial
+ * data — this constant is that boundary, named and tested like every
+ * other feature-specific policy in this file, not merely inlined.
+ */
+export const FOLLOW_UP_QUEUE_MANAGEMENT_ROLES: UserRole[] = [
+  "ADMIN",
+  "MANAGER",
+];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

@@ -240,11 +240,10 @@ test("the Paramètres link is highlighted when activeItem is profile", () => {
   assert.match(profileLinkMatch![0], /bg-blue-50/);
 });
 
-test("Ticket 25M §24/§25/§43: ASSISTANT sees only Mes notes, Mes rapports, and Paramètres among the pre-25N items — every other 25M-era item leads into a route ASSISTANT can't reach and is hidden, not just capability-gated by chance", () => {
+test("Ticket 25M §24/§25/§43: ASSISTANT still never sees any item leading into a route it can't reach — every remaining ADMIN/MANAGER-only surface stays hidden", () => {
   const html = renderToStaticMarkup(<Sidebar role="ASSISTANT" />);
 
   for (const href of [
-    "/admin",
     "/updates",
     'href="/"',
     "/actions",
@@ -264,9 +263,16 @@ test("Ticket 25M §24/§25/§43: ASSISTANT sees only Mes notes, Mes rapports, an
   assert.match(html, /href="\/profile"/);
 });
 
-test("Ticket 25N: ASSISTANT now also sees Finances, the one new capability this ticket grants", () => {
+test("Ticket 25N: ASSISTANT sees Finances", () => {
   const html = renderToStaticMarkup(<Sidebar role="ASSISTANT" />);
 
   assert.match(html, /href="\/finances"/);
   assert.match(html, /Finances/);
+});
+
+test("Ticket 25R §14/§15: ASSISTANT now also sees Tableau de bord, linking to /admin — the new dashboard-shell capability this ticket grants, alongside Finances/Mes notes/Mes rapports/Paramètres and nothing else", () => {
+  const html = renderToStaticMarkup(<Sidebar role="ASSISTANT" />);
+
+  assert.match(html, /href="\/admin"/);
+  assert.match(html, /Tableau de bord/);
 });

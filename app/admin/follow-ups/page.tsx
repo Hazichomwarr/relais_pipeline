@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 import AdminShell from "@/component/dashboard/AdminShell";
 import FollowUpFilters from "@/component/follow-ups/FollowUpFilters";
 import FollowUpKpiCards from "@/component/follow-ups/FollowUpKpiCards";
@@ -5,6 +7,10 @@ import FollowUpQueueTable from "@/component/follow-ups/FollowUpQueueTable";
 import { getFollowUpQueueKpis } from "@/src/lib/follow-up-presentation";
 import { buildReturnToPath } from "@/src/lib/return-to";
 import { followUpQueueFilterSchema } from "@/src/lib/validations/follow-up-queue.schema";
+import {
+  AuthorizationError,
+  requireFollowUpQueueManagementAccess,
+} from "@/src/services/authorization.service";
 import { getFollowUpQueue } from "@/src/services/follow-up.service";
 import { listDashboardUserOptions } from "@/src/services/user.service";
 
@@ -15,11 +21,27 @@ type FollowUpSearchParams = Promise<{
   nextAction?: string;
 }>;
 
+/**
+ * Ticket 25R §10/§12: this route had no authorization call of its own
+ * before this ticket — it relied entirely on app/admin/layout.tsx's
+ * then-ADMIN/MANAGER-only gate. Now that gate admits ASSISTANT
+ * (requireDashboardAccess), so this sensitive commercial follow-up queue
+ * needs its own explicit, narrower boundary.
+ */
 export default async function FollowUpsPage({
   searchParams,
 }: {
   searchParams: FollowUpSearchParams;
 }) {
+  try {
+    await requireFollowUpQueueManagementAccess();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
+    }
+    throw error;
+  }
+
   const params = await searchParams;
   const parsedFilters = followUpQueueFilterSchema.safeParse(params);
   const filters = parsedFilters.success ? parsedFilters.data : {};

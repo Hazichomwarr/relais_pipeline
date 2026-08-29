@@ -15,6 +15,6 @@ test("COMMERCIAL is routed to /dashboard/commercial", () => {
   assert.equal(resolveDashboardRedirect("COMMERCIAL"), "/dashboard/commercial");
 });
 
-test("Ticket 25N: ASSISTANT is now routed to /finances, its real operational workspace — replacing 25M's transitional /profile landing, never falling through to /admin (which would reject and bounce to the public homepage)", () => {
-  assert.equal(resolveDashboardRedirect("ASSISTANT"), "/finances");
+test("Ticket 25R §16/§48: ASSISTANT is now routed to /admin — replacing 25N's transitional /finances landing, now that ASSISTANT has real dashboard-shell access (requireDashboardAccess) with its own minimal content", () => {
+  assert.equal(resolveDashboardRedirect("ASSISTANT"), "/admin");
 });

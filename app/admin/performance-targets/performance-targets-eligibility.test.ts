@@ -16,3 +16,11 @@ test("Ticket 25P §34: the eligible-employee list is sourced from listCommercial
   assert.match(source, /listCommercialResultsTargetEligibleUsers\(/);
   assert.doesNotMatch(source, /listAssignableUsers/);
 });
+
+test("Ticket 25R §10/§12/§58: the route now has its own explicit requireCommercialPerformanceTargetManagementAccess() call, not just the inherited shell gate — this reuses the existing target-management capability, not a new policy", () => {
+  assert.match(source, /requireCommercialPerformanceTargetManagementAccess\(\)/);
+});
+
+test("an ACCESS_DENIED here redirects to /admin, not into a loop or the public homepage", () => {
+  assert.match(source, /redirect\(error\.code === "UNAUTHENTICATED" \? "\/login" : "\/admin"\)/);
+});

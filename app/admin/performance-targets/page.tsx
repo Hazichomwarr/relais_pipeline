@@ -1,22 +1,41 @@
+import { redirect } from "next/navigation";
+
 import AdminShell from "@/component/dashboard/AdminShell";
 import CommercialPerformanceTargetForm from "@/component/admin/CommercialPerformanceTargetForm";
 import CommercialPerformanceTargetList from "@/component/admin/CommercialPerformanceTargetList";
+import {
+  AuthorizationError,
+  requireCommercialPerformanceTargetManagementAccess,
+} from "@/src/services/authorization.service";
 import { listCommercialResultsTargetEligibleUsers } from "@/src/services/user.service";
 import { listCommercialPerformanceTargetsForManagement } from "@/src/services/commercial-performance-target.service";
 
 /**
- * Ticket 25H.2A — authorization for this route is already covered by
- * app/admin/layout.tsx's requireRole("ADMIN", "MANAGER") gate, which is
- * exactly COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES, so no separate
- * page-level check is needed here (unlike /admin/users, which narrows
- * further to ADMIN-only). Server Actions still authorize independently.
+ * Ticket 25H.2A — authorization for this route used to be covered
+ * entirely by app/admin/layout.tsx's ADMIN/MANAGER-only gate, which was
+ * exactly COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES. Ticket 25R
+ * widened that shell gate to also admit ASSISTANT
+ * (requireDashboardAccess), so this route now needs its own explicit,
+ * narrower check — reusing the existing
+ * requireCommercialPerformanceTargetManagementAccess() the Server Actions
+ * already call, rather than inventing a second policy for the same
+ * capability.
  *
- * Ticket 25P §34: the employee list now comes from
+ * Ticket 25P §34: the employee list comes from
  * listCommercialResultsTargetEligibleUsers (COMMERCIAL + MANAGER) — a
  * dedicated eligibility query, not the Commercial-only helper this page
  * used before.
  */
 export default async function CommercialPerformanceTargetsPage() {
+  try {
+    await requireCommercialPerformanceTargetManagementAccess();
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
+    }
+    throw error;
+  }
+
   const [eligibleEmployees, targets] = await Promise.all([
     listCommercialResultsTargetEligibleUsers(),
     listCommercialPerformanceTargetsForManagement(),
