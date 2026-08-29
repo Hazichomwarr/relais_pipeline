@@ -27,3 +27,12 @@ test("defaults to last month — a month that is already guaranteed closed (Tick
 test("the employee select is populated from the employees prop, not a hardcoded list", () => {
   assert.match(source, /employees\.map\(/);
 });
+
+test("Ticket 25K.1 §7: accepts optional initialEmployeeId/initialYear/initialMonth props for dashboard deep-link prefill, falling back to the usual defaults when absent", () => {
+  assert.match(source, /initialEmployeeId\?: string;/);
+  assert.match(source, /initialYear\?: number;/);
+  assert.match(source, /initialMonth\?: number;/);
+  assert.match(source, /employeeId: initialEmployeeId \?\? "",/);
+  assert.match(source, /year: initialYear \?\? defaults\.year,/);
+  assert.match(source, /month: initialMonth \?\? defaults\.month,/);
+});

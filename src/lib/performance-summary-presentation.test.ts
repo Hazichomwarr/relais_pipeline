@@ -5,6 +5,7 @@ import {
   describeDimensionUnavailability,
   formatAchievementRate,
   formatPeriodLabel,
+  getAssessmentActionState,
   latestClosedMonth,
   PERFORMANCE_DIMENSION_LABELS,
 } from "./performance-summary-presentation";
@@ -133,5 +134,75 @@ test("§65: latestClosedMonth correctly rolls back across a year boundary in Jan
   assert.deepEqual(
     latestClosedMonth(new Date("2026-01-15T00:00:00.000Z")),
     { year: 2025, month: 12 },
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 25K.1 §5/§6/§10/§11/§13/§15/§23: getAssessmentActionState
+// ---------------------------------------------------------------------------
+
+test("Ticket 25K.1 §11: a SUBMITTED assessment always resolves to VIEW, regardless of assess authority", () => {
+  assert.equal(
+    getAssessmentActionState({ status: "SUBMITTED", canAssess: true, periodClosed: true }),
+    "VIEW",
+  );
+  assert.equal(
+    getAssessmentActionState({ status: "SUBMITTED", canAssess: false, periodClosed: false }),
+    "VIEW",
+  );
+});
+
+test("Ticket 25K.1 §15: UNSUPPORTED_ROLE never offers a CTA, even to an otherwise-authorized evaluator", () => {
+  assert.equal(
+    getAssessmentActionState({
+      status: "UNSUPPORTED_ROLE",
+      canAssess: true,
+      periodClosed: true,
+    }),
+    "NONE",
+  );
+});
+
+test("Ticket 25K.1 §13: an unauthorized viewer never sees a CREATE or CONTINUE CTA", () => {
+  assert.equal(
+    getAssessmentActionState({
+      status: "NOT_STARTED",
+      canAssess: false,
+      periodClosed: true,
+    }),
+    "NONE",
+  );
+  assert.equal(
+    getAssessmentActionState({ status: "DRAFT", canAssess: false, periodClosed: true }),
+    "NONE",
+  );
+});
+
+test("Ticket 25K.1 §10: an existing DRAFT resolves to CONTINUE for an authorized evaluator, never a second CREATE", () => {
+  assert.equal(
+    getAssessmentActionState({ status: "DRAFT", canAssess: true, periodClosed: true }),
+    "CONTINUE",
+  );
+});
+
+test("Ticket 25K.1 §23: NOT_STARTED with an authorized evaluator but a still-open period offers no CTA (25I/25J refuse creation before period close)", () => {
+  assert.equal(
+    getAssessmentActionState({
+      status: "NOT_STARTED",
+      canAssess: true,
+      periodClosed: false,
+    }),
+    "NONE",
+  );
+});
+
+test("Ticket 25K.1 §5/§6: NOT_STARTED with an authorized evaluator and a closed period offers CREATE", () => {
+  assert.equal(
+    getAssessmentActionState({
+      status: "NOT_STARTED",
+      canAssess: true,
+      periodClosed: true,
+    }),
+    "CREATE",
   );
 });

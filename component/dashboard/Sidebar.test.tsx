@@ -202,6 +202,34 @@ test("ADMIN and MANAGER sidebars include an active Paramètres link to /profile 
   }
 });
 
+test("Ticket 25K.1: ADMIN and MANAGER sidebars include a Performance link to /admin/performance", () => {
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  const managerHtml = renderToStaticMarkup(<Sidebar role="MANAGER" />);
+
+  for (const html of [adminHtml, managerHtml]) {
+    assert.match(html, /Performance/);
+    assert.match(html, /href="\/admin\/performance"/);
+  }
+});
+
+test("Ticket 25K.1: COMMERCIAL never sees the Performance link, mirroring the existing view-authorization boundary", () => {
+  const html = renderToStaticMarkup(<Sidebar role="COMMERCIAL" />);
+
+  assert.doesNotMatch(html, /href="\/admin\/performance"/);
+});
+
+test("Ticket 25K.1: the Performance link is highlighted when activeItem is performance", () => {
+  const html = renderToStaticMarkup(
+    <Sidebar role="ADMIN" activeItem="performance" />,
+  );
+  const performanceLinkMatch = html.match(
+    /<a [^>]*href="\/admin\/performance"[^>]*>/,
+  );
+
+  assert.ok(performanceLinkMatch, "expected an /admin/performance link in the sidebar");
+  assert.match(performanceLinkMatch![0], /bg-blue-50/);
+});
+
 test("the Paramètres link is highlighted when activeItem is profile", () => {
   const html = renderToStaticMarkup(
     <Sidebar role="ADMIN" activeItem="profile" />,

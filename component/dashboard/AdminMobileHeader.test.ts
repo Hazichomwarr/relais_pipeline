@@ -142,6 +142,37 @@ test("ADMIN/MANAGER mobile navigation includes an active (non-disabled) Paramèt
   assert.doesNotMatch(settingsEntryMatch![0], /disabled: true/);
 });
 
+test("Ticket 25K.1: ADMIN/MANAGER mobile navigation includes an active Performance entry pointing to /admin/performance", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const performanceEntryMatch = source.match(
+    /\{\s*label: "Performance",[\s\S]*?\},/,
+  );
+
+  assert.ok(performanceEntryMatch, "expected a Performance nav item entry");
+  assert.match(performanceEntryMatch![0], /href: "\/admin\/performance"/);
+  assert.doesNotMatch(performanceEntryMatch![0], /disabled: true/);
+});
+
+test("Ticket 25K.1: Performance is gated behind role === \"ADMIN\" || role === \"MANAGER\", mirroring the desktop Sidebar entry, not the ADMIN-only Utilisateurs gate", () => {
+  const source = readFileSync(
+    "component/dashboard/AdminMobileHeader.tsx",
+    "utf8",
+  );
+
+  const performanceBlockMatch = source.match(
+    /role === "ADMIN" \|\| role === "MANAGER"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Performance",/,
+  );
+
+  assert.ok(
+    performanceBlockMatch,
+    "expected the Performance entry to be gated behind role === \"ADMIN\" || role === \"MANAGER\"",
+  );
+});
+
 test("ADMIN/MANAGER mobile navigation includes a distinct, active Rapports quotidiens entry pointing to /admin/reports (Ticket 19C)", () => {
   const source = readFileSync(
     "component/dashboard/AdminMobileHeader.tsx",

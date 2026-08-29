@@ -35,16 +35,30 @@ export default async function ProfessionalContributionAssessmentDetailPage({
     notFound();
   }
 
+  // Ticket 25K.1 §24 — derived from the assessment's own already-loaded
+  // period/employee, not a forwarded query param: this link works
+  // whether or not the visitor arrived from the dashboard.
+  const dashboardHref = `/admin/performance?employeeId=${assessment.employeeUserId}&year=${assessment.periodStart.getUTCFullYear()}&month=${assessment.periodStart.getUTCMonth() + 1}`;
+
   return (
-    <AdminShell>
+    <AdminShell activeItem="performance">
       <div>
-        <Link
-          href="/admin/performance-assessments"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour aux évaluations
-        </Link>
+        <div className="mb-6 flex flex-wrap items-center gap-4">
+          <Link
+            href="/admin/performance-assessments"
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour aux évaluations
+          </Link>
+          <Link
+            href={dashboardHref}
+            className="inline-flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour à la vue d’ensemble
+          </Link>
+        </div>
 
         <h1 className="text-3xl font-bold tracking-tight text-[#0f2557] md:text-4xl">
           {assessment.employee.firstName} {assessment.employee.lastName}

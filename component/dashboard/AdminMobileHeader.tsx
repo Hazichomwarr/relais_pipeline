@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileText,
+  Gauge,
   LayoutDashboard,
   Library,
   ListTodo,
@@ -91,6 +92,15 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/admin/reports",
       icon: <ClipboardList className="h-5 w-5" />,
     },
+    ...(role === "ADMIN" || role === "MANAGER"
+      ? [
+          {
+            label: "Performance",
+            href: "/admin/performance",
+            icon: <Gauge className="h-5 w-5" />,
+          },
+        ]
+      : []),
     ...(role === "ADMIN"
       ? [
           {

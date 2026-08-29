@@ -18,7 +18,7 @@ export default async function CommercialPerformanceTargetsPage() {
   ]);
 
   return (
-    <AdminShell>
+    <AdminShell activeItem="performance">
       <div>
         <header className="mb-2">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">

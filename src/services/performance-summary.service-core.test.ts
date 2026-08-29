@@ -121,14 +121,16 @@ function submittedAssessment(
   score: number,
   maxScore: number,
 ): StructuredAssessmentDimensionSummary {
-  return { status: "SUBMITTED", score, maxScore };
+  return { status: "SUBMITTED", score, maxScore, assessmentId: "assessment-1" };
 }
 
 function notFinalizedAssessment(
   status: "DRAFT" | "NOT_STARTED",
   maxScore: number,
 ): StructuredAssessmentDimensionSummary {
-  return { status, score: null, maxScore };
+  return status === "DRAFT"
+    ? { status, score: null, maxScore, assessmentId: "assessment-1" }
+    : { status, score: null, maxScore, assessmentId: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -322,6 +324,23 @@ test("an ADMIN employee (all four dimensions unsupported) composes an entirely b
   assert.equal(summary.machineDerivedSubtotal, null);
   assert.equal(summary.humanAssessedSubtotal, null);
   assert.equal(summary.blockers.length, 4);
+});
+
+test("Ticket 25K.1 §15: an ADMIN employee's human dimensions carry the true UNSUPPORTED_ROLE status (never NOT_STARTED) — this is what the real orchestrator produces, and the composition core must block on it exactly like any other non-SUBMITTED status", () => {
+  const summary = composePerformanceSummary({
+    results: blockedResults("UNSUPPORTED_ROLE"),
+    executionDiscipline: blockedExecution("UNSUPPORTED_ROLE"),
+    roleResponsibilities: { status: "UNSUPPORTED_ROLE", score: null, maxScore: 20, assessmentId: null },
+    professionalContribution: { status: "UNSUPPORTED_ROLE", score: null, maxScore: 10, assessmentId: null },
+  });
+
+  assert.equal(summary.status, "INCOMPLETE");
+  assert.equal(summary.overall, null);
+  assert.equal(summary.humanAssessedSubtotal, null);
+  assert.deepEqual(
+    summary.blockers.map((b) => b.sourceStatus),
+    ["UNSUPPORTED_ROLE", "UNSUPPORTED_ROLE", "UNSUPPORTED_ROLE", "UNSUPPORTED_ROLE"],
+  );
 });
 
 // ---------------------------------------------------------------------------

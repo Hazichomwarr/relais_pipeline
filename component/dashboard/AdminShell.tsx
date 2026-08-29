@@ -17,6 +17,7 @@ type AdminShellProps = {
     | "updates"
     | "reports"
     | "reportsManagement"
+    | "performance"
     | "profile";
   children: React.ReactNode;
 };

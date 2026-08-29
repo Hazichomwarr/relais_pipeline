@@ -1,13 +1,17 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import AdminShell from "@/component/dashboard/AdminShell";
 import {
   formatAchievementRate,
   formatPeriodLabel,
+  getAssessmentActionState,
   latestClosedMonth,
   PERFORMANCE_DIMENSION_LABELS,
   describeDimensionUnavailability,
+  type AssessmentActionState,
 } from "@/src/lib/performance-summary-presentation";
+import type { StructuredAssessmentDimensionSummary } from "@/src/services/performance-summary.service-core";
 import {
   AuthorizationError,
   requirePerformanceDashboardAccess,
@@ -52,11 +56,14 @@ export default async function PerformanceDashboardPage({
 }: {
   searchParams: PerformancePageSearchParams;
 }) {
-  let actor: { role: "ADMIN" | "MANAGER" };
+  let actor: { id: string; role: "ADMIN" | "MANAGER" };
 
   try {
     const authenticated = await requirePerformanceDashboardAccess();
-    actor = { role: authenticated.role as "ADMIN" | "MANAGER" };
+    actor = {
+      id: authenticated.id,
+      role: authenticated.role as "ADMIN" | "MANAGER",
+    };
   } catch (error) {
     if (error instanceof AuthorizationError) {
       redirect(error.code === "UNAUTHENTICATED" ? "/login" : "/admin");
@@ -80,12 +87,13 @@ export default async function PerformanceDashboardPage({
   }));
 
   const period = resolveCommercialPerformanceTargetPeriod({ year, month });
+  const periodClosed = period.periodEnd.getTime() <= new Date().getTime();
   const result = employeeId
     ? await getEmployeePerformanceSummary(actor, employeeId, period)
     : null;
 
   return (
-    <AdminShell>
+    <AdminShell activeItem="performance">
       <div>
         <header className="mb-2">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
@@ -175,8 +183,13 @@ export default async function PerformanceDashboardPage({
             </p>
           ) : result?.status === "FOUND" ? (
             <PerformanceSummaryView
+              employeeId={employeeId}
               employeeName={`${result.employee.firstName} ${result.employee.lastName}`}
               periodLabel={formatPeriodLabel(year, month)}
+              year={year}
+              month={month}
+              periodClosed={periodClosed}
+              canAssess={result.canAssess}
               summary={result.summary}
             />
           ) : null}
@@ -187,12 +200,22 @@ export default async function PerformanceDashboardPage({
 }
 
 function PerformanceSummaryView({
+  employeeId,
   employeeName,
   periodLabel,
+  year,
+  month,
+  periodClosed,
+  canAssess,
   summary,
 }: {
+  employeeId: string;
   employeeName: string;
   periodLabel: string;
+  year: number;
+  month: number;
+  periodClosed: boolean;
+  canAssess: boolean;
   summary: PerformanceEvaluationSummary;
 }) {
   return (
@@ -321,18 +344,16 @@ function PerformanceSummaryView({
           label={PERFORMANCE_DIMENSION_LABELS.ROLE_RESPONSIBILITIES}
           maxScore={20}
           content={
-            summary.roleResponsibilities.status === "SUBMITTED" ? (
-              <p className="text-2xl font-bold text-[#0f2557]">
-                {summary.roleResponsibilities.score} / 20
-              </p>
-            ) : (
-              <UnavailableDimension
-                message={describeDimensionUnavailability(
-                  "ROLE_RESPONSIBILITIES",
-                  summary.roleResponsibilities.status,
-                )}
-              />
-            )
+            <HumanAssessedDimensionContent
+              dimension="ROLE_RESPONSIBILITIES"
+              summary={summary.roleResponsibilities}
+              maxScore={20}
+              canAssess={canAssess}
+              periodClosed={periodClosed}
+              createHref={`/admin/performance-assessments?employeeId=${employeeId}&year=${year}&month=${month}#role-responsibility`}
+              detailHrefBase="/admin/performance-assessments"
+              createLabel="Évaluer les responsabilités"
+            />
           }
         />
 
@@ -340,18 +361,16 @@ function PerformanceSummaryView({
           label={PERFORMANCE_DIMENSION_LABELS.PROFESSIONAL_CONTRIBUTION}
           maxScore={10}
           content={
-            summary.professionalContribution.status === "SUBMITTED" ? (
-              <p className="text-2xl font-bold text-[#0f2557]">
-                {summary.professionalContribution.score} / 10
-              </p>
-            ) : (
-              <UnavailableDimension
-                message={describeDimensionUnavailability(
-                  "PROFESSIONAL_CONTRIBUTION",
-                  summary.professionalContribution.status,
-                )}
-              />
-            )
+            <HumanAssessedDimensionContent
+              dimension="PROFESSIONAL_CONTRIBUTION"
+              summary={summary.professionalContribution}
+              maxScore={10}
+              canAssess={canAssess}
+              periodClosed={periodClosed}
+              createHref={`/admin/performance-assessments?employeeId=${employeeId}&year=${year}&month=${month}#professional-contribution`}
+              detailHrefBase="/admin/performance-assessments/professional-contribution"
+              createLabel="Évaluer la contribution"
+            />
           }
         />
       </div>
@@ -374,6 +393,94 @@ function DimensionCard({
         {label} / {maxScore}
       </p>
       <div className="mt-2">{content}</div>
+    </div>
+  );
+}
+
+/**
+ * Ticket 25K.1 — the only place on this read-only dashboard that can
+ * render a navigation CTA into the existing 25I/25J assessment workflow.
+ * The CTA state itself comes entirely from getAssessmentActionState
+ * (§13: never re-derive the authorization/state matrix here); this
+ * component only turns that state into a label and an href. Results and
+ * Execution Discipline never call this — they have no equivalent, ever
+ * (§16/§17).
+ */
+function HumanAssessedDimensionContent({
+  dimension,
+  summary,
+  maxScore,
+  canAssess,
+  periodClosed,
+  createHref,
+  detailHrefBase,
+  createLabel,
+}: {
+  dimension: "ROLE_RESPONSIBILITIES" | "PROFESSIONAL_CONTRIBUTION";
+  summary: StructuredAssessmentDimensionSummary;
+  maxScore: number;
+  canAssess: boolean;
+  periodClosed: boolean;
+  createHref: string;
+  detailHrefBase: string;
+  createLabel: string;
+}) {
+  const actionState: AssessmentActionState = getAssessmentActionState({
+    status: summary.status,
+    canAssess,
+    periodClosed,
+  });
+
+  if (summary.status === "SUBMITTED") {
+    return (
+      <div>
+        <p className="text-2xl font-bold text-[#0f2557]">
+          {summary.score} / {maxScore}
+        </p>
+        {actionState === "VIEW" ? (
+          <Link
+            href={`${detailHrefBase}/${summary.assessmentId}`}
+            className="mt-2 inline-block text-sm font-medium text-blue-600 hover:text-blue-700"
+          >
+            Voir le détail →
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
+  // A CREATE CTA that would just be rejected on click by the still-open
+  // period is worse than no CTA — but the "no assessment yet" copy
+  // shouldn't be conflated with "not your call to make" either, so the
+  // period-not-closed reason gets its own, more accurate message.
+  const unavailabilitySourceStatus =
+    summary.status === "NOT_STARTED" && canAssess && !periodClosed
+      ? "PERIOD_NOT_CLOSED"
+      : summary.status;
+
+  return (
+    <div>
+      <UnavailableDimension
+        message={describeDimensionUnavailability(
+          dimension,
+          unavailabilitySourceStatus,
+        )}
+      />
+      {summary.status === "DRAFT" && actionState === "CONTINUE" ? (
+        <Link
+          href={`${detailHrefBase}/${summary.assessmentId}`}
+          className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#0f2557] px-4 text-sm font-semibold text-white transition hover:bg-[#0f2557]/90"
+        >
+          Continuer l’évaluation
+        </Link>
+      ) : summary.status === "NOT_STARTED" && actionState === "CREATE" ? (
+        <Link
+          href={createHref}
+          className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#0f2557] px-4 text-sm font-semibold text-white transition hover:bg-[#0f2557]/90"
+        >
+          {createLabel}
+        </Link>
+      ) : null}
     </div>
   );
 }

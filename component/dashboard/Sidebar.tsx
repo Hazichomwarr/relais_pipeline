@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   FileText,
+  Gauge,
   LayoutDashboard,
   Library,
   ListTodo,
@@ -37,6 +38,7 @@ export default function Sidebar({
     | "updates"
     | "reports"
     | "reportsManagement"
+    | "performance"
     | "profile";
   role?: UserRole;
 }) {
@@ -205,6 +207,20 @@ export default function Sidebar({
           <ClipboardList className="h-5 w-5" />
           Suivi des rapports
         </Link>
+
+        {(role === "ADMIN" || role === "MANAGER") && (
+          <Link
+            href="/admin/performance"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "performance"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <Gauge className="h-5 w-5" />
+            Performance
+          </Link>
+        )}
 
         {role === "ADMIN" && (
           <Link

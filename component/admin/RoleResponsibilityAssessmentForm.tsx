@@ -22,6 +22,10 @@ type EligibleEmployee = {
 
 type RoleResponsibilityAssessmentFormProps = {
   employees: EligibleEmployee[];
+  /** Ticket 25K.1 §7 — optional deep-link prefill from /admin/performance; falls back to the usual blank employee / last-closed-month defaults when absent. */
+  initialEmployeeId?: string;
+  initialYear?: number;
+  initialMonth?: number;
 };
 
 const inputClassName =
@@ -54,6 +58,9 @@ function lastClosedMonthDefaults(): { year: number; month: number } {
 
 export default function RoleResponsibilityAssessmentForm({
   employees,
+  initialEmployeeId,
+  initialYear,
+  initialMonth,
 }: RoleResponsibilityAssessmentFormProps) {
   const router = useRouter();
   const [feedback, setFeedback] = useState<
@@ -74,9 +81,9 @@ export default function RoleResponsibilityAssessmentForm({
   >({
     resolver: zodResolver(createRoleResponsibilityAssessmentSchema),
     defaultValues: {
-      employeeId: "",
-      year: defaults.year,
-      month: defaults.month,
+      employeeId: initialEmployeeId ?? "",
+      year: initialYear ?? defaults.year,
+      month: initialMonth ?? defaults.month,
     },
   });
 

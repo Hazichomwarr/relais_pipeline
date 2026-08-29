@@ -18,6 +18,30 @@ import {
   listProfessionalContributionAssessmentsForManagement,
 } from "@/src/services/professional-contribution.service";
 
+type PerformanceAssessmentsSearchParams = Promise<{
+  employeeId?: string;
+  year?: string;
+  month?: string;
+}>;
+
+/**
+ * Ticket 25K.1 §7/§9 — deep-link prefill only. employeeId/year/month are
+ * read from the query string purely to pre-fill the two create forms'
+ * defaultValues; they carry no authority of their own; the Server
+ * Actions those forms submit to still fully re-validate every field
+ * (§43), so a tampered or nonsensical value here can, at worst, leave a
+ * form pre-filled with something invalid — never something unsafe.
+ */
+function parsePrefillMonth(raw: string | undefined): number | undefined {
+  const value = raw ? Number(raw) : NaN;
+  return Number.isInteger(value) && value >= 1 && value <= 12 ? value : undefined;
+}
+
+function parsePrefillYear(raw: string | undefined): number | undefined {
+  const value = raw ? Number(raw) : NaN;
+  return Number.isInteger(value) ? value : undefined;
+}
+
 /**
  * Ticket 25J §44 — reuses 25I's narrow performance-assessment surface as
  * distinct sections (Role Responsibilities, Professional Contribution)
@@ -25,7 +49,11 @@ import {
  * data models and scoring semantics remain entirely separate (§28/§73)
  * — this page only shares layout, not logic.
  */
-export default async function PerformanceAssessmentsPage() {
+export default async function PerformanceAssessmentsPage({
+  searchParams,
+}: {
+  searchParams: PerformanceAssessmentsSearchParams;
+}) {
   let actorRole: "ADMIN" | "MANAGER";
 
   try {
@@ -40,6 +68,11 @@ export default async function PerformanceAssessmentsPage() {
     throw error;
   }
 
+  const params = await searchParams;
+  const initialEmployeeId = params.employeeId || undefined;
+  const initialYear = parsePrefillYear(params.year);
+  const initialMonth = parsePrefillMonth(params.month);
+
   const [
     roleResponsibilityEmployees,
     roleResponsibilityAssessments,
@@ -53,7 +86,7 @@ export default async function PerformanceAssessmentsPage() {
   ]);
 
   return (
-    <AdminShell>
+    <AdminShell activeItem="performance">
       <div>
         <header className="mb-2">
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-600">
@@ -70,7 +103,7 @@ export default async function PerformanceAssessmentsPage() {
           </p>
         </header>
 
-        <section className="mt-8">
+        <section id="role-responsibility" className="mt-8 scroll-mt-20">
           <h2 className="text-xl font-bold text-[#0f2557]">
             Responsabilités de rôle
           </h2>
@@ -84,6 +117,9 @@ export default async function PerformanceAssessmentsPage() {
             </h3>
             <RoleResponsibilityAssessmentForm
               employees={roleResponsibilityEmployees}
+              initialEmployeeId={initialEmployeeId}
+              initialYear={initialYear}
+              initialMonth={initialMonth}
             />
           </div>
 
@@ -97,7 +133,7 @@ export default async function PerformanceAssessmentsPage() {
           </div>
         </section>
 
-        <section className="mt-10">
+        <section id="professional-contribution" className="mt-10 scroll-mt-20">
           <h2 className="text-xl font-bold text-[#0f2557]">
             Contribution professionnelle
           </h2>
@@ -113,6 +149,9 @@ export default async function PerformanceAssessmentsPage() {
             </h3>
             <ProfessionalContributionAssessmentForm
               employees={professionalContributionEmployees}
+              initialEmployeeId={initialEmployeeId}
+              initialYear={initialYear}
+              initialMonth={initialMonth}
             />
           </div>
 

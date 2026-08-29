@@ -78,10 +78,22 @@ export type PerformanceDimensionKey =
  * `NOT_STARTED` when no row exists for the exact period at all,
  * distinct from `DRAFT` (a row exists but isn't finalized yet) and
  * `SUBMITTED` (finalized, historically authoritative).
+ *
+ * Ticket 25K.1 §15: `UNSUPPORTED_ROLE` is a distinct source status from
+ * `NOT_STARTED` — an ADMIN employee has no row because no row can ever
+ * exist for that role (the catalog has no entry), not because nobody has
+ * gotten to it yet. Collapsing the two would let the UI offer a creation
+ * CTA for a role the assessment domain doesn't support.
+ *
+ * `assessmentId` is carried alongside DRAFT/SUBMITTED so the navigation
+ * layer can deep-link straight to the existing detail/edit route without
+ * a second lookup; it is `null` whenever no row exists at all.
  */
 export type StructuredAssessmentDimensionSummary =
-  | { status: "SUBMITTED"; score: number; maxScore: number }
-  | { status: "DRAFT" | "NOT_STARTED"; score: null; maxScore: number };
+  | { status: "SUBMITTED"; score: number; maxScore: number; assessmentId: string }
+  | { status: "DRAFT"; score: null; maxScore: number; assessmentId: string }
+  | { status: "NOT_STARTED"; score: null; maxScore: number; assessmentId: null }
+  | { status: "UNSUPPORTED_ROLE"; score: null; maxScore: number; assessmentId: null };
 
 export type PerformanceDimensionBlocker = {
   dimension: PerformanceDimensionKey;

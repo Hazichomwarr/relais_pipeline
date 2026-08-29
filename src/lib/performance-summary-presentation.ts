@@ -50,6 +50,38 @@ export function describeDimensionUnavailability(
   }
 }
 
+/**
+ * Ticket 25K.1 §5/§6/§10/§11/§13/§15 — the one place that decides which
+ * action, if any, a Role Responsibilities/Professional Contribution card
+ * offers. Pure and testable on purpose: the dashboard page must never
+ * re-derive this matrix inline in JSX, and must never show a CTA to a
+ * viewer `canAssess` says isn't authorized, regardless of status.
+ */
+export type AssessmentActionState = "NONE" | "CREATE" | "CONTINUE" | "VIEW";
+
+export function getAssessmentActionState(input: {
+  status: "SUBMITTED" | "DRAFT" | "NOT_STARTED" | "UNSUPPORTED_ROLE";
+  canAssess: boolean;
+  periodClosed: boolean;
+}): AssessmentActionState {
+  if (input.status === "SUBMITTED") {
+    return "VIEW";
+  }
+  if (input.status === "UNSUPPORTED_ROLE") {
+    return "NONE";
+  }
+  if (!input.canAssess) {
+    return "NONE";
+  }
+  if (input.status === "DRAFT") {
+    return "CONTINUE";
+  }
+  // NOT_STARTED: 25I/25J both refuse creation before the period closes
+  // (§23) — a CREATE CTA that would just bounce off that check on click
+  // is worse than no CTA at all.
+  return input.periodClosed ? "CREATE" : "NONE";
+}
+
 export const PERFORMANCE_DIMENSION_LABELS: Record<
   PerformanceDimensionKey,
   string
