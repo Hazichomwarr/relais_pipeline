@@ -348,6 +348,12 @@ model User {
   // this relation for authorization; User.role remains authoritative.
   organizationMemberships OrganizationMembership[]
 
+  // Ticket 27B — two distinct relations for the same reason ProspectAction
+  // needs four: the employee whose workday it is, and the actor who later
+  // confirmed it, are different roles that both point back at User.
+  workdays          Workday[] @relation("EmployeeWorkdays")
+  confirmedWorkdays Workday[] @relation("ConfirmedWorkdays")
+
   assignedProspects    Prospect[]
   personalNotes        PersonalNote[]
   createdLedgerEntries LedgerEntry[]
@@ -436,6 +442,104 @@ model UserCreationActivity {
 
   @@index([actorUserId])
   @@index([occurredAt])
+}
+
+// Ticket 27B — the durable foundation for "Ma journée" (Ticket 27A's
+// domain audit is authoritative for every decision below; this model
+// encodes only the facts 27A already decided, no more).
+//
+// Central invariant (27A §2/§7): a Workday row exists IF AND ONLY IF the
+// employee has declared that they started that workday. Nothing in this
+// schema — and nothing that may read it later — should ever create a row
+// merely because a task was assigned, the calendar date arrived, or an
+// employee is active/on a roster. Row existence itself is the historical
+// evidence of a start declaration; `startedAt` is therefore required, not
+// nullable — a Workday with no start declaration must remain structurally
+// impossible, not just discouraged by convention.
+//
+// `expectedStartTime`/`expectedEndTime` are a snapshot (minutes since
+// RELAIS business midnight) of the schedule in effect when this row was
+// created — not a live read of "today's hours" — so a future change to
+// RELAIS's official working hours can never silently reinterpret an old
+// Workday's lateness. No Schedule model exists or is implied by these
+// two integers.
+//
+// No status enum: lifecycle state is fully derivable from the timestamp
+// tuple (27A §12.1) — NOT STARTED (no row) / STARTED-UNCONFIRMED
+// (confirmedAt null, endedAt null) / CONFIRMED (confirmedAt set, endedAt
+// null) / ENDED-UNCONFIRMED (endedAt set, confirmedAt null — a valid,
+// truthful terminal state, never treated as absence) / ENDED-CONFIRMED
+// (both set). No lateness field either — derivable at read time from
+// `startedAt` vs. `expectedStartTime`.
+//
+// `confirmedAt` means "when an authorized actor confirmed this
+// employee's presence/start," never "when the employee actually started"
+// — it must never be conflated with or substitute for `startedAt` (27A
+// §9/§20). No `endConfirmedAt`/`endConfirmedBy`: there is no management
+// confirmation lifecycle for ending a workday (27A §14/§30).
+//
+// No role-at-event snapshot on either User relation (27A §16) — identity
+// alone is sufficient provenance here, directly reusing ProspectAction's
+// existing zero-role-snapshot precedent: a later role change for the
+// employee or the confirming actor never invalidates or reinterprets old
+// Workday history. Both User relations are `onDelete: Restrict` for the
+// same reason every other historical User relation in this schema is —
+// there is no User-deletion path in this codebase today, and Workday
+// history must survive deactivation exactly like every other domain's
+// history already does.
+//
+// Deliberately no relation to DailyTask, Prospect/ProspectAction,
+// DailyReport, or Organization — see 27A §7 (DailyTask is independently
+// keyed by employee+workDate, no FK either direction), §11.14-11.15
+// (CRM/report domains are separate facts sharing only a date), and §21
+// (Phase 26 stays paused; RELAIS-only for now, no organizationId).
+model Workday {
+  id String @id @default(cuid())
+
+  employeeUserId String
+  employee       User   @relation("EmployeeWorkdays", fields: [employeeUserId], references: [id], onDelete: Restrict)
+
+  // The RELAIS business-calendar date this declaration belongs to — not
+  // startedAt, not createdAt. Normalized to business midnight at write
+  // time using the existing centralized business-timezone helpers
+  // (financial-report-period.ts / daily-report-date.ts), the same way
+  // DailyReport.reportDate already is. Normalization is 27C's job; this
+  // field is only the durable storage for it.
+  workDate DateTime
+
+  // Minutes since RELAIS business midnight — snapshotted at creation,
+  // never a live schedule lookup. Current defaults: 480 (08:00), 1020
+  // (17:00). Never persist a formatted time string; never introduce a
+  // Schedule model for this.
+  expectedStartTime Int
+  expectedEndTime   Int
+
+  // The timestamp RELAIS CRM accepted the employee's declaration that
+  // they were starting their workday — not proof of physical arrival.
+  // Required, not nullable: see the model-level invariant comment above.
+  // Set once, server-side, at row creation (27C) — never client-supplied,
+  // never later rewritten.
+  startedAt DateTime
+
+  // A separate management fact from startedAt, never a replacement for
+  // it (27A §9/§19-20). Both nullable: an employee may start and end
+  // with nobody ever confirming them, which is valid, truthful terminal
+  // history, never auto-transformed into absence (27A §13, §25).
+  confirmedAt       DateTime?
+  confirmedByUserId String?
+  confirmedBy       User?     @relation("ConfirmedWorkdays", fields: [confirmedByUserId], references: [id], onDelete: Restrict)
+
+  // Nullable: the employee may have started but not yet declared the
+  // end. Set once, server-side, at end declaration (27C) — never
+  // client-supplied, never later rewritten.
+  endedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeUserId, workDate])
+  @@index([workDate])
+  @@index([confirmedByUserId])
 }
 
 model PersonalNote {
