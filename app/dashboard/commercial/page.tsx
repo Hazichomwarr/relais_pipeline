@@ -1,3 +1,4 @@
+import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import CommercialFollowUpPriority from "@/component/commercial/CommercialFollowUpPriority";
@@ -6,6 +7,7 @@ import CommercialKpiCards from "@/component/commercial/CommercialKpiCards";
 import CommercialPipeline from "@/component/commercial/CommercialPipeline";
 import CommercialProspectList from "@/component/commercial/CommercialProspectList";
 import CommercialRecentProspects from "@/component/commercial/CommercialRecentProspects";
+import DailyWorkEntryCard from "@/component/daily-work/DailyWorkEntryCard";
 import { buildReturnToPath } from "@/src/lib/return-to";
 import { CommercialAccessError } from "@/src/services/commercial-access.service-core";
 import { getCommercialDashboard } from "@/src/services/commercial-dashboard.service";
@@ -65,6 +67,14 @@ export default async function CommercialDashboardPage({
   return (
     <div className="flex flex-col gap-6">
       <CommercialHeader firstName={dashboard.commercial.firstName} />
+
+      <DailyWorkEntryCard
+        icon={CalendarClock}
+        title="Ma journée"
+        description="Commencez votre journée, consultez vos tâches et suivez leur avancement."
+        href="/ma-journee"
+        ctaLabel="Ouvrir ma journée"
+      />
 
       <CommercialKpiCards kpis={dashboard.kpis} />
 

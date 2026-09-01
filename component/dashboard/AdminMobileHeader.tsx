@@ -1,6 +1,8 @@
 import type { UserRole } from "@prisma/client";
 import {
   BarChart3,
+  CalendarCheck,
+  CalendarClock,
   ClipboardCheck,
   ClipboardList,
   FileText,
@@ -46,6 +48,18 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
       href: "/admin",
       icon: <LayoutDashboard className="h-5 w-5" />,
     },
+    // Ticket 27H — Ma journée: MANAGER/ASSISTANT here (COMMERCIAL uses
+    // CommercialMobileHeader instead). ADMIN excluded — no personal
+    // Workday (27A §4). Same visibility as the desktop Sidebar item.
+    ...(role !== "ADMIN"
+      ? [
+          {
+            label: "Ma journée",
+            href: "/ma-journee",
+            icon: <CalendarClock className="h-5 w-5" />,
+          },
+        ]
+      : []),
     ...(!isAssistant
       ? [
           {
@@ -70,6 +84,18 @@ function getAdminNavItems(role?: UserRole): MobileNavItem[] {
             label: "Actions",
             href: "/actions",
             icon: <ListTodo className="h-5 w-5" />,
+          },
+        ]
+      : []),
+    // Ticket 27H — Journées des agents: DAILY_WORK_MANAGEMENT_ROLES
+    // (ADMIN, MANAGER). Same visibility/ordering as the desktop Sidebar
+    // item — beside the other operational management surfaces.
+    ...(role === "ADMIN" || role === "MANAGER"
+      ? [
+          {
+            label: "Journées des agents",
+            href: "/admin/journees-agents",
+            icon: <CalendarCheck className="h-5 w-5" />,
           },
         ]
       : []),

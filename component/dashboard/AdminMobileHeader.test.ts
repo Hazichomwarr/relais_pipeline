@@ -226,3 +226,38 @@ test("Ticket 25R §14/§49/§50: Tableau de bord, Mes notes, Mes rapports, and P
     assert.doesNotMatch(entryMatch![0], /isAssistant/);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Ticket 27H — Daily Work mobile navigation matrix
+// ---------------------------------------------------------------------------
+
+test("Ticket 27H: mobile navigation includes an active Ma journée entry pointing to /ma-journee, gated behind role !== \"ADMIN\"", () => {
+  const source = readFileSync("component/dashboard/AdminMobileHeader.tsx", "utf8");
+
+  const entryMatch = source.match(/\{\s*label: "Ma journée",[\s\S]*?\},/);
+  assert.ok(entryMatch, "expected a Ma journée nav item entry");
+  assert.match(entryMatch![0], /href: "\/ma-journee"/);
+  assert.doesNotMatch(entryMatch![0], /disabled: true/);
+
+  const gateMatch = source.match(
+    /role !== "ADMIN"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Ma journée",/,
+  );
+  assert.ok(gateMatch, "expected Ma journée to be gated behind role !== \"ADMIN\"");
+});
+
+test("Ticket 27H: mobile navigation includes an active Journées des agents entry pointing to /admin/journees-agents, gated behind role === \"ADMIN\" || role === \"MANAGER\"", () => {
+  const source = readFileSync("component/dashboard/AdminMobileHeader.tsx", "utf8");
+
+  const entryMatch = source.match(/\{\s*label: "Journées des agents",[\s\S]*?\},/);
+  assert.ok(entryMatch, "expected a Journées des agents nav item entry");
+  assert.match(entryMatch![0], /href: "\/admin\/journees-agents"/);
+  assert.doesNotMatch(entryMatch![0], /disabled: true/);
+
+  const gateMatch = source.match(
+    /role === "ADMIN" \|\| role === "MANAGER"\s*\n\s*\?\s*\[\s*\n\s*\{\s*\n\s*label: "Journées des agents",/,
+  );
+  assert.ok(
+    gateMatch,
+    "expected Journées des agents to be gated behind role === \"ADMIN\" || role === \"MANAGER\"",
+  );
+});

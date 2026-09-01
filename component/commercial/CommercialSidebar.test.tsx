@@ -60,6 +60,7 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
 
   for (const label of [
     "Tableau de bord",
+    "Ma journée",
     "À la une",
     "Nouveau prospect",
     "Mes prospects",
@@ -71,6 +72,19 @@ test("COMMERCIAL sidebar includes every expected destination", () => {
   ]) {
     assert.match(html, new RegExp(label));
   }
+});
+
+test("Ticket 27H: COMMERCIAL sidebar includes a Ma journée link to /ma-journee", () => {
+  const html = renderToStaticMarkup(
+    <CommercialSidebar firstName="Julbert" lastName="Sermé" />,
+  );
+
+  assert.match(html, /Ma journée/);
+  assert.match(html, /href="\/ma-journee"/);
+});
+
+test("Ticket 27H: resolveCommercialActiveItem highlights Ma journée on /ma-journee", () => {
+  assert.equal(resolveCommercialActiveItem("/ma-journee"), "maJournee");
 });
 
 test("COMMERCIAL sidebar includes a Nouveau prospect link to / (Ticket 15H.3)", () => {

@@ -1,6 +1,8 @@
 import type { UserRole } from "@prisma/client";
 import {
   BarChart3,
+  CalendarCheck,
+  CalendarClock,
   ChevronDown,
   ClipboardCheck,
   ClipboardList,
@@ -41,6 +43,8 @@ export default function Sidebar({
 }: {
   activeItem?:
     | "dashboard"
+    | "maJournee"
+    | "journeesAgents"
     | "newProspect"
     | "actions"
     | "analytics"
@@ -88,6 +92,27 @@ export default function Sidebar({
           Tableau de bord
         </Link>
 
+        {/* Ticket 27H — Ma journée: MANAGER/ASSISTANT here (COMMERCIAL
+            uses CommercialSidebar instead, never this component). A
+            high-frequency personal daily action, placed near the top so
+            it's reachable without scrolling — see WORKDAY_ELIGIBLE_ROLES
+            (authorization.service-core.ts) for the underlying capability;
+            ADMIN is excluded because ADMIN has no personal Workday
+            (27A §4), not because of a navigation-only decision. */}
+        {role !== "ADMIN" && (
+          <Link
+            href="/ma-journee"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "maJournee"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <CalendarClock className="h-5 w-5" />
+            Ma journée
+          </Link>
+        )}
+
         {role !== "ASSISTANT" && (
           <Link
             href="/updates"
@@ -126,6 +151,24 @@ export default function Sidebar({
           >
             <ListTodo className="h-5 w-5" />
             Actions
+          </Link>
+        )}
+
+        {/* Ticket 27H — Journées des agents: DAILY_WORK_MANAGEMENT_ROLES
+            (ADMIN, MANAGER). Placed beside the other operational
+            management surfaces (Actions, Mes prospects, Suivis), not
+            near Finance/Paramètres. */}
+        {(role === "ADMIN" || role === "MANAGER") && (
+          <Link
+            href="/admin/journees-agents"
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-4 font-medium ${
+              activeItem === "journeesAgents"
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            <CalendarCheck className="h-5 w-5" />
+            Journées des agents
           </Link>
         )}
 
@@ -233,7 +276,7 @@ export default function Sidebar({
             }`}
           >
             <ClipboardList className="h-5 w-5" />
-            Suivi des rapports
+            Rapports quotidiens
           </Link>
         )}
 

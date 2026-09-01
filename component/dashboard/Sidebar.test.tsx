@@ -254,6 +254,7 @@ test("Ticket 25M §24/§25/§43: ASSISTANT still never sees any item leading int
     "/admin/reports",
     "/admin/performance",
     "/admin/users",
+    "/admin/journees-agents",
   ]) {
     assert.doesNotMatch(html, new RegExp(href.replace(/\//g, "\\/")));
   }
@@ -275,4 +276,52 @@ test("Ticket 25R §14/§15: ASSISTANT now also sees Tableau de bord, linking to 
 
   assert.match(html, /href="\/admin"/);
   assert.match(html, /Tableau de bord/);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 27H — Daily Work desktop navigation matrix
+// ---------------------------------------------------------------------------
+
+test("Ticket 27H: MANAGER and ASSISTANT see Ma journée; ADMIN does not (ADMIN has no personal Workday, 27A §4)", () => {
+  for (const role of ["MANAGER", "ASSISTANT"] as const) {
+    const html = renderToStaticMarkup(<Sidebar role={role} />);
+    assert.match(html, /href="\/ma-journee"/, `expected ${role} to see Ma journée`);
+    assert.match(html, /Ma journée/);
+  }
+
+  const adminHtml = renderToStaticMarkup(<Sidebar role="ADMIN" />);
+  assert.doesNotMatch(adminHtml, /href="\/ma-journee"/);
+});
+
+test("Ticket 27H: ADMIN and MANAGER see Journées des agents", () => {
+  for (const role of ["ADMIN", "MANAGER"] as const) {
+    const html = renderToStaticMarkup(<Sidebar role={role} />);
+    assert.match(html, /href="\/admin\/journees-agents"/, `expected ${role} to see Journées des agents`);
+    assert.match(html, /Journées des agents/);
+  }
+});
+
+test("Ticket 27H: ASSISTANT does not see Journées des agents (management workspace)", () => {
+  const html = renderToStaticMarkup(<Sidebar role="ASSISTANT" />);
+  assert.doesNotMatch(html, /href="\/admin\/journees-agents"/);
+});
+
+test("Ticket 27H: the Ma journée link is highlighted when activeItem is maJournee", () => {
+  const html = renderToStaticMarkup(<Sidebar role="MANAGER" activeItem="maJournee" />);
+  const link = html.match(/<a [^>]*href="\/ma-journee"[^>]*>/);
+
+  assert.ok(link, "expected a /ma-journee link");
+  assert.match(link![0], /bg-blue-50/);
+});
+
+test("Ticket 27H: the Journées des agents link is highlighted when activeItem is journeesAgents, not when it is dashboard", () => {
+  const activeHtml = renderToStaticMarkup(<Sidebar role="ADMIN" activeItem="journeesAgents" />);
+  const activeLink = activeHtml.match(/<a [^>]*href="\/admin\/journees-agents"[^>]*>/);
+  assert.ok(activeLink);
+  assert.match(activeLink![0], /bg-blue-50/);
+
+  const inactiveHtml = renderToStaticMarkup(<Sidebar role="ADMIN" activeItem="dashboard" />);
+  const inactiveLink = inactiveHtml.match(/<a [^>]*href="\/admin\/journees-agents"[^>]*>/);
+  assert.ok(inactiveLink);
+  assert.doesNotMatch(inactiveLink![0], /bg-blue-50/);
 });

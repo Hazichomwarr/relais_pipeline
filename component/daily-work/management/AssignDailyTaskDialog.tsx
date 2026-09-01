@@ -173,7 +173,7 @@ export default function AssignDailyTaskDialog({
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={isPending}
-                className="h-12 rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
               >
                 Annuler
               </button>
@@ -181,7 +181,7 @@ export default function AssignDailyTaskDialog({
                 type="button"
                 onClick={handleAssign}
                 disabled={isPending}
-                className="h-12 rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 w-full rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {isPending ? "Attribution..." : "Assigner"}
               </button>

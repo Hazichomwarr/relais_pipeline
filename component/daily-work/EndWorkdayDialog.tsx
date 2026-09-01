@@ -149,7 +149,7 @@ export default function EndWorkdayDialog({ openTaskCount }: EndWorkdayDialogProp
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={isPending}
-                className="h-12 rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
               >
                 {openTaskCount > 0 ? "Continuer ma journée" : "Annuler"}
               </button>
@@ -157,7 +157,7 @@ export default function EndWorkdayDialog({ openTaskCount }: EndWorkdayDialogProp
                 type="button"
                 onClick={confirmEnd}
                 disabled={isPending}
-                className="h-12 rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 w-full rounded-xl bg-[#0f2557] px-5 font-semibold text-white transition hover:bg-[#18366f] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {isPending
                   ? "Fin de journée..."

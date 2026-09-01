@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   FileText,
   LayoutDashboard,
   Library,
@@ -13,6 +14,7 @@ import {
 
 export type CommercialActiveItem =
   | "dashboard"
+  | "maJournee"
   | "updates"
   | "newProspect"
   | "actions"
@@ -38,6 +40,12 @@ export const commercialNavItems: CommercialNavItem[] = [
     label: "Tableau de bord",
     href: "/dashboard/commercial",
     icon: <LayoutDashboard className="h-5 w-5" />,
+  },
+  {
+    key: "maJournee",
+    label: "Ma journée",
+    href: "/ma-journee",
+    icon: <CalendarClock className="h-5 w-5" />,
   },
   {
     key: "updates",
@@ -124,6 +132,10 @@ export function resolveCommercialActiveItem(
 
   if (path === "/dashboard/commercial") {
     return "dashboard";
+  }
+
+  if (path === "/ma-journee" || path.startsWith("/ma-journee/")) {
+    return "maJournee";
   }
 
   if (path === "/updates" || path.startsWith("/updates/")) {

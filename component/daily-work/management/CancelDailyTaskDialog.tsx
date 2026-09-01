@@ -128,7 +128,7 @@ export default function CancelDailyTaskDialog({
             <h2 id="cancel-task-dialog-title" className="text-xl font-bold text-[#0f2557]">
               Annuler cette tâche ?
             </h2>
-            <p id="cancel-task-dialog-description" className="mt-2 text-sm leading-6 text-slate-500">
+            <p id="cancel-task-dialog-description" className="mt-2 break-words text-sm leading-6 text-slate-500">
               « {taskContent} » restera visible dans l’historique de la
               journée, marquée comme annulée.
             </p>
@@ -160,7 +160,7 @@ export default function CancelDailyTaskDialog({
                 type="button"
                 onClick={() => setOpen(false)}
                 disabled={isPending}
-                className="h-12 rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50"
+                className="h-12 w-full rounded-xl border border-slate-200 px-5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 sm:w-auto"
               >
                 Retour
               </button>
@@ -168,7 +168,7 @@ export default function CancelDailyTaskDialog({
                 type="button"
                 onClick={handleCancel}
                 disabled={isPending}
-                className="h-12 rounded-xl bg-red-600 px-5 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-12 w-full rounded-xl bg-red-600 px-5 font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               >
                 {isPending ? "Annulation..." : "Annuler la tâche"}
               </button>

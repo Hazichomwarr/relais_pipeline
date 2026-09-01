@@ -1,12 +1,20 @@
 // app/admin/page.tsx
 
 import { redirect } from "next/navigation";
-import { FileText, StickyNote, Wallet, type LucideIcon } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarClock,
+  FileText,
+  StickyNote,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 
 import AdminShell from "@/component/dashboard/AdminShell";
 import BusinessStats from "@/component/dashboard/BusinessStats";
 import DashboardTable from "@/component/dashboard/DashboardTable";
+import DailyWorkEntryCard from "@/component/daily-work/DailyWorkEntryCard";
 import KpiCards from "@/component/dashboard/KpiCards";
 import ReportDateFilter from "@/component/dashboard/ReportDateFilter";
 import { buildReturnToPath } from "@/src/lib/return-to";
@@ -109,6 +117,31 @@ export default async function AdminPage({
         </div>
       </div>
 
+      {/* Ticket 27H §14/§15 — Manager has two distinct Daily Work
+          contexts (own day + management), never merged into one
+          ambiguous card. Admin has no personal Workday (27A §4), so
+          only the management entry appears — never a disabled "Ma
+          journée" placeholder. Both are stable navigation entry points
+          (§13): no Workday/DailyTask query lives on this page. */}
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {actor.role === "MANAGER" && (
+          <DailyWorkEntryCard
+            icon={CalendarClock}
+            title="Ma journée"
+            description="Votre propre journée et vos tâches."
+            href="/ma-journee"
+            ctaLabel="Ouvrir ma journée"
+          />
+        )}
+        <DailyWorkEntryCard
+          icon={CalendarCheck}
+          title="Journées des agents"
+          description="Suivre les journées et organiser le travail des agents."
+          href="/admin/journees-agents"
+          ctaLabel="Ouvrir Journées des agents"
+        />
+      </div>
+
       <KpiCards prospects={prospects} />
 
       <BusinessStats prospects={prospects} />
@@ -130,6 +163,12 @@ type AssistantShortcut = {
 };
 
 const ASSISTANT_SHORTCUTS: AssistantShortcut[] = [
+  {
+    label: "Ma journée",
+    description: "Commencez votre journée et suivez son avancement.",
+    href: "/ma-journee",
+    icon: CalendarClock,
+  },
   {
     label: "Finances",
     description: "Enregistrer et consulter les mouvements financiers.",
