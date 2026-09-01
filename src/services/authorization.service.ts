@@ -9,6 +9,7 @@ import {
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
   DAILY_TASK_RECIPIENT_ROLES,
+  DAILY_WORK_MANAGEMENT_ROLES,
   DASHBOARD_ACCESS_ROLES,
   FINANCE_ACCESS_ROLES,
   FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
@@ -220,4 +221,15 @@ export async function requireDailyTaskRecipientAccess() {
  */
 export async function requireTaskAssignmentAccess() {
   return requireRole(...TASK_ASSIGNMENT_ROLES);
+}
+
+/**
+ * Ticket 27G — the coarse gate for the "Journées des agents" management
+ * route (ADMIN/MANAGER). Individual mutations reached from that route
+ * keep re-authorizing independently via requireWorkdayConfirmationAccess/
+ * requireTaskAssignmentAccess and their own fine-grained matrices — this
+ * wrapper only authorizes viewing the page itself.
+ */
+export async function requireDailyWorkManagementAccess() {
+  return requireRole(...DAILY_WORK_MANAGEMENT_ROLES);
 }

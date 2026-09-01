@@ -15,6 +15,7 @@ import {
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   DAILY_TASK_RECIPIENT_ROLES,
+  DAILY_WORK_MANAGEMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
@@ -422,6 +423,21 @@ test("Ticket 27E: requireRoleCore against TASK_ASSIGNMENT_ROLES allows ADMIN and
       () => requireRoleCore({ user: makeUser(role) }, TASK_ASSIGNMENT_ROLES),
       hasCode("ACCESS_DENIED"),
       `expected ${role} to be denied task-assignment access`,
+    );
+  }
+});
+
+test("Ticket 27G: requireRoleCore against DAILY_WORK_MANAGEMENT_ROLES allows ADMIN and MANAGER, and denies COMMERCIAL and ASSISTANT", () => {
+  for (const role of ["ADMIN", "MANAGER"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, DAILY_WORK_MANAGEMENT_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, DAILY_WORK_MANAGEMENT_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied daily-work management access`,
     );
   }
 });

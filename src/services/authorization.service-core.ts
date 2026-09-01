@@ -253,6 +253,22 @@ export const DAILY_TASK_RECIPIENT_ROLES: UserRole[] = ["MANAGER", "COMMERCIAL"];
  */
 export const TASK_ASSIGNMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 27G — the coarse gate for the "Journées des agents" management
+ * route itself: ADMIN or MANAGER may open it at all. Identical to
+ * WORKDAY_CONFIRMATION_ROLES and TASK_ASSIGNMENT_ROLES today by
+ * coincidence, kept as its own constant for the same reason every other
+ * constant in this file is (e.g. PERFORMANCE_DASHBOARD_ACCESS_ROLES vs.
+ * the assessment-management role lists it sits beside) — this route's
+ * access list is its own deliberate decision, distinct from either
+ * mutation's own authority. The individual confirm/assign/cancel
+ * mutations reached from this route keep using
+ * requireWorkdayConfirmationAccess()/requireTaskAssignmentAccess() and
+ * their own fine-grained matrices — this constant only keeps
+ * COMMERCIAL/ASSISTANT out of the door for the page itself.
+ */
+export const DAILY_WORK_MANAGEMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

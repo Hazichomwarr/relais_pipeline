@@ -1,7 +1,5 @@
 import type { DailyTaskStatus } from "@prisma/client";
 
-import type { DailyTaskRecord } from "@/src/services/daily-task.service-core";
-
 /**
  * Ticket 27F — pure presentation logic for "Ma journée." No domain rules
  * live here: this file only derives *how to display* facts the 27C/27E
@@ -115,7 +113,16 @@ export function formatLongWorkDateWithWeekday(date: Date): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export function groupDailyTasksForDisplay(tasks: DailyTaskRecord[]) {
+/**
+ * Generic over T (constrained the same way sortDailyTasksForDisplay is)
+ * so a caller with an extended task shape — e.g. 27G's
+ * DailyWorkManagementTask, which adds canCancel/assignedByName — gets
+ * active/cancelled arrays back in that same extended shape, not widened
+ * to the bare DailyTaskRecord fields.
+ */
+export function groupDailyTasksForDisplay<
+  T extends { status: DailyTaskStatus; assignedAt: Date; id: string },
+>(tasks: T[]) {
   const sorted = sortDailyTasksForDisplay(tasks);
   return {
     active: sorted.filter((task) => task.status !== "CANCELLED"),
