@@ -334,6 +334,34 @@ test("Ticket 25R §10/§12: requireRoleCore against FOLLOW_UP_QUEUE_MANAGEMENT_R
   }
 });
 
+/**
+ * Ticket 26B §61-63: OrganizationMembership now exists (schema-level), but
+ * must not yet participate in authorization. AuthenticatedUser (the shape
+ * requireRoleCore actually reads) structurally carries no membership field
+ * at all — only `role`, sourced from User.role. This fixture documents the
+ * intentionally inconsistent transitional case the ticket calls out: even
+ * if a RELAIS membership row for this same user id diverged from
+ * User.role, requireRoleCore has no way to see it, so User.role alone
+ * keeps deciding authority in both directions.
+ */
+test("Ticket 26B: requireRoleCore authorizes from User.role alone — a diverging (hypothetical) membership role cannot grant access it wouldn't otherwise have", () => {
+  // Membership.role = ADMIN, User.role = COMMERCIAL, in this scenario.
+  const user = makeUser("COMMERCIAL");
+
+  assert.throws(
+    () => requireRoleCore({ user }, ["ADMIN"]),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("Ticket 26B: requireRoleCore authorizes from User.role alone — a diverging (hypothetical) membership role cannot revoke access User.role still grants", () => {
+  // Membership.role = COMMERCIAL, User.role = ADMIN, in this scenario.
+  const user = makeUser("ADMIN");
+
+  const authorized = requireRoleCore({ user }, ["ADMIN"]);
+  assert.equal(authorized.role, "ADMIN");
+});
+
 function hasCode(code: AuthorizationError["code"]) {
   return (error: unknown) =>
     error instanceof AuthorizationError && error.code === code;

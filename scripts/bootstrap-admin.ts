@@ -3,6 +3,7 @@ import "dotenv/config";
 import bcrypt from "bcrypt";
 
 import { prisma } from "@/src/lib/prisma";
+import { resolveRelaisOrganizationId } from "@/src/services/organization-bootstrap.service";
 
 const SALT_ROUNDS = 12;
 
@@ -37,21 +38,39 @@ async function main() {
   // script creates the very first administrator, so no authenticated actor
   // exists yet. Never fabricate a self-created lifecycle row. All subsequent
   // operational user creation goes through createUserWithCreationHistory().
-  const admin = await prisma.user.create({
-    data: {
-      firstName: "Hamza",
-      lastName: "Mare",
-      email: normalizedEmail,
-      phone: null,
-      role: "ADMIN",
-      active: true,
-      passwordHash,
-    },
-    select: {
-      id: true,
-      email: true,
-      role: true,
-    },
+  //
+  // Ticket 26B §44: still atomically receives a RELAIS OrganizationMembership,
+  // like every other user-creation path, so re-running this script after
+  // 26B can never leave a User without a membership.
+  const admin = await prisma.$transaction(async (transaction) => {
+    const organizationId = await resolveRelaisOrganizationId(transaction);
+
+    const createdAdmin = await transaction.user.create({
+      data: {
+        firstName: "Hamza",
+        lastName: "Mare",
+        email: normalizedEmail,
+        phone: null,
+        role: "ADMIN",
+        active: true,
+        passwordHash,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    await transaction.organizationMembership.create({
+      data: {
+        organizationId,
+        userId: createdAdmin.id,
+        role: createdAdmin.role,
+      },
+    });
+
+    return createdAdmin;
   });
 
   console.log("Admin created successfully:", admin);

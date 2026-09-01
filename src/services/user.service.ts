@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { UserRole } from "@prisma/client";
+
 import { prisma } from "@/src/lib/prisma";
 import type {
   ValidatedCommercialProfileUpdateInput,
@@ -17,6 +19,7 @@ import {
   type UserStatusTransition,
 } from "@/src/services/user.service-core";
 import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
+import { resolveRelaisOrganizationId } from "@/src/services/organization-bootstrap.service";
 import { PROSPECT_ACTION_ASSIGNEE_ROLES } from "@/src/services/prospect-action.service-core";
 import { COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES } from "@/src/services/commercial-performance-target.service-core";
 
@@ -28,7 +31,14 @@ const dependencies = {
     data: Parameters<typeof prisma.user.update>[0]["data"],
     statusTransition?: UserStatusTransition,
   ) => {
-    if (!statusTransition) {
+    // Ticket 26B §42/§47: role editing still mutates User.role directly
+    // (runtime authority, unchanged), but the same transaction now also
+    // keeps the RELAIS OrganizationMembership shadow role synchronized —
+    // never left stale — so this is the "existing role-change mutation"
+    // the ticket requires updating, not a new authority switch.
+    const nextRole = data.role as UserRole | undefined;
+
+    if (!statusTransition && nextRole === undefined) {
       return prisma.user.update({
         where: { id: userId },
         data,
@@ -43,13 +53,23 @@ const dependencies = {
         select: { id: true },
       });
 
-      await transaction.userStatusActivity.create({
-        data: {
-          userId,
-          type: statusTransition.type,
-          actorUserId: statusTransition.actorUserId,
-        },
-      });
+      if (statusTransition) {
+        await transaction.userStatusActivity.create({
+          data: {
+            userId,
+            type: statusTransition.type,
+            actorUserId: statusTransition.actorUserId,
+          },
+        });
+      }
+
+      if (nextRole !== undefined) {
+        const organizationId = await resolveRelaisOrganizationId(transaction);
+        await transaction.organizationMembership.update({
+          where: { organizationId_userId: { organizationId, userId } },
+          data: { role: nextRole },
+        });
+      }
 
       return user;
     });

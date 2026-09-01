@@ -267,6 +267,60 @@ enum LedgerEntryCategory {
   OTHER_OUTFLOW
 }
 
+// Ticket 26B — the canonical tenant root. Deliberately minimal: no billing
+// plan, subscription status, logo, address, settings JSON, ownerUserId, or
+// Stripe IDs — those are later SaaS/product concerns, not foundation
+// requirements. RELAIS is the one canonical row created by migration (see
+// notes/ticket-26b-organization-membership-foundation.md); application code
+// must resolve it via the stable `slug` (RELAIS_ORGANIZATION_SLUG in
+// src/lib/organization.ts), never a hardcoded id, since ids differ per
+// environment/database.
+model Organization {
+  id String @id @default(cuid())
+
+  name String
+  slug String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships OrganizationMembership[]
+}
+
+// Ticket 26B — the tenant relationship: which User belongs to which
+// Organization, and their role within it. `role` reuses the existing
+// UserRole enum (no second role concept) and is a transitional SHADOW COPY
+// only — User.role remains runtime authorization authority until a later
+// explicit ticket switches it (see notes/ticket-26b-organization-membership-foundation.md).
+// No membership status (ACTIVE/INVITED/SUSPENDED/REMOVED) yet — mere
+// existence of a row is enough for this foundation ticket. `userId` is
+// deliberately NOT globally unique: a User is a global identity that may
+// structurally belong to multiple Organizations, so uniqueness is scoped to
+// the (organization, user) pair below.
+model OrganizationMembership {
+  id String @id @default(cuid())
+
+  organizationId String
+  userId         String
+
+  role UserRole
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Restrict, not Cascade/SetNull: neither a User nor an Organization has a
+  // deletion flow in 26B, and history (dual-write role sync) must never be
+  // silently orphaned. Consistent with the existing repo convention of
+  // Restrict on every other User historical relation (UserStatusActivity,
+  // UserCreationActivity, ProspectAction's four User relations).
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, role])
+  @@index([userId])
+}
+
 model User {
   id String @id @default(cuid())
 
@@ -287,6 +341,12 @@ model User {
   // daily reports. Changing this only affects reports created afterward —
   // DailyReport.templateType snapshots the template at creation time.
   dailyReportTemplateType DailyReportTemplateType?
+
+  // Ticket 26B — a User is a global identity that may structurally belong
+  // to multiple Organizations (see the model comment on
+  // OrganizationMembership above). Runtime code must not yet depend on
+  // this relation for authorization; User.role remains authoritative.
+  organizationMemberships OrganizationMembership[]
 
   assignedProspects    Prospect[]
   personalNotes        PersonalNote[]
