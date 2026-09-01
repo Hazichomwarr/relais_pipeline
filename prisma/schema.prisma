@@ -248,6 +248,18 @@ enum DailyReportStatus {
   SUBMITTED
 }
 
+// Ticket 27D — a real persisted enum, unlike Workday's derived-only
+// lifecycle: cancellation is a genuine third outcome that isn't a pure
+// function of nullable timestamps (a task can be cancelled at any point
+// regardless of whether it was ever completed first), so it can't be
+// derived the way Workday's states are. See the model comment on
+// DailyTask below.
+enum DailyTaskStatus {
+  OPEN
+  COMPLETED
+  CANCELLED
+}
+
 enum LedgerEntryCategory {
   CLIENT_PAYMENT
   CAPITAL_CONTRIBUTION
@@ -353,6 +365,12 @@ model User {
   // confirmed it, are different roles that both point back at User.
   workdays          Workday[] @relation("EmployeeWorkdays")
   confirmedWorkdays Workday[] @relation("ConfirmedWorkdays")
+
+  // Ticket 27D — two distinct relations for the same reason ProspectAction
+  // needs four: the assignee and the assignor are different roles that
+  // both point back at User.
+  dailyTasksAssignedTo DailyTask[] @relation("DailyTasksAssignedTo")
+  dailyTasksAssignedBy DailyTask[] @relation("DailyTasksAssignedBy")
 
   assignedProspects    Prospect[]
   personalNotes        PersonalNote[]
@@ -540,6 +558,93 @@ model Workday {
   @@unique([employeeUserId, workDate])
   @@index([workDate])
   @@index([confirmedByUserId])
+}
+
+// Ticket 27D — the durable foundation for "Tâches du jour" (Ticket 27A's
+// domain audit is authoritative for every decision below).
+//
+// Central invariant (27A §7, 27C's own doc): DailyTask is structurally
+// independent of Workday — no `workdayId`, no Workday relation, in
+// either direction. A task may exist before the employee starts (e.g.
+// assigned the evening before), or even if the employee never starts at
+// all; assigning one must never fabricate attendance, and Workday's own
+// "row exists iff started" invariant must never be threatened by this
+// model. The two domains share only `employeeUserId`/`workDate` at the
+// query layer, never a foreign key.
+//
+// `assignedToUserId`/`assignedByUserId` are immutable by design — no
+// reassignment field exists. Moving work from one person to another is
+// "cancel the original, assign a new one" (27A §47), which the CANCELLED
+// status plus a fresh row already expresses without any extra machinery.
+//
+// No role snapshot on either User relation (27A §34/§9 of this ticket) —
+// identity alone is sufficient provenance here, directly reusing
+// ProspectAction's existing zero-role-snapshot precedent, exactly like
+// Workday. A later role change for the assignee or assignor never
+// invalidates or reinterprets old task history.
+//
+// Deliberately no relation to Prospect/ProspectAction, DailyReport,
+// Performance, or Organization — see 27A §48-51 (a DailyTask is general
+// operational instruction, distinct from prospect-tied CRM workflow work
+// and from the employee's own DailyReport narrative), §52 (no
+// Performance coupling), and §21 (Phase 26 stays paused).
+//
+// No unique constraint on (assignedToUserId, workDate, content): two
+// identical-text tasks may legitimately be two separate management
+// assignments (27A §72's own instruction not to build duplicate-task
+// detection).
+model DailyTask {
+  id String @id @default(cuid())
+
+  // The RELAIS business-calendar date this task is intended for — not
+  // assignedAt, not createdAt. A task assigned Sunday evening for Monday
+  // has workDate = Monday, assignedAt = Sunday evening; both are
+  // preserved as independent historical facts. Normalization to business
+  // midnight is 27E's job; this field is only the durable storage for it.
+  workDate DateTime
+
+  // Who was actually asked to handle this task. Immutable — see the
+  // model comment above.
+  assignedToUserId String
+  assignedTo       User   @relation("DailyTasksAssignedTo", fields: [assignedToUserId], references: [id], onDelete: Restrict)
+
+  // Who actually assigned it. Never inferred later from current
+  // Manager/Admin structure.
+  assignedByUserId String
+  assignedBy       User   @relation("DailyTasksAssignedBy", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+
+  // A single one-line instruction — deliberately not split into
+  // title/description; no current RELAIS workflow evidences that need
+  // (27A §35/§10 of this ticket).
+  content String
+
+  // When management actually assigned the task — domain provenance,
+  // distinct from `createdAt` (persistence metadata), even though 27E
+  // will likely write both at the same instant today.
+  assignedAt DateTime
+
+  status DailyTaskStatus @default(OPEN)
+
+  // When the assigned employee declared completion. No separate
+  // `completedByUserId`: only the assignee may ever complete their own
+  // task (27A §41), so the actor is already implied by
+  // `assignedToUserId` — a second FK would duplicate identity with no
+  // current historical value.
+  completedAt DateTime?
+
+  // Why management withdrew the task, when cancelled. Deliberately no
+  // `cancelledAt`/`cancelledByUserId` in 27D — 27A's conceptual model
+  // does not include them; do not add them speculatively merely because
+  // ProspectAction has the equivalent fields for its own cancellation
+  // lifecycle.
+  cancellationReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assignedToUserId, workDate])
+  @@index([workDate])
+  @@index([assignedByUserId])
 }
 
 model PersonalNote {
