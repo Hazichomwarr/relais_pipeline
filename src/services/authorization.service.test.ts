@@ -18,6 +18,8 @@ import {
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SHARED_FEED_ROLES,
+  WORKDAY_CONFIRMATION_ROLES,
+  WORKDAY_ELIGIBLE_ROLES,
   type AuthenticatedUser,
 } from "./authorization.service-core";
 
@@ -360,6 +362,36 @@ test("Ticket 26B: requireRoleCore authorizes from User.role alone — a divergin
 
   const authorized = requireRoleCore({ user }, ["ADMIN"]);
   assert.equal(authorized.role, "ADMIN");
+});
+
+test("Ticket 27C: requireRoleCore against WORKDAY_ELIGIBLE_ROLES allows MANAGER, COMMERCIAL, and ASSISTANT, and denies ADMIN — ADMIN is management authority over other people's workdays, not a field worker with a workday of their own", () => {
+  for (const role of ["MANAGER", "COMMERCIAL", "ASSISTANT"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, WORKDAY_ELIGIBLE_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  assert.throws(
+    () => requireRoleCore({ user: makeUser("ADMIN") }, WORKDAY_ELIGIBLE_ROLES),
+    hasCode("ACCESS_DENIED"),
+  );
+});
+
+test("Ticket 27C: requireRoleCore against WORKDAY_CONFIRMATION_ROLES allows ADMIN and MANAGER, and denies COMMERCIAL and ASSISTANT", () => {
+  for (const role of ["ADMIN", "MANAGER"] as const) {
+    const user = requireRoleCore(
+      { user: makeUser(role) },
+      WORKDAY_CONFIRMATION_ROLES,
+    );
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, WORKDAY_CONFIRMATION_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied workday-confirmation access`,
+    );
+  }
 });
 
 function hasCode(code: AuthorizationError["code"]) {

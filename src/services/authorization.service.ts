@@ -20,6 +20,8 @@ import {
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SALES_ANALYTICS_ROLES,
   SHARED_FEED_ROLES,
+  WORKDAY_CONFIRMATION_ROLES,
+  WORKDAY_ELIGIBLE_ROLES,
 } from "@/src/services/authorization.service-core";
 
 export { AuthorizationError };
@@ -171,4 +173,27 @@ export async function requireDashboardAccess() {
  */
 export async function requireFollowUpQueueManagementAccess() {
   return requireRole(...FOLLOW_UP_QUEUE_MANAGEMENT_ROLES);
+}
+
+/**
+ * Ticket 27C — the coarse gate for "Ma journée" self-service actions
+ * (start/end my own workday). ADMIN excluded — see WORKDAY_ELIGIBLE_ROLES.
+ * This authorizes the route/action, not any specific mutation's fine
+ * rules; startMyWorkday/endMyWorkday independently re-verify eligibility
+ * against a fresh database read (see workday.service.ts), never trusting
+ * this session-cached check alone.
+ */
+export async function requireWorkdayEligibility() {
+  return requireRole(...WORKDAY_ELIGIBLE_ROLES);
+}
+
+/**
+ * Ticket 27C — the coarse gate for workday-confirmation actions: ADMIN or
+ * MANAGER may *attempt* to confirm someone's start at all. The real
+ * actor/subject/self authority matrix is canConfirmWorkdayStart
+ * (workday.service-core.ts), re-evaluated independently inside the
+ * service — this wrapper only keeps COMMERCIAL/ASSISTANT out of the door.
+ */
+export async function requireWorkdayConfirmationAccess() {
+  return requireRole(...WORKDAY_CONFIRMATION_ROLES);
 }

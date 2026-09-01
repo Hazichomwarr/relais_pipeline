@@ -30,7 +30,7 @@ test("employeeUserId and confirmedByUserId are Restrict foreign keys to User —
     migration,
     /"Workday_confirmedByUserId_fkey" FOREIGN KEY \("confirmedByUserId"\) REFERENCES "User"\("id"\) ON DELETE RESTRICT/,
   );
-  assert.doesNotMatch(migration, /Workday.*ON DELETE (CASCADE|SET NULL)/is);
+  assert.doesNotMatch(migration, /Workday[\s\S]*ON DELETE (CASCADE|SET NULL)/i);
 });
 
 test("one employee, one RELAIS business date, at most one Workday — enforced by a database unique constraint", () => {

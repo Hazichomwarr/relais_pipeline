@@ -201,6 +201,37 @@ export const FOLLOW_UP_QUEUE_MANAGEMENT_ROLES: UserRole[] = [
   "MANAGER",
 ];
 
+/**
+ * Ticket 27A/27C — who has their own "Ma journée" at all: MANAGER,
+ * COMMERCIAL, ASSISTANT. ADMIN is deliberately excluded — ADMIN is
+ * management/coordination authority over other people's workdays
+ * (WORKDAY_CONFIRMATION_ROLES below), not a field worker declaring their
+ * own presence (27A §4). This is the coarse gate only; the fine
+ * "who may confirm whom" matrix is canConfirmWorkdayStart
+ * (workday.service-core.ts), which cannot be expressed as a flat role
+ * list since it depends on both actor and subject role.
+ */
+export const WORKDAY_ELIGIBLE_ROLES: UserRole[] = [
+  "MANAGER",
+  "COMMERCIAL",
+  "ASSISTANT",
+];
+
+/**
+ * Ticket 27A/27C — the coarse gate: ADMIN or MANAGER may *attempt* to
+ * confirm someone's workday start at all; COMMERCIAL and ASSISTANT never
+ * can. Deliberately broader than the real authority matrix (a MANAGER
+ * may confirm a COMMERCIAL/ASSISTANT but never another MANAGER or
+ * themselves) — that finer, subject-role-dependent rule lives in
+ * canConfirmWorkdayStart (workday.service-core.ts), not here, exactly
+ * like ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES's own coarse/fine
+ * split above. Kept as its own constant rather than reused from an
+ * identical-looking existing list (e.g. DAILY_REPORT_MANAGEMENT_ROLES) —
+ * this feature's access list is its own deliberate decision, per this
+ * file's established convention.
+ */
+export const WORKDAY_CONFIRMATION_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {
