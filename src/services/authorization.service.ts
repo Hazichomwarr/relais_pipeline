@@ -8,6 +8,7 @@ import {
   AuthorizationError,
   COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES,
   DAILY_REPORT_MANAGEMENT_ROLES,
+  DAILY_TASK_RECIPIENT_ROLES,
   DASHBOARD_ACCESS_ROLES,
   FINANCE_ACCESS_ROLES,
   FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
@@ -20,6 +21,7 @@ import {
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SALES_ANALYTICS_ROLES,
   SHARED_FEED_ROLES,
+  TASK_ASSIGNMENT_ROLES,
   WORKDAY_CONFIRMATION_ROLES,
   WORKDAY_ELIGIBLE_ROLES,
 } from "@/src/services/authorization.service-core";
@@ -196,4 +198,26 @@ export async function requireWorkdayEligibility() {
  */
 export async function requireWorkdayConfirmationAccess() {
   return requireRole(...WORKDAY_CONFIRMATION_ROLES);
+}
+
+/**
+ * Ticket 27E — the coarse gate for "Tâches du jour" self-service actions
+ * (complete/uncomplete my own task). ASSISTANT and ADMIN excluded — see
+ * DAILY_TASK_RECIPIENT_ROLES. completeMyTask/uncompleteMyTask
+ * independently re-verify eligibility and task ownership against a
+ * fresh database read, never trusting this session-cached check alone.
+ */
+export async function requireDailyTaskRecipientAccess() {
+  return requireRole(...DAILY_TASK_RECIPIENT_ROLES);
+}
+
+/**
+ * Ticket 27E — the coarse gate for task-assignment and cancellation
+ * actions: ADMIN or MANAGER may *attempt* either at all. The real
+ * actor/subject authority matrices are canAssignTask/canCancelTask
+ * (daily-task.service-core.ts), re-evaluated independently inside the
+ * service — this wrapper only keeps COMMERCIAL/ASSISTANT out of the door.
+ */
+export async function requireTaskAssignmentAccess() {
+  return requireRole(...TASK_ASSIGNMENT_ROLES);
 }

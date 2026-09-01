@@ -232,6 +232,27 @@ export const WORKDAY_ELIGIBLE_ROLES: UserRole[] = [
  */
 export const WORKDAY_CONFIRMATION_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 27A/27E — who may receive a DailyTask at all: MANAGER,
+ * COMMERCIAL. ASSISTANT is deliberately excluded — Assistant's Ma
+ * journée shows static role guidance instead of a task list (27A §7).
+ * ADMIN is excluded too — ADMIN is assignment/cancellation authority
+ * only, never a recipient (27A §11). This is the coarse gate only; the
+ * fine "who may assign to whom" matrix is canAssignTask
+ * (daily-task.service-core.ts), which cannot be expressed as a flat role
+ * list since it depends on both actor and subject role.
+ */
+export const DAILY_TASK_RECIPIENT_ROLES: UserRole[] = ["MANAGER", "COMMERCIAL"];
+
+/**
+ * Ticket 27A/27E — the coarse gate: ADMIN or MANAGER may *attempt* to
+ * assign or cancel a DailyTask at all; COMMERCIAL and ASSISTANT never
+ * can. Deliberately broader than the real authority matrices
+ * (canAssignTask / canCancelTask in daily-task.service-core.ts), exactly
+ * like WORKDAY_CONFIRMATION_ROLES's own coarse/fine split above.
+ */
+export const TASK_ASSIGNMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

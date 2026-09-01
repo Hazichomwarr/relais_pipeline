@@ -14,10 +14,12 @@ import {
   FOLLOW_UP_QUEUE_MANAGEMENT_ROLES,
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
+  DAILY_TASK_RECIPIENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
   SHARED_FEED_ROLES,
+  TASK_ASSIGNMENT_ROLES,
   WORKDAY_CONFIRMATION_ROLES,
   WORKDAY_ELIGIBLE_ROLES,
   type AuthenticatedUser,
@@ -390,6 +392,36 @@ test("Ticket 27C: requireRoleCore against WORKDAY_CONFIRMATION_ROLES allows ADMI
       () => requireRoleCore({ user: makeUser(role) }, WORKDAY_CONFIRMATION_ROLES),
       hasCode("ACCESS_DENIED"),
       `expected ${role} to be denied workday-confirmation access`,
+    );
+  }
+});
+
+test("Ticket 27E: requireRoleCore against DAILY_TASK_RECIPIENT_ROLES allows MANAGER and COMMERCIAL, and denies ADMIN and ASSISTANT", () => {
+  for (const role of ["MANAGER", "COMMERCIAL"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, DAILY_TASK_RECIPIENT_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["ADMIN", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, DAILY_TASK_RECIPIENT_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied daily-task recipient access`,
+    );
+  }
+});
+
+test("Ticket 27E: requireRoleCore against TASK_ASSIGNMENT_ROLES allows ADMIN and MANAGER, and denies COMMERCIAL and ASSISTANT", () => {
+  for (const role of ["ADMIN", "MANAGER"] as const) {
+    const user = requireRoleCore({ user: makeUser(role) }, TASK_ASSIGNMENT_ROLES);
+    assert.equal(user.role, role);
+  }
+
+  for (const role of ["COMMERCIAL", "ASSISTANT"] as const) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, TASK_ASSIGNMENT_ROLES),
+      hasCode("ACCESS_DENIED"),
+      `expected ${role} to be denied task-assignment access`,
     );
   }
 });
