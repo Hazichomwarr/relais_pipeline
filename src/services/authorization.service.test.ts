@@ -16,6 +16,7 @@ import {
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   DAILY_TASK_RECIPIENT_ROLES,
   DAILY_WORK_MANAGEMENT_ROLES,
+  PROSPECT_REASSIGNMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
@@ -157,6 +158,22 @@ test("requireRoleCore denies COMMERCIAL managing performance targets — employe
       ),
     hasCode("ACCESS_DENIED"),
   );
+});
+
+test("requireRoleCore allows ADMIN and MANAGER through the coarse prospect-reassignment gate (Ticket 28B), organization-wide with no team-scoping", () => {
+  for (const role of PROSPECT_REASSIGNMENT_ROLES) {
+    const user = requireRoleCore({ user: makeUser(role) }, PROSPECT_REASSIGNMENT_ROLES);
+    assert.equal(user.role, role);
+  }
+});
+
+test("requireRoleCore denies COMMERCIAL and ASSISTANT reassigning a prospect — this coarse gate is not the only safety net; reassignProspectCore re-resolves the actor fresh from the database independently", () => {
+  for (const role of ["COMMERCIAL", "ASSISTANT"] as UserRole[]) {
+    assert.throws(
+      () => requireRoleCore({ user: makeUser(role) }, PROSPECT_REASSIGNMENT_ROLES),
+      hasCode("ACCESS_DENIED"),
+    );
+  }
 });
 
 test("requireRoleCore allows ADMIN and MANAGER through the coarse Role Responsibility assessment gate (Ticket 25I)", () => {

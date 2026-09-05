@@ -17,6 +17,7 @@ import {
   PERFORMANCE_DASHBOARD_ACCESS_ROLES,
   PROFESSIONAL_CONTRIBUTION_ASSESSMENT_MANAGEMENT_ROLES,
   PROSPECT_ACTION_QUEUE_ROLES,
+  PROSPECT_REASSIGNMENT_ROLES,
   requireAuthenticatedUserCore,
   requireRoleCore,
   ROLE_RESPONSIBILITY_ASSESSMENT_MANAGEMENT_ROLES,
@@ -232,4 +233,14 @@ export async function requireTaskAssignmentAccess() {
  */
 export async function requireDailyWorkManagementAccess() {
   return requireRole(...DAILY_WORK_MANAGEMENT_ROLES);
+}
+
+/**
+ * Ticket 28B — the coarse route/action gate for prospect reassignment
+ * (ADMIN/MANAGER). This is not the only safety net for this mutation:
+ * reassignProspectCore re-resolves the actor fresh from the database
+ * (role + active) rather than trusting this session-role check alone.
+ */
+export async function requireProspectReassignmentAccess() {
+  return requireRole(...PROSPECT_REASSIGNMENT_ROLES);
 }

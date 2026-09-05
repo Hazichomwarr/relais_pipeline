@@ -269,6 +269,19 @@ export const TASK_ASSIGNMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
  */
 export const DAILY_WORK_MANAGEMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
 
+/**
+ * Ticket 28B — the coarse route/action gate for prospect reassignment:
+ * ADMIN or MANAGER may *attempt* it at all, organization-wide (no
+ * manager-of-employee hierarchy exists — same limitation as
+ * COMMERCIAL_PERFORMANCE_TARGET_MANAGEMENT_ROLES and every other
+ * management-only constant in this file). This is deliberately not the
+ * only gate: the reassignment service itself re-resolves the actor fresh
+ * from the database (28A found ADMIN/MANAGER JWTs can remain stale after
+ * deactivation) rather than trusting this session-role check alone for
+ * this one high-impact mutation — see reassignProspectCore.
+ */
+export const PROSPECT_REASSIGNMENT_ROLES: UserRole[] = ["ADMIN", "MANAGER"];
+
 export function requireAuthenticatedUserCore(
   session: SessionLike,
 ): AuthenticatedUser {

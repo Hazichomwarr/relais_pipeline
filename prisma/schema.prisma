@@ -401,6 +401,14 @@ model User {
   // comment above `model ProspectActivity`.
   responsibleForProspectActivities ProspectActivity[] @relation("ProspectActivityResponsibleUser")
 
+  // Ticket 28B — a User may appear in a ProspectAssignmentTransfer in up
+  // to three distinct roles at once (previous owner, new owner, the
+  // management actor who changed it), same reasoning as ProspectAction's
+  // four named relations above.
+  assignmentTransfersFrom      ProspectAssignmentTransfer[] @relation("ProspectAssignmentTransferFromUser")
+  assignmentTransfersTo        ProspectAssignmentTransfer[] @relation("ProspectAssignmentTransferToUser")
+  assignmentTransfersChangedBy ProspectAssignmentTransfer[] @relation("ProspectAssignmentTransferChangedByUser")
+
   // Ticket 25H.2A — the comparison basis Results scoring is blocked on
   // (see notes/ticket-25h2-commercial-results-score-engine.md). Two named
   // relations for the same reason ProspectAction needs four: an employee
@@ -801,6 +809,11 @@ model Prospect {
   activities ProspectActivity[]
   actions    ProspectAction[]
 
+  // Ticket 28B — how current responsibility moved over time. Prospective
+  // only; a legacy prospect with `assignedUserId` set but zero rows here
+  // simply predates transfer-history recording, not an error.
+  assignmentTransfers ProspectAssignmentTransfer[]
+
   @@index([product])
   @@index([interest])
   @@index([status])
@@ -940,6 +953,59 @@ model ProspectAction {
   @@index([prospectId, status, dueAt])
   @@index([assignedToUserId, status, dueAt])
   @@index([createdByUserId, createdAt])
+}
+
+// Ticket 28B — the durable, immutable history of how a prospect's current
+// responsible user (Prospect.assignedUserId) moved over time. This is the
+// only model that answers "how did responsibility move"; Prospect's own
+// field alone answers "who is responsible now" — never derive one from
+// the other during normal reads (28A §33/§34/§45). Prospective only: no
+// row here was fabricated for a prospect's pre-28B history (28A §67, §102;
+// see the migration). No role or name snapshots — 28A found no downstream
+// read that needs them, and every FK here is `Restrict` (no User/Prospect
+// deletion path exists today, same reasoning as every other historical
+// model in this schema), so a durable ID is enough; render names live
+// through the relations. Immutable once written: no update/delete
+// service exists — a wrong transfer is corrected by another transfer, not
+// by editing history (28A §43/§44).
+model ProspectAssignmentTransfer {
+  id String @id @default(cuid())
+
+  prospectId String
+  prospect   Prospect @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+
+  // Nullable: a prospect may have had no assigned user at all before this
+  // transfer (a legacy null-assignment row, or 28B's very first prospective
+  // recording of an initial assignment made through the runtime operation).
+  // Never fabricated — a real `null` current owner, never an invented one.
+  fromUserId String?
+  fromUser   User?   @relation("ProspectAssignmentTransferFromUser", fields: [fromUserId], references: [id], onDelete: Restrict)
+
+  // Always required — a transfer always names who responsibility moved to.
+  toUserId String
+  toUser   User   @relation("ProspectAssignmentTransferToUser", fields: [toUserId], references: [id], onDelete: Restrict)
+
+  // The authenticated management actor who performed the transfer — always
+  // server-derived, never client-supplied. May equal fromUserId or
+  // toUserId (a manager may reassign their own prospect, or reassign a
+  // prospect to themselves) — actor identity and ownership identity are
+  // independent dimensions (28A §55/§56).
+  changedByUserId String
+  changedByUser   User   @relation("ProspectAssignmentTransferChangedByUser", fields: [changedByUserId], references: [id], onDelete: Restrict)
+
+  // Required, non-blank, free text, immutable once written — no reason
+  // enum (28A §27/§28). Never rendered to COMMERCIAL/ASSISTANT in 28B; may
+  // contain management-only context (28A §55).
+  reason String
+
+  // The server timestamp when RELAIS CRM accepted the transfer — never a
+  // client-supplied or retrospective date (28A §31/§32; 28B §31).
+  occurredAt DateTime @default(now())
+
+  @@index([prospectId, occurredAt])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([changedByUserId])
 }
 
 model LedgerEntry {

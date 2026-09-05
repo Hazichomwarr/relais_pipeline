@@ -107,6 +107,11 @@ const gatedActions = [
     functionName: "submitDailyReportAction",
     serviceCall: "submitOwnDailyReport(",
   },
+  {
+    file: "src/actions/prospect-assignment-transfer.actions.ts",
+    functionName: "reassignProspectAction",
+    serviceCall: "reassignProspect(",
+  },
 ];
 
 for (const action of gatedActions) {
@@ -340,6 +345,49 @@ test("Ticket 28A.1: submitProspectFollowUpAction never accepts responsibleUserId
   );
   assert.doesNotMatch(schemaSource, /responsibleUserIdAtEvent/);
   assert.doesNotMatch(schemaSource, /creditedUserId/);
+});
+
+test("Ticket 28B: reassignProspectAction authorizes via requireProspectReassignmentAccess (ADMIN/MANAGER), not requireAuthenticatedUser/requireAdmin/requireCommercial alone", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-assignment-transfer.actions.ts",
+    "reassignProspectAction",
+  );
+
+  assert.match(
+    functionBody,
+    /authorizeAction\(\(\)\s*=>\s*\n?\s*requireProspectReassignmentAccess\(\),?\s*\n?\s*\)/,
+  );
+  assert.doesNotMatch(functionBody, /requireAuthenticatedUser\(\)/);
+  assert.doesNotMatch(functionBody, /requireAdmin\(\)/);
+  assert.doesNotMatch(functionBody, /requireCommercial\(\)/);
+});
+
+test("Ticket 28B: reassignProspectAction never accepts fromUserId, changedByUserId, actorRole, targetRole, or occurredAt from client input — every authoritative fact is server-derived", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-assignment-transfer.actions.ts",
+    "reassignProspectAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.fromUserId/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.changedByUserId/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.actorRole/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.targetRole/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.occurredAt/);
+  assert.doesNotMatch(functionBody, /values\.fromUserId/);
+  assert.doesNotMatch(functionBody, /values\.changedByUserId/);
+  assert.match(
+    functionBody,
+    /reassignProspect\(authorization\.user\.id, parsed\.data\)/,
+  );
+
+  const schemaSource = readFileSync(
+    "src/lib/validations/prospect-assignment-transfer.schema.ts",
+    "utf8",
+  );
+  assert.doesNotMatch(schemaSource, /fromUserId:\s*z/);
+  assert.doesNotMatch(schemaSource, /changedByUserId:\s*z/);
+  assert.doesNotMatch(schemaSource, /actorRole:\s*z/);
+  assert.doesNotMatch(schemaSource, /occurredAt:\s*z/);
 });
 
 const selfServiceActions = [
