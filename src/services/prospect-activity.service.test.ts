@@ -53,6 +53,7 @@ function activity(
     creditedUserId: null,
     creditedUserNameAtEvent: null,
     creditedUserRoleAtEvent: null,
+    responsibleUserIdAtEvent: null,
     createdAt: new Date(createdAt),
     ...overrides,
   };

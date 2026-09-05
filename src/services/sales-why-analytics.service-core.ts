@@ -23,8 +23,12 @@ export type SalesWhyOutcomeRow = {
   conversionReason: ProspectConversionReason;
   conversionReasonNote: string | null;
   product: RelaisProduct;
-  assignedUserId: string | null;
-  assignedUser: { firstName: string; lastName: string } | null;
+  // Ticket 28A.1 — the event's own frozen responsibility snapshot, never
+  // the prospect's current (and, from Phase 28 on, reassignable)
+  // assignedUserId. Every row here is a historical FOLLOW_UP activity, so
+  // "who owns this outcome" must be answered as of when it was recorded.
+  responsibleUserIdAtEvent: string | null;
+  responsibleUserAtEvent: { firstName: string; lastName: string } | null;
 };
 
 export type SalesWhyAnalyticsSummary = {
@@ -165,11 +169,11 @@ function buildReasonRanking(
 }
 
 function ownerDisplayName(row: SalesWhyOutcomeRow): string {
-  if (!row.assignedUserId) {
-    return "Non attribué";
+  if (!row.responsibleUserIdAtEvent) {
+    return "Non attribué historiquement";
   }
-  return row.assignedUser
-    ? `${row.assignedUser.firstName} ${row.assignedUser.lastName}`
+  return row.responsibleUserAtEvent
+    ? `${row.responsibleUserAtEvent.firstName} ${row.responsibleUserAtEvent.lastName}`
     : "Utilisateur inconnu";
 }
 
@@ -225,7 +229,7 @@ export function buildSalesWhyAnalytics(
 
   const ownerBuckets = new Map<string, SalesWhyOutcomeRow[]>();
   for (const row of validRows) {
-    const key = row.assignedUserId ?? "UNASSIGNED";
+    const key = row.responsibleUserIdAtEvent ?? "UNASSIGNED";
     const bucket = ownerBuckets.get(key);
     if (bucket) {
       bucket.push(row);

@@ -85,5 +85,10 @@ export function buildWonTransitionActivityData(params: {
     creditedUserId: params.credit.creditedUserId,
     creditedUserNameAtEvent: params.credit.creditedUserNameAtEvent,
     creditedUserRoleAtEvent: params.credit.creditedUserRoleAtEvent,
+    // Ticket 28A.1 — for a WON event, event-time responsibility and sales
+    // credit are the same underlying fact (both resolved from the same
+    // in-transaction Prospect read, by resolveWonCredit above), so this is
+    // never independently re-derived; it just reuses the credit snapshot.
+    responsibleUserIdAtEvent: params.credit.creditedUserId,
   };
 }

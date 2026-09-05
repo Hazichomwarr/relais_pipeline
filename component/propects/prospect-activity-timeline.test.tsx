@@ -29,6 +29,7 @@ test("renders an activity with its French label, summary, details, and agent", (
     creditedUserId: null,
     creditedUserNameAtEvent: null,
     creditedUserRoleAtEvent: null,
+    responsibleUserIdAtEvent: null,
     createdAt: new Date("2026-08-03T20:00:00.000Z"),
   };
   const html = renderToStaticMarkup(

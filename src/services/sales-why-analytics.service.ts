@@ -29,9 +29,15 @@ export async function getSalesWhyAnalytics(
       ? { gte: period.from, lt: period.toExclusive }
       : undefined;
 
+  // Ticket 28A.1 — product is filtered through the Prospect relation
+  // (product never changes on reassignment), but the owner filter no
+  // longer is: it now matches the activity's own frozen
+  // responsibleUserIdAtEvent directly, never the prospect's current (and,
+  // from Phase 28 on, reassignable) assignedUserId — the whole point of
+  // this page is historical attribution, so filtering "by commercial"
+  // must mean "who was historically responsible", not "who owns it now".
   const prospectRelationWhere: Prisma.ProspectWhereInput = {
     ...(filters.product ? { product: filters.product } : {}),
-    ...(filters.ownerUserId ? { assignedUserId: filters.ownerUserId } : {}),
   };
 
   const rows = (await prisma.prospectActivity.findMany({
@@ -40,17 +46,20 @@ export async function getSalesWhyAnalytics(
       conversionOutcome: filters.outcome ? filters.outcome : { not: null },
       conversionReason: { not: null },
       ...(dateRange ? { occurredAt: dateRange } : {}),
+      ...(filters.ownerUserId
+        ? { responsibleUserIdAtEvent: filters.ownerUserId }
+        : {}),
       prospect: prospectRelationWhere,
     },
     select: {
       conversionOutcome: true,
       conversionReason: true,
       conversionReasonNote: true,
+      responsibleUserIdAtEvent: true,
+      responsibleUserAtEvent: { select: { firstName: true, lastName: true } },
       prospect: {
         select: {
           product: true,
-          assignedUserId: true,
-          assignedUser: { select: { firstName: true, lastName: true } },
         },
       },
     },
@@ -58,10 +67,10 @@ export async function getSalesWhyAnalytics(
     conversionOutcome: SalesWhyOutcomeRow["conversionOutcome"];
     conversionReason: SalesWhyOutcomeRow["conversionReason"];
     conversionReasonNote: string | null;
+    responsibleUserIdAtEvent: string | null;
+    responsibleUserAtEvent: { firstName: string; lastName: string } | null;
     prospect: {
       product: SalesWhyOutcomeRow["product"];
-      assignedUserId: string | null;
-      assignedUser: { firstName: string; lastName: string } | null;
     };
   }>;
 
@@ -70,8 +79,8 @@ export async function getSalesWhyAnalytics(
     conversionReason: row.conversionReason,
     conversionReasonNote: row.conversionReasonNote,
     product: row.prospect.product,
-    assignedUserId: row.prospect.assignedUserId,
-    assignedUser: row.prospect.assignedUser,
+    responsibleUserIdAtEvent: row.responsibleUserIdAtEvent,
+    responsibleUserAtEvent: row.responsibleUserAtEvent,
   }));
 
   return buildSalesWhyAnalytics(period, outcomeRows);

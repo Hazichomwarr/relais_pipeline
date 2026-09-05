@@ -16,8 +16,8 @@ function row(overrides: Partial<SalesWhyOutcomeRow> = {}): SalesWhyOutcomeRow {
     conversionReason: "DEMO_CONVINCED",
     conversionReasonNote: null,
     product: "KARMDA",
-    assignedUserId: "owner-1",
-    assignedUser: { firstName: "Julbert", lastName: "Serme" },
+    responsibleUserIdAtEvent: "owner-1",
+    responsibleUserAtEvent: { firstName: "Julbert", lastName: "Serme" },
     ...overrides,
   };
 }
@@ -170,9 +170,9 @@ test("byProduct only includes products with structured data in scope", () => {
 test("byOwner is sorted alphabetically, never by volume", () => {
   const rows = [
     ...Array.from({ length: 5 }, () =>
-      row({ assignedUserId: "owner-z", assignedUser: { firstName: "Zenabo", lastName: "Z" } }),
+      row({ responsibleUserIdAtEvent: "owner-z", responsibleUserAtEvent: { firstName: "Zenabo", lastName: "Z" } }),
     ),
-    row({ assignedUserId: "owner-a", assignedUser: { firstName: "Awa", lastName: "A" } }),
+    row({ responsibleUserIdAtEvent: "owner-a", responsibleUserAtEvent: { firstName: "Awa", lastName: "A" } }),
   ];
   const analytics = buildSalesWhyAnalytics(PERIOD, rows);
   assert.deepEqual(
@@ -183,8 +183,8 @@ test("byOwner is sorted alphabetically, never by volume", () => {
 
 test("a follow-up owned by a since-promoted Commercial (now MANAGER) still appears attributed to that owner — SalesWhyOutcomeRow carries no role field, so a role transition cannot affect this aggregation (Ticket 21A)", () => {
   const rows = [
-    row({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
-    row({ assignedUserId: "amidou", assignedUser: { firstName: "Amidou", lastName: "Sawadogo" } }),
+    row({ responsibleUserIdAtEvent: "amidou", responsibleUserAtEvent: { firstName: "Amidou", lastName: "Sawadogo" } }),
+    row({ responsibleUserIdAtEvent: "amidou", responsibleUserAtEvent: { firstName: "Amidou", lastName: "Sawadogo" } }),
   ];
   const analytics = buildSalesWhyAnalytics(PERIOD, rows);
   const amidou = analytics.byOwner.find((entry) => entry.ownerUserId === "amidou");
@@ -197,18 +197,18 @@ test("a follow-up owned by a since-promoted Commercial (now MANAGER) still appea
 test("SalesWhyOutcomeRow has no role field to misuse as an owner-eligibility filter", () => {
   const testRow = row();
   assert.equal("role" in testRow, false);
-  assert.equal(testRow.assignedUser === null || !("role" in testRow.assignedUser), true);
+  assert.equal(testRow.responsibleUserAtEvent === null || !("role" in testRow.responsibleUserAtEvent), true);
 });
 
-test("owner grouping uses assignedUserId regardless of formal role, including an unassigned bucket", () => {
+test("owner grouping uses responsibleUserIdAtEvent regardless of formal role, including an unassigned bucket", () => {
   const rows = [
-    row({ assignedUserId: "owner-1", assignedUser: { firstName: "A", lastName: "B" } }),
-    row({ assignedUserId: null, assignedUser: null }),
+    row({ responsibleUserIdAtEvent: "owner-1", responsibleUserAtEvent: { firstName: "A", lastName: "B" } }),
+    row({ responsibleUserIdAtEvent: null, responsibleUserAtEvent: null }),
   ];
   const analytics = buildSalesWhyAnalytics(PERIOD, rows);
   const unassigned = analytics.byOwner.find((entry) => entry.ownerUserId === null);
   assert.ok(unassigned);
-  assert.equal(unassigned?.ownerName, "Non attribué");
+  assert.equal(unassigned?.ownerName, "Non attribué historiquement");
 });
 
 // ---------------------------------------------------------------------------

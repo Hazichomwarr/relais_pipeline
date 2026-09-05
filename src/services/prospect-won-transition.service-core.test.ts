@@ -95,6 +95,7 @@ test("buildWonTransitionActivityData produces a system-generated activity, never
     creditedUserId: null,
     creditedUserNameAtEvent: null,
     creditedUserRoleAtEvent: null,
+    responsibleUserIdAtEvent: null,
   });
 });
 
@@ -137,4 +138,36 @@ test("Ticket 25H.1 §19 — a COMMERCIAL closing their own prospect: actor and c
   assert.equal(data.agentName, "Aminata Traoré");
   assert.equal(data.creditedUserId, "commercial-a");
   assert.equal(data.creditedUserNameAtEvent, data.agentName);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 28A.1 §11 — for a WON event, responsibleUserIdAtEvent and
+// creditedUserId are the same underlying fact, resolved from the same
+// in-transaction Prospect read, never independently re-derived.
+// ---------------------------------------------------------------------------
+
+test("buildWonTransitionActivityData sets responsibleUserIdAtEvent equal to creditedUserId — never independently derived, never the acting ADMIN/MANAGER", () => {
+  const credit = resolveWonCredit(ownedBy("commercial-a", "Aminata", "Traoré", "COMMERCIAL"));
+  const data = buildWonTransitionActivityData({
+    prospectId: "prospect-1",
+    occurredAt: new Date("2026-08-08T09:00:00.000Z"),
+    agentName: "Amidou Sawadogo", // the MANAGER who submitted the closing follow-up
+    credit,
+  });
+
+  assert.equal(data.responsibleUserIdAtEvent, data.creditedUserId);
+  assert.equal(data.responsibleUserIdAtEvent, "commercial-a");
+  assert.notEqual(data.responsibleUserIdAtEvent, "Amidou Sawadogo");
+});
+
+test("an unassigned prospect's WON transition leaves responsibleUserIdAtEvent null, same as creditedUserId — never a fabricated fallback", () => {
+  const data = buildWonTransitionActivityData({
+    prospectId: "prospect-1",
+    occurredAt: new Date("2026-08-08T09:00:00.000Z"),
+    agentName: "Amidou Sawadogo",
+    credit: NO_CREDIT,
+  });
+
+  assert.equal(data.responsibleUserIdAtEvent, null);
+  assert.equal(data.responsibleUserIdAtEvent, data.creditedUserId);
 });

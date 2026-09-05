@@ -27,9 +27,20 @@ test("only reads structured FOLLOW_UP rows with non-null conversionOutcome and c
   assert.match(source, /conversionOutcome:\s*filters\.outcome/);
 });
 
-test("product/owner filters apply through the Prospect relation", () => {
+test("product filters apply through the Prospect relation", () => {
   assert.match(source, /prospectRelationWhere/);
   assert.match(source, /prospect:\s*prospectRelationWhere/);
+});
+
+test("Ticket 28A.1: the owner filter applies directly via responsibleUserIdAtEvent, never assignedUserId as a Prisma filter value", () => {
+  assert.match(source, /responsibleUserIdAtEvent:\s*filters\.ownerUserId/);
+  assert.doesNotMatch(source, /assignedUserId:\s*(filters\.ownerUserId|true)/);
+});
+
+test("Ticket 28A.1: selects the event's own frozen responsibility, never the prospect's assignedUser relation", () => {
+  assert.match(source, /responsibleUserIdAtEvent:\s*true/);
+  assert.match(source, /responsibleUserAtEvent:\s*\{/);
+  assert.doesNotMatch(source, /assignedUser:\s*\{/);
 });
 
 test("selects conversionReasonNote directly — no PersonalNote or Prospect.notes query", () => {

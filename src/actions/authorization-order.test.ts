@@ -324,6 +324,24 @@ test("submitProspectFollowUpAction never accepts an actor/creator/completer id f
   );
 });
 
+test("Ticket 28A.1: submitProspectFollowUpAction never accepts responsibleUserIdAtEvent (or creditedUserId) from client input — the server alone derives event-time responsibility from the authoritative Prospect read", () => {
+  const functionBody = extractFunctionBody(
+    "src/actions/prospect-follow-up.actions.ts",
+    "submitProspectFollowUpAction",
+  );
+
+  assert.doesNotMatch(functionBody, /parsed\.data\.responsibleUserIdAtEvent/);
+  assert.doesNotMatch(functionBody, /values\.responsibleUserIdAtEvent/);
+  assert.doesNotMatch(functionBody, /parsed\.data\.creditedUserId/);
+
+  const schemaSource = readFileSync(
+    "src/lib/validations/prospect-follow-up.schema.ts",
+    "utf8",
+  );
+  assert.doesNotMatch(schemaSource, /responsibleUserIdAtEvent/);
+  assert.doesNotMatch(schemaSource, /creditedUserId/);
+});
+
 const selfServiceActions = [
   {
     file: "src/actions/commercial-profile.actions.ts",

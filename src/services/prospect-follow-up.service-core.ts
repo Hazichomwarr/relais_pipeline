@@ -54,6 +54,11 @@ type FollowUpActivityData = {
   creditedUserId?: string | null;
   creditedUserNameAtEvent?: string | null;
   creditedUserRoleAtEvent?: UserRole | null;
+  // Ticket 28A.1 — set on every activity this workflow creates (the
+  // ordinary FOLLOW_UP row AND the WON_TRANSITION row), unlike
+  // creditedUserId above which stays WON-only. Always the prospect's
+  // assignedUserId read inside this same transaction, never the actor.
+  responsibleUserIdAtEvent?: string | null;
 };
 
 type ProspectFollowUpStateUpdates = {
@@ -278,6 +283,11 @@ export async function submitProspectFollowUpCore(
         conversionOutcome: input.conversionOutcome,
         conversionReason: input.conversionReason,
         conversionReasonNote: input.conversionReasonNote,
+        // Ticket 28A.1 — the same in-transaction Prospect read
+        // resolveWonCredit uses below, never the acting user (agentName
+        // above), so a Manager recording this on a Commercial's prospect
+        // still attributes historical responsibility to that Commercial.
+        responsibleUserIdAtEvent: prospect.assignedUserId,
       });
 
       if (isWonTransition(prospect.status, input.status)) {

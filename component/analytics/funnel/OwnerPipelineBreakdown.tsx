@@ -14,8 +14,10 @@ export default function OwnerPipelineBreakdown({
     <section className="rounded-3xl border border-slate-200 bg-white p-6">
       <h2 className="text-lg font-bold text-[#0f2557]">Par commercial</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Un prospect appartient au commercial qui l’a prospecté, quel que soit
-        son rôle CRM.
+        Le total et les étapes en cours reflètent le portefeuille actuel de
+        chaque commercial. Les gagnés et perdus restent attribués au
+        commercial responsable au moment du résultat, même après une
+        réaffectation ultérieure.
       </p>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">

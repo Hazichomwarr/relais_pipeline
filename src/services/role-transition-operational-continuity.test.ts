@@ -286,6 +286,7 @@ test("buildWonTransitionActivityData carries no actor id — agentName (a plain 
     "creditedUserRoleAtEvent",
     "occurredAt",
     "prospectId",
+    "responsibleUserIdAtEvent",
     "summary",
     "type",
   ]);

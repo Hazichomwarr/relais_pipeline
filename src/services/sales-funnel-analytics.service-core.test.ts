@@ -10,6 +10,7 @@ import type {
 import { resolveSalesFunnelPeriod } from "@/src/lib/sales-funnel-period";
 import {
   buildSalesFunnelAnalytics,
+  type SalesFunnelHistoricalOutcomeRow,
   type SalesFunnelOutcomeRow,
   type SalesFunnelProspectRow,
 } from "./sales-funnel-analytics.service-core";
@@ -33,6 +34,40 @@ function prospectRow(overrides: Partial<SalesFunnelProspectRow> = {}): SalesFunn
 
 function outcomeRow(conversionOutcome: ProspectConversionOutcome): SalesFunnelOutcomeRow {
   return { conversionOutcome };
+}
+
+let nextEventOccurredAt = new Date("2026-08-01T00:00:00.000Z").getTime();
+
+function historicalWonRow(
+  overrides: Partial<SalesFunnelHistoricalOutcomeRow> = {},
+): SalesFunnelHistoricalOutcomeRow {
+  nextEventOccurredAt += 1000;
+  return {
+    prospectId: "prospect-won",
+    type: "WON_TRANSITION",
+    occurredAt: new Date(nextEventOccurredAt),
+    creditedUserId: "jean",
+    creditedUserNameAtEvent: "Jean Imain N’DO",
+    responsibleUserIdAtEvent: "jean",
+    responsibleUserAtEvent: null,
+    ...overrides,
+  };
+}
+
+function historicalLostRow(
+  overrides: Partial<SalesFunnelHistoricalOutcomeRow> = {},
+): SalesFunnelHistoricalOutcomeRow {
+  nextEventOccurredAt += 1000;
+  return {
+    prospectId: "prospect-lost",
+    type: "FOLLOW_UP",
+    occurredAt: new Date(nextEventOccurredAt),
+    creditedUserId: null,
+    creditedUserNameAtEvent: null,
+    responsibleUserIdAtEvent: "jean",
+    responsibleUserAtEvent: { firstName: "Jean", lastName: "Imain N’DO" },
+    ...overrides,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -284,4 +319,217 @@ test("the analytics DTO never includes a time-in-stage, stage-age, or stage-to-s
 test("SalesFunnelProspectRow never carries updatedAt — the aggregation core has no field to misuse as a stage-entered timestamp", () => {
   const row = prospectRow();
   assert.equal("updatedAt" in row, false);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 28A.1 — historical WON/LOST attribution survives a future
+// reassignment. These are the acceptance proof for the exact bug 28A found.
+// ---------------------------------------------------------------------------
+
+test("REGRESSION (Ticket 28A's exact bug): a prospect's historical WON credit stays with the original commercial even though the prospect is now assigned to someone else", () => {
+  const prospects = [
+    prospectRow({
+      id: "prospect-won",
+      status: "WON",
+      // Simulates the world AFTER a future reassignment: current owner is
+      // Amidou, but the win was recorded while Jean owned it.
+      assignedUserId: "amidou",
+      assignedUser: { firstName: "Amidou", lastName: "Sawadogo" },
+    }),
+  ];
+  const historicalOutcomeEvents = [historicalWonRow({ prospectId: "prospect-won" })];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+
+  const jean = analytics.byOwner.find((entry) => entry.ownerUserId === "jean");
+  const amidou = analytics.byOwner.find((entry) => entry.ownerUserId === "amidou");
+
+  assert.ok(jean, "Jean must still have a byOwner row even though he owns nothing today");
+  assert.equal(jean?.won, 1, "the WON credit must stay with Jean, the historically responsible commercial");
+  assert.equal(jean?.total, 0, "Jean's CURRENT portfolio is correctly empty — he owns nothing today");
+
+  assert.equal(amidou?.total, 1, "Amidou's CURRENT portfolio correctly includes the reassigned prospect");
+  assert.equal(amidou?.won ?? 0, 0, "Amidou must NOT receive historical WON credit merely by owning the prospect today");
+});
+
+test("REGRESSION: a prospect's historical LOST attribution stays with the original commercial after reassignment", () => {
+  const prospects = [
+    prospectRow({
+      id: "prospect-lost",
+      status: "LOST",
+      assignedUserId: "amidou",
+      assignedUser: { firstName: "Amidou", lastName: "Sawadogo" },
+    }),
+  ];
+  const historicalOutcomeEvents = [historicalLostRow({ prospectId: "prospect-lost" })];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+
+  const jean = analytics.byOwner.find((entry) => entry.ownerUserId === "jean");
+  const amidou = analytics.byOwner.find((entry) => entry.ownerUserId === "amidou");
+
+  assert.equal(jean?.lost, 1, "LOST attribution must stay with Jean via responsibleUserIdAtEvent");
+  assert.equal(amidou?.lost ?? 0, 0, "Amidou must not inherit historical LOST attribution");
+});
+
+test("WON attribution is sourced from creditedUserId, LOST from responsibleUserIdAtEvent — never from Prospect.assignedUserId", () => {
+  const prospects = [
+    prospectRow({ id: "p-won", status: "WON", assignedUserId: "current-owner" }),
+    prospectRow({ id: "p-lost", status: "LOST", assignedUserId: "current-owner" }),
+  ];
+  const historicalOutcomeEvents = [
+    historicalWonRow({ prospectId: "p-won", creditedUserId: "jean", responsibleUserIdAtEvent: "someone-else" }),
+    historicalLostRow({ prospectId: "p-lost", responsibleUserIdAtEvent: "amidou", creditedUserId: null }),
+  ];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "jean")?.won, 1);
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "amidou")?.lost, 1);
+  const currentOwner = analytics.byOwner.find((e) => e.ownerUserId === "current-owner");
+  assert.ok(currentOwner, "current-owner still gets a row for their live portfolio");
+  assert.equal(currentOwner?.won, 0, "current-owner must not inherit Jean's WON credit merely by owning the prospect today");
+  assert.equal(currentOwner?.lost, 0, "current-owner must not inherit Amidou's LOST attribution merely by owning the prospect today");
+});
+
+test("a commercial fully reassigned away from every prospect they ever closed still appears with their historical won/lost counts, not silently dropped", () => {
+  const prospects = [
+    prospectRow({ id: "prospect-won", status: "WON", assignedUserId: "amidou" }),
+  ];
+  const historicalOutcomeEvents = [historicalWonRow({ prospectId: "prospect-won" })];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+  const jean = analytics.byOwner.find((entry) => entry.ownerUserId === "jean");
+
+  assert.ok(jean, "a commercial with zero current prospects must still get a row for their historical credit");
+  assert.equal(jean?.ownerName, "Jean Imain N’DO");
+  assert.equal(jean?.won, 1);
+});
+
+test("stale historical events are ignored when the prospect's current status has moved on — only the event matching the CURRENT status counts", () => {
+  // Prospect was won once (credited to Jean), then somehow reopened and is
+  // now LOST, attributed at that later moment to Amidou. No enforced status
+  // state machine prevents this (Ticket 20A) — the aggregation must not
+  // double-count or use the stale WON row now that status is LOST.
+  const prospects = [
+    prospectRow({ id: "prospect-x", status: "LOST", assignedUserId: "amidou" }),
+  ];
+  const historicalOutcomeEvents = [
+    historicalWonRow({
+      prospectId: "prospect-x",
+      creditedUserId: "jean",
+      occurredAt: new Date("2026-08-01T00:00:00.000Z"),
+    }),
+    historicalLostRow({
+      prospectId: "prospect-x",
+      responsibleUserIdAtEvent: "amidou",
+      occurredAt: new Date("2026-08-10T00:00:00.000Z"),
+    }),
+  ];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "jean"), undefined, "the stale WON row must not surface now that the prospect is LOST");
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "amidou")?.lost, 1);
+});
+
+test("only the latest matching historical event counts when a prospect has more than one WON_TRANSITION row", () => {
+  const prospects = [
+    prospectRow({ id: "prospect-x", status: "WON", assignedUserId: "amidou" }),
+  ];
+  const historicalOutcomeEvents = [
+    historicalWonRow({
+      prospectId: "prospect-x",
+      creditedUserId: "jean",
+      occurredAt: new Date("2026-08-01T00:00:00.000Z"),
+    }),
+    historicalWonRow({
+      prospectId: "prospect-x",
+      creditedUserId: "amidou",
+      occurredAt: new Date("2026-08-15T00:00:00.000Z"),
+    }),
+  ];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "jean")?.won ?? 0, 0);
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "amidou")?.won, 1);
+});
+
+test("an unassigned-at-WON-time credit is bucketed as Non attribué, never fabricated to the current owner or any actor", () => {
+  const prospects = [
+    prospectRow({ id: "prospect-x", status: "WON", assignedUserId: "current-owner" }),
+  ];
+  const historicalOutcomeEvents = [
+    historicalWonRow({
+      prospectId: "prospect-x",
+      creditedUserId: null,
+      creditedUserNameAtEvent: null,
+    }),
+  ];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+  const unassigned = analytics.byOwner.find((e) => e.ownerUserId === null);
+
+  assert.ok(unassigned);
+  assert.equal(unassigned?.won, 1);
+  assert.equal(unassigned?.ownerName, "Non attribué");
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "current-owner")?.won ?? 0, 0);
+});
+
+test("current-portfolio fields (total/interested/qualified/proposalSent) remain sourced from live assignedUserId, fully decoupled from historical won/lost", () => {
+  const prospects = [
+    prospectRow({
+      id: "prospect-x",
+      status: "WON",
+      interest: "READY_TO_DISCUSS",
+      assignedUserId: "amidou",
+      assignedUser: { firstName: "Amidou", lastName: "Sawadogo" },
+    }),
+  ];
+  const historicalOutcomeEvents = [historicalWonRow({ prospectId: "prospect-x", creditedUserId: "jean" })];
+
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], historicalOutcomeEvents);
+  const amidou = analytics.byOwner.find((e) => e.ownerUserId === "amidou");
+
+  assert.equal(amidou?.total, 1);
+  assert.equal(amidou?.interested, 1);
+  assert.equal(amidou?.won, 0);
+});
+
+test("reconciliation: summary.wonProspects/lostProspects and outcomes.won/lost are unaffected by historicalOutcomeEvents — only byOwner's attribution source changed", () => {
+  const prospects = [
+    prospectRow({ status: "WON", assignedUserId: "amidou" }),
+    prospectRow({ status: "LOST", assignedUserId: "amidou" }),
+  ];
+  const outcomeRows = [outcomeRow("WON"), outcomeRow("LOST")];
+  const historicalOutcomeEvents = [historicalWonRow(), historicalLostRow()];
+
+  const withHistory = buildSalesFunnelAnalytics(PERIOD, prospects, outcomeRows, historicalOutcomeEvents);
+  const withoutHistory = buildSalesFunnelAnalytics(PERIOD, prospects, outcomeRows, []);
+
+  assert.deepEqual(withHistory.summary, withoutHistory.summary);
+  assert.deepEqual(withHistory.outcomes, withoutHistory.outcomes);
+  assert.deepEqual(withHistory.byProduct, withoutHistory.byProduct);
+});
+
+test("historicalOutcomeEvents defaults to an empty array — every pre-28A.1 call site keeps compiling and behaving as before (won/lost simply resolve to 0 or absent, never a crash)", () => {
+  const analytics = buildSalesFunnelAnalytics(PERIOD, [prospectRow({ status: "WON" })], []);
+  assert.equal(analytics.byOwner[0]?.won, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 28A.1 — no automatic repair / no runtime fallback regression guard
+// ---------------------------------------------------------------------------
+
+test("never falls back from missing historical attribution to the prospect's current assignedUserId — unknown stays unknown", () => {
+  const prospects = [
+    prospectRow({ id: "prospect-x", status: "WON", assignedUserId: "current-owner" }),
+  ];
+  // No historicalOutcomeEvents at all for this WON prospect — simulates a
+  // legacy row that predates Ticket 28A.1 and was never backfilled.
+  const analytics = buildSalesFunnelAnalytics(PERIOD, prospects, [], []);
+
+  assert.equal(analytics.byOwner.find((e) => e.ownerUserId === "current-owner")?.won ?? 0, 0);
+  assert.equal(analytics.byOwner.length, 1, "no phantom historical bucket is fabricated for a legacy row with no recorded event");
 });

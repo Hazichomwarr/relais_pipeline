@@ -27,6 +27,23 @@ export type SalesFunnelOutcomeRow = {
   conversionOutcome: ProspectConversionOutcome;
 };
 
+/**
+ * Ticket 28A.1 — one historical activity row that could settle "who was
+ * responsible when this prospect's current WON/LOST outcome was recorded":
+ * either a WON_TRANSITION row (carrying frozen sales credit) or a FOLLOW_UP
+ * row whose conversionOutcome is LOST (carrying the neutral responsibility
+ * snapshot — LOST has no credit concept). Never Prospect.assignedUserId.
+ */
+export type SalesFunnelHistoricalOutcomeRow = {
+  prospectId: string;
+  type: "WON_TRANSITION" | "FOLLOW_UP";
+  occurredAt: Date;
+  creditedUserId: string | null;
+  creditedUserNameAtEvent: string | null;
+  responsibleUserIdAtEvent: string | null;
+  responsibleUserAtEvent: { firstName: string; lastName: string } | null;
+};
+
 export type SalesFunnelSummary = {
   totalProspects: number;
   interestedProspects: number;
@@ -57,6 +74,16 @@ export type SalesFunnelProductBreakdown = {
 export type SalesFunnelOwnerBreakdown = {
   ownerUserId: string | null;
   ownerName: string;
+  /**
+   * `total`/`interested`/`qualified`/`proposalSent` describe this owner's
+   * CURRENT portfolio within the cohort (sourced from `prospects`, live
+   * `assignedUserId`) — correct to change immediately on a future
+   * reassignment. `won`/`lost` (Ticket 28A.1) are sourced from frozen
+   * event-time attribution instead (`creditedUserId` for WON,
+   * `responsibleUserIdAtEvent` for LOST) and do NOT move when a prospect
+   * is later reassigned — a commercial with zero current prospects can
+   * still show historical won/lost counts here.
+   */
   total: number;
   interested: number;
   qualified: number;
@@ -110,17 +137,76 @@ function ownerDisplayName(prospect: SalesFunnelProspectRow): string {
     : "Utilisateur inconnu";
 }
 
+type HistoricalWonLostBucket = {
+  won: number;
+  lost: number;
+  name: string | null;
+};
+
+/**
+ * Ticket 28A.1 — reduces every historical WON_TRANSITION/LOST-FOLLOW_UP row
+ * to at most one surviving attribution per prospect per outcome type (the
+ * latest by occurredAt), then only counts it if the prospect's CURRENT
+ * status still matches that outcome. This guards against a prospect that
+ * cycled through LOST (or WON) more than once — no enforced status state
+ * machine prevents that (Ticket 20A) — being double-counted or counted
+ * against a stale event instead of the one that produced its current
+ * status. Grouped by the frozen field appropriate to each outcome type:
+ * `creditedUserId` for WON (sales credit), `responsibleUserIdAtEvent` for
+ * LOST (neutral responsibility — LOST has no credit concept). Never
+ * Prospect.assignedUserId.
+ */
+function buildHistoricalWonLostByOwner(
+  historicalOutcomeEvents: SalesFunnelHistoricalOutcomeRow[],
+  currentStatusByProspectId: Map<string, ProspectStatus>,
+): Map<string, HistoricalWonLostBucket> {
+  const latestByProspectAndType = new Map<string, SalesFunnelHistoricalOutcomeRow>();
+  for (const event of historicalOutcomeEvents) {
+    const key = `${event.prospectId}:${event.type}`;
+    const existing = latestByProspectAndType.get(key);
+    if (!existing || event.occurredAt > existing.occurredAt) {
+      latestByProspectAndType.set(key, event);
+    }
+  }
+
+  const buckets = new Map<string, HistoricalWonLostBucket>();
+  const credit = (key: string, delta: { won?: number; lost?: number }, name: string | null) => {
+    const bucket = buckets.get(key) ?? { won: 0, lost: 0, name: null };
+    bucket.won += delta.won ?? 0;
+    bucket.lost += delta.lost ?? 0;
+    bucket.name = bucket.name ?? name;
+    buckets.set(key, bucket);
+  };
+
+  for (const event of latestByProspectAndType.values()) {
+    const currentStatus = currentStatusByProspectId.get(event.prospectId);
+
+    if (event.type === "WON_TRANSITION" && currentStatus === "WON") {
+      credit(event.creditedUserId ?? "UNASSIGNED", { won: 1 }, event.creditedUserNameAtEvent);
+    } else if (event.type === "FOLLOW_UP" && currentStatus === "LOST") {
+      const name = event.responsibleUserAtEvent
+        ? `${event.responsibleUserAtEvent.firstName} ${event.responsibleUserAtEvent.lastName}`
+        : null;
+      credit(event.responsibleUserIdAtEvent ?? "UNASSIGNED", { lost: 1 }, name);
+    }
+  }
+
+  return buckets;
+}
+
 /**
  * All grouping/aggregation happens here, once, from already-fetched rows
- * — the service layer issues exactly two bounded queries (current
+ * — the service layer issues exactly three bounded queries (current
  * prospects for the cohort, structured FOLLOW_UP outcomes for the
- * activity period) and this function does the rest in memory. No
+ * activity period, and — Ticket 28A.1 — historical WON/LOST attribution
+ * for the same cohort) and this function does the rest in memory. No
  * database access, no per-product/per-owner query.
  */
 export function buildSalesFunnelAnalytics(
   period: ResolvedSalesFunnelPeriod,
   prospects: SalesFunnelProspectRow[],
   outcomeRows: SalesFunnelOutcomeRow[],
+  historicalOutcomeEvents: SalesFunnelHistoricalOutcomeRow[] = [],
 ): SalesFunnelAnalytics {
   const totalProspects = prospects.length;
   const interestedProspects = prospects.filter((p) =>
@@ -169,17 +255,44 @@ export function buildSalesFunnelAnalytics(
     }
   }
 
-  const byOwner: SalesFunnelOwnerBreakdown[] = [...ownerBuckets.entries()]
-    .map(([key, rows]) => ({
-      ownerUserId: key === "UNASSIGNED" ? null : key,
-      ownerName: ownerDisplayName(rows[0]),
-      total: rows.length,
-      interested: rows.filter((p) => isInterestedProspect(p.interest)).length,
-      qualified: rows.filter((p) => p.status === "QUALIFIED").length,
-      proposalSent: rows.filter((p) => p.status === "PROPOSAL_SENT").length,
-      won: rows.filter((p) => p.status === "WON").length,
-      lost: rows.filter((p) => p.status === "LOST").length,
-    }))
+  // Ticket 28A.1 — won/lost no longer come from this cohort's CURRENT
+  // status grouped by CURRENT owner (that's exactly the bug: a prospect's
+  // historical win/loss must not silently move to whoever owns it today).
+  // currentStatusByProspectId lets the historical reducer below confirm
+  // each frozen event still matches the prospect's present-day status,
+  // guarding against a stale event from a prospect that has since moved on.
+  const currentStatusByProspectId = new Map(prospects.map((p) => [p.id, p.status]));
+  const historicalWonLostByOwner = buildHistoricalWonLostByOwner(
+    historicalOutcomeEvents,
+    currentStatusByProspectId,
+  );
+
+  // Union of every key that has EITHER a current prospect in this cohort
+  // OR a historical won/lost attribution — a commercial who has been
+  // fully reassigned away from every prospect they ever closed still
+  // needs a row here, or their historical credit would silently vanish
+  // from the report the moment their current portfolio hits zero.
+  const ownerKeys = new Set([...ownerBuckets.keys(), ...historicalWonLostByOwner.keys()]);
+
+  const byOwner: SalesFunnelOwnerBreakdown[] = [...ownerKeys]
+    .map((key) => {
+      const rows = ownerBuckets.get(key) ?? [];
+      const historical = historicalWonLostByOwner.get(key);
+      const ownerName = rows[0]
+        ? ownerDisplayName(rows[0])
+        : (historical?.name ?? (key === "UNASSIGNED" ? "Non attribué" : "Utilisateur inconnu"));
+
+      return {
+        ownerUserId: key === "UNASSIGNED" ? null : key,
+        ownerName,
+        total: rows.length,
+        interested: rows.filter((p) => isInterestedProspect(p.interest)).length,
+        qualified: rows.filter((p) => p.status === "QUALIFIED").length,
+        proposalSent: rows.filter((p) => p.status === "PROPOSAL_SENT").length,
+        won: historical?.won ?? 0,
+        lost: historical?.lost ?? 0,
+      };
+    })
     // Alphabetical, not by volume — Ticket 20F: "do not compute
     // performance rankings", so the default order must not read as one.
     .sort((a, b) => a.ownerName.localeCompare(b.ownerName, "fr"));

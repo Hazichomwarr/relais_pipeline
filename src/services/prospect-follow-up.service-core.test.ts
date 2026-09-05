@@ -109,6 +109,7 @@ function createFakeStore(options: FakeStoreOptions) {
     creditedUserId?: string | null;
     creditedUserNameAtEvent?: string | null;
     creditedUserRoleAtEvent?: string | null;
+    responsibleUserIdAtEvent?: string | null;
   }> = [];
   const updateCalls: Array<Record<string, unknown>> = [];
 
@@ -854,6 +855,19 @@ function findWon(store: { getActivities: () => Array<{ type: string }> }) {
         creditedUserId?: string | null;
         creditedUserNameAtEvent?: string | null;
         creditedUserRoleAtEvent?: string | null;
+        responsibleUserIdAtEvent?: string | null;
+      }
+    | undefined;
+}
+
+function findFollowUp(store: { getActivities: () => Array<{ type: string }> }) {
+  return store
+    .getActivities()
+    .find((item) => item.type === "FOLLOW_UP") as
+    | {
+        type: string;
+        agentName: string | undefined;
+        responsibleUserIdAtEvent?: string | null;
       }
     | undefined;
 }
@@ -1045,4 +1059,120 @@ test("§25/§26: a prospect that leaves and re-enters WON produces two independe
   assert.equal(wonEvents.length, 2);
   assert.equal(wonEvents[0].creditedUserId, "commercial-a");
   assert.equal(wonEvents[1].creditedUserId, "commercial-b");
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 28A.1 — neutral event-time responsibility snapshot, set on every
+// FOLLOW_UP and WON_TRANSITION activity, not just WON ones.
+// ---------------------------------------------------------------------------
+
+test("a COMMERCIAL recording an outcome on their own prospect: responsibleUserIdAtEvent equals the commercial", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: { firstName: "Aminata", lastName: "Traoré", role: "COMMERCIAL" },
+    },
+  });
+
+  await submitProspectFollowUpCore(
+    actor({ id: "commercial-a", role: "COMMERCIAL" }),
+    baseInput({ status: "QUALIFIED", conversionOutcome: "ADVANCED", conversionReason: "DEMO_CONVINCED" }),
+    store.dependencies,
+  );
+
+  assert.equal(findFollowUp(store)?.responsibleUserIdAtEvent, "commercial-a");
+});
+
+test("a MANAGER recording an outcome on a COMMERCIAL's prospect: responsibleUserIdAtEvent stays the prospect owner, never the MANAGER", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: { firstName: "Aminata", lastName: "Traoré", role: "COMMERCIAL" },
+    },
+  });
+
+  await submitProspectFollowUpCore(
+    actor({ id: "manager-b", firstName: "Amidou", lastName: "Sawadogo", role: "MANAGER" }),
+    baseInput({ status: "LOST", conversionOutcome: "LOST", conversionReason: "PRICE_TOO_HIGH", nextActionTitle: undefined, nextActionAssignedToUserId: undefined, nextActionDueAt: undefined }),
+    store.dependencies,
+  );
+
+  const followUp = findFollowUp(store);
+  assert.equal(followUp?.agentName, "Amidou Sawadogo");
+  assert.equal(followUp?.responsibleUserIdAtEvent, "commercial-a");
+});
+
+test("an ADMIN recording an outcome on a COMMERCIAL's prospect: same rule as MANAGER — responsibleUserIdAtEvent stays the prospect owner", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: { firstName: "Aminata", lastName: "Traoré", role: "COMMERCIAL" },
+    },
+  });
+
+  await submitProspectFollowUpCore(
+    actor({ id: "admin-1", role: "ADMIN" }),
+    baseInput({ status: "QUALIFIED", conversionOutcome: "STALLED", conversionReason: "NO_RESPONSE" }),
+    store.dependencies,
+  );
+
+  assert.equal(findFollowUp(store)?.responsibleUserIdAtEvent, "commercial-a");
+});
+
+test("an unassigned prospect's follow-up leaves responsibleUserIdAtEvent null — never a fallback to the acting user", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: null,
+      assignedUser: null,
+    },
+  });
+
+  await submitProspectFollowUpCore(
+    actor({ id: "admin-1", role: "ADMIN" }),
+    baseInput({ status: "QUALIFIED", conversionOutcome: "ADVANCED", conversionReason: "DEMO_CONVINCED" }),
+    store.dependencies,
+  );
+
+  assert.equal(findFollowUp(store)?.responsibleUserIdAtEvent, null);
+});
+
+test("a WON follow-up: responsibleUserIdAtEvent agrees with creditedUserId on both the FOLLOW_UP and WON_TRANSITION rows", async () => {
+  const store = createFakeStore({
+    prospect: {
+      id: "prospect-1",
+      status: "PROPOSAL_SENT",
+      followUpDate: null,
+      assignedUserId: "commercial-a",
+      assignedUser: { firstName: "Aminata", lastName: "Traoré", role: "COMMERCIAL" },
+    },
+  });
+
+  await submitProspectFollowUpCore(
+    actor({ id: "manager-b", firstName: "Amidou", lastName: "Sawadogo", role: "MANAGER" }),
+    wonInput(),
+    store.dependencies,
+  );
+
+  const followUp = findFollowUp(store);
+  const won = findWon(store);
+  assert.equal(followUp?.responsibleUserIdAtEvent, "commercial-a");
+  assert.equal(won?.responsibleUserIdAtEvent, "commercial-a");
+  assert.equal(won?.responsibleUserIdAtEvent, won?.creditedUserId);
+});
+
+test("the client cannot inject responsibleUserIdAtEvent — ValidatedProspectFollowUpWorkflowInput has no such field for the server to trust", () => {
+  const input = baseInput();
+  assert.equal("responsibleUserIdAtEvent" in input, false);
 });
