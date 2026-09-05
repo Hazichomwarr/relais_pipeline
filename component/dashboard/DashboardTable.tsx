@@ -101,7 +101,7 @@ export default function DashboardTable({
             </dl>
 
             {prospect.notes && (
-              <p className="mt-3 line-clamp-3 text-sm text-slate-600">
+              <p className="mt-3 line-clamp-2 break-words text-sm text-slate-600">
                 {prospect.notes}
               </p>
             )}
@@ -195,8 +195,14 @@ export default function DashboardTable({
                     {getStatusLabel(prospect.status)}
                   </td>
 
-                  <td className="max-w-65 px-4 py-5 text-sm text-slate-600">
-                    {prospect.notes}
+                  <td className="max-w-80 px-4 py-5 text-sm text-slate-600">
+                    {prospect.notes ? (
+                      <p className="line-clamp-2 break-words">
+                        {prospect.notes}
+                      </p>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
                   </td>
 
                   <td className="rounded-r-2xl px-4 py-5">
