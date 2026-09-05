@@ -34,13 +34,10 @@ test("has a real search input, unlike the LOKARI/NIA foundation pages", () => {
   assert.match(source, /name="search"/);
 });
 
-test("resolves detail links via resolveGenericProductDetailHref with a Digital Services foreignHref, giving foreign COMMERCIAL viewers the shared read-only route", () => {
+test("resolves detail links via the canonical resolveProspectAccess, giving foreign COMMERCIAL viewers the shared read-only route", () => {
   const source = readFileSync("app/products/digital-services/page.tsx", "utf8");
 
-  assert.match(
-    source,
-    /foreignHref: \(id\) => `\/products\/digital-services\/\$\{id\}`/,
-  );
+  assert.match(source, /resolveProspectAccess\(user, prospect\)\.detailHref/);
 });
 
 test("wraps resolved detail links with a safe returnTo back to the (possibly filtered) directory", () => {

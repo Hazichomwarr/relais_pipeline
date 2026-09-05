@@ -16,6 +16,7 @@ import {
   DetailSection,
   InfoField,
   ProductDetailSection,
+  ResponsibleUserInfo,
   formatDateTime,
   getInterestLabel,
   getInterestStyles,
@@ -26,6 +27,7 @@ import {
 import { createCommercialActivityAction } from "@/src/actions/commercial-prospect.actions";
 import { resolveSafeReturnTo } from "@/src/lib/callback-url";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
+import { getResponsibleUserDisplay } from "@/src/lib/prospect-responsible-display";
 import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
 import { requireCommercial } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
@@ -64,6 +66,7 @@ export default async function CommercialProspectDetailPage({
   }
 
   const safeReturnTo = resolveSafeReturnTo(returnTo, "/dashboard/commercial");
+  const responsible = getResponsibleUserDisplay(prospect);
   const adjacent = await getAdjacentProspects({
     id: prospect.id,
     createdAt: prospect.createdAt,
@@ -135,6 +138,10 @@ export default async function CommercialProspectDetailPage({
             <InfoField
               label="Présence en ligne"
               value={getOnlinePresenceLabel(prospect.onlinePresence)}
+            />
+            <InfoField
+              label="Responsable du suivi"
+              value={<ResponsibleUserInfo responsible={responsible} />}
             />
           </div>
         </DetailSection>

@@ -19,7 +19,7 @@ const uiFiles = [
   "component/updates/SharedFeedEmptyState.tsx",
   "src/lib/shared-feed-date-grouping.ts",
   "src/lib/shared-feed-timestamp.ts",
-  "src/lib/shared-feed-prospect-navigation.ts",
+  "src/lib/prospect-access.ts",
 ];
 
 test("no /updates UI file imports PersonalNote or LedgerEntry, or queries Prisma directly", () => {

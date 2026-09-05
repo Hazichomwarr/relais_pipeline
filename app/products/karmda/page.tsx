@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import AdminShell from "@/component/dashboard/AdminShell";
 import CommercialShell from "@/component/commercial/CommercialShell";
 import SchoolDirectoryCards from "@/component/schools/SchoolDirectoryCards";
-import { resolveSchoolDetailHref } from "@/src/lib/school-directory-navigation";
+import { resolveProspectAccess } from "@/src/lib/prospect-access";
 import { requireRole } from "@/src/services/authorization.service";
 import { listSchools } from "@/src/services/school-directory.service";
 
@@ -51,7 +51,13 @@ export default async function KarmdaDirectoryPage({
 
       <SchoolDirectoryCards
         schools={schools}
-        resolveHref={(school) => resolveSchoolDetailHref(user, school)}
+        resolveHref={(school) =>
+          resolveProspectAccess(user, {
+            id: school.id,
+            product: "KARMDA",
+            assignedUserId: school.assignedUserId,
+          }).detailHref ?? `/schools/${school.id}`
+        }
       />
     </div>
   );

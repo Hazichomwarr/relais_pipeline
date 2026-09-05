@@ -21,6 +21,8 @@ export const schoolDirectorySelect = {
     select: {
       firstName: true,
       lastName: true,
+      role: true,
+      active: true,
     },
   },
   activities: {

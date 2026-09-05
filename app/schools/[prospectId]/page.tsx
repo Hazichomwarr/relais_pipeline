@@ -6,6 +6,8 @@ import {
   Badge,
   DetailSection,
   InfoField,
+  ReadOnlyNotice,
+  ResponsibleUserInfo,
   formatDateTime,
   getInterestLabel,
   getInterestStyles,
@@ -40,6 +42,8 @@ export default async function SchoolSummaryPage({
         Retour à toutes les écoles
       </Link>
 
+      <ReadOnlyNotice responsible={school.responsible} />
+
       <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Badge className="bg-white/15 text-white">
@@ -60,8 +64,8 @@ export default async function SchoolSummaryPage({
           <div className="grid gap-5 sm:grid-cols-2">
             <InfoField
               icon={<UserRound className="h-5 w-5" />}
-              label="Commercial assigné"
-              value={school.commercialName}
+              label="Responsable du suivi"
+              value={<ResponsibleUserInfo responsible={school.responsible} />}
             />
             <InfoField
               icon={<CalendarDays className="h-5 w-5" />}
@@ -75,9 +79,8 @@ export default async function SchoolSummaryPage({
           </div>
 
           <p className="mt-6 border-t border-slate-100 pt-4 text-xs text-slate-400">
-            Cette école appartient à un autre commercial. Ce résumé est
-            en lecture seule — contactez le commercial assigné pour toute
-            action de suivi.
+            Ce résumé est en lecture seule — les actions de suivi sont
+            réservées au responsable actuel.
           </p>
         </DetailSection>
       </div>

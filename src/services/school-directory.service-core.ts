@@ -1,5 +1,7 @@
-import type { InterestLevel, ProspectStatus } from "@prisma/client";
+import type { InterestLevel, ProspectStatus, UserRole } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+
+import { getResponsibleUserDisplay } from "@/src/lib/prospect-responsible-display";
 
 export type SchoolDirectoryFilters = {
   search?: string;
@@ -38,6 +40,8 @@ export type SchoolDirectoryRow = {
   assignedUser: {
     firstName: string;
     lastName: string;
+    role: UserRole;
+    active: boolean;
   } | null;
   activities: Array<{ occurredAt: Date }>;
 };
@@ -52,6 +56,16 @@ export function presentSchoolDirectoryItem(row: SchoolDirectoryRow) {
     commercialName: row.assignedUser
       ? `${row.assignedUser.firstName} ${row.assignedUser.lastName}`
       : row.agentName,
+    // Ticket 28C — kept alongside commercialName above (unaffected, still
+    // used by the directory cards) rather than replacing it: this is the
+    // truthful "Responsable du suivi" representation used by the
+    // read-only summary page, which — unlike commercialName — never
+    // falls back to the legacy agentName text for a genuinely unassigned
+    // school.
+    responsible: getResponsibleUserDisplay({
+      assignedUserId: row.assignedUserId,
+      assignedUser: row.assignedUser,
+    }),
     lastActivityAt: row.activities.at(0)?.occurredAt ?? null,
   };
 }

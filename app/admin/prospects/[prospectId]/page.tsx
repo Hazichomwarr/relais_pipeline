@@ -11,6 +11,8 @@ import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 
 import { ProspectRecordNavigation } from "@/component/propects/ProspectRecordNavigation";
 import ProspectActivityTimeline from "@/component/propects/prospect-activity-timeline";
+import ProspectAssignmentHistory from "@/component/propects/ProspectAssignmentHistory";
+import ProspectResponsibilitySection from "@/component/propects/ProspectResponsibilitySection";
 import ProspectWorkflowSections from "@/component/propects/prospect-workflow-sections";
 import {
   Badge,
@@ -26,13 +28,18 @@ import {
 } from "@/component/propects/prospect-detail-sections";
 import AdminShell from "@/component/dashboard/AdminShell";
 import { resolveSafeReturnTo } from "@/src/lib/callback-url";
+import { getResponsibleUserDisplay } from "@/src/lib/prospect-responsible-display";
 import { buildProspectRecordNavigationProps } from "@/src/lib/prospect-record-navigation";
 import { requireRole } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
 import { getAdjacentProspects } from "@/src/services/prospect-navigation.service";
 import { listProspectActionsForProspect } from "@/src/services/prospect-action.service";
+import { getProspectAssignmentTransfers } from "@/src/services/prospect-assignment-transfer.service";
 import { getProspectById } from "@/src/services/prospect.service";
-import { listActiveUsersForTaskAssignment } from "@/src/services/user.service";
+import {
+  listActiveUsersForTaskAssignment,
+  listProspectReassignmentEligibleUsers,
+} from "@/src/services/user.service";
 
 type ProspectDetailPageProps = {
   params: Promise<{
@@ -56,11 +63,14 @@ export default async function ProspectDetailPage({
     notFound();
   }
 
-  const [activitiesResult, actions, assignableUsers] = await Promise.all([
-    getProspectActivities(prospect.id),
-    listProspectActionsForProspect(prospect.id),
-    listActiveUsersForTaskAssignment(),
-  ]);
+  const [activitiesResult, actions, assignableUsers, transfers, eligibleUsers] =
+    await Promise.all([
+      getProspectActivities(prospect.id),
+      listProspectActionsForProspect(prospect.id),
+      listActiveUsersForTaskAssignment(),
+      getProspectAssignmentTransfers(prospect.id),
+      listProspectReassignmentEligibleUsers(),
+    ]);
 
   if (!activitiesResult.success && activitiesResult.code === "NOT_FOUND") {
     notFound();
@@ -79,6 +89,7 @@ export default async function ProspectDetailPage({
     adjacent,
     safeReturnTo,
   });
+  const responsible = getResponsibleUserDisplay(prospect);
 
   return (
     <AdminShell>
@@ -86,36 +97,33 @@ export default async function ProspectDetailPage({
         <ProspectRecordNavigation {...navProps} />
 
             <header className="rounded-4xl bg-[#0f2557] px-6 py-7 text-white shadow-[0_18px_50px_rgba(15,37,87,0.18)] md:px-8">
-              <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge className="bg-white/15 text-white">
-                      {getProductLabel(prospect.product)}
-                    </Badge>
-                    <Badge className={getInterestStyles(prospect.interest)}>
-                      {getInterestLabel(prospect.interest)}
-                    </Badge>
-                    <Badge className="bg-blue-100 text-blue-800">
-                      {getStatusLabel(prospect.status)}
-                    </Badge>
-                  </div>
-
-                  <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                    {prospect.name}
-                  </h1>
-                  <p className="mt-2 text-blue-100">{prospect.prospectType}</p>
-                </div>
-
-                <div className="rounded-2xl bg-white/10 px-5 py-4 text-sm backdrop-blur-sm">
-                  <p className="text-blue-100">Commercial assigné</p>
-                  <p className="mt-1 font-semibold text-white">
-                    {getAssignedUserName(prospect)}
-                  </p>
-                </div>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <Badge className="bg-white/15 text-white">
+                  {getProductLabel(prospect.product)}
+                </Badge>
+                <Badge className={getInterestStyles(prospect.interest)}>
+                  {getInterestLabel(prospect.interest)}
+                </Badge>
+                <Badge className="bg-blue-100 text-blue-800">
+                  {getStatusLabel(prospect.status)}
+                </Badge>
               </div>
+
+              <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+                {prospect.name}
+              </h1>
+              <p className="mt-2 text-blue-100">{prospect.prospectType}</p>
             </header>
 
             <div className="mt-7 space-y-7">
+              <ProspectResponsibilitySection
+                prospectId={prospect.id}
+                responsible={responsible}
+                eligibleUsers={eligibleUsers}
+              />
+
+              <ProspectAssignmentHistory transfers={transfers} />
+
               <DetailSection title="Informations générales">
                 <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   <InfoField
@@ -150,10 +158,6 @@ export default async function ProspectDetailPage({
                   <InfoField
                     label="Présence en ligne"
                     value={getOnlinePresenceLabel(prospect.onlinePresence)}
-                  />
-                  <InfoField
-                    label="Commercial assigné"
-                    value={getAssignedUserName(prospect)}
                   />
                 </div>
               </DetailSection>

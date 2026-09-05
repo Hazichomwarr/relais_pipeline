@@ -5,7 +5,7 @@ import AdminShell from "@/component/dashboard/AdminShell";
 import CommercialShell from "@/component/commercial/CommercialShell";
 import DigitalServicesDirectoryCards from "@/component/products/DigitalServicesDirectoryCards";
 import { getProductDirectoryConfig } from "@/src/lib/product-directory";
-import { resolveGenericProductDetailHref } from "@/src/lib/generic-product-directory-navigation";
+import { resolveProspectAccess } from "@/src/lib/prospect-access";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 import { appendReturnTo, buildReturnToPath } from "@/src/lib/return-to";
 import { requireRole } from "@/src/services/authorization.service";
@@ -35,9 +35,7 @@ export default async function DigitalServicesDirectoryPage({
   const returnTo = buildReturnToPath("/products/digital-services", params);
 
   const items = prospects.map((prospect) => {
-    const href = resolveGenericProductDetailHref(user, prospect, {
-      foreignHref: (id) => `/products/digital-services/${id}`,
-    });
+    const href = resolveProspectAccess(user, prospect).detailHref;
 
     return {
       id: prospect.id,

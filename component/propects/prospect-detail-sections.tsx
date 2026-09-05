@@ -1,6 +1,9 @@
 import type { Prospect, User } from "@prisma/client";
 import type { ReactNode } from "react";
 
+import { getUserRoleLabel } from "@/src/lib/constants/user-options";
+import type { ProspectResponsibleDisplay } from "@/src/lib/prospect-responsible-display";
+
 export type ProspectDetailData = Prospect & {
   assignedUser: Pick<
     User,
@@ -44,6 +47,64 @@ export function InfoField({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Ticket 28C §36/§58 — a compact, non-alarming notice for a non-owner
+ * Commercial's read-only summary. Deliberately not a full-width alert
+ * banner: the prospect's actual information stays the visual focus. Never
+ * mentions a management transfer reason — that stays management-only.
+ */
+export function ReadOnlyNotice({
+  responsible,
+}: {
+  responsible: ProspectResponsibleDisplay;
+}) {
+  return (
+    <div className="mb-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+      <p className="font-semibold text-slate-700">Lecture seule</p>
+      <p className="mt-1">
+        Ce prospect est suivi par un autre responsable. Vous pouvez
+        consulter les informations disponibles, mais les actions de suivi
+        sont réservées au responsable actuel.
+      </p>
+      {responsible.assigned && (
+        <p className="mt-2">
+          Responsable du suivi :{" "}
+          <span className="font-semibold">{responsible.name}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Ticket 28C §4/§29 — "Responsable du suivi" is the terminology used
+ * everywhere a current assignee is shown, replacing the older "Commercial
+ * assigné" wording: 28B correctly allows active ADMIN/MANAGER/COMMERCIAL
+ * as assignees, so labeling it "Commercial" would misdescribe a
+ * management-owned prospect. Purely a display block — no mutation
+ * control; the management-only Réassigner action lives in
+ * ProspectResponsibilitySection.
+ */
+export function ResponsibleUserInfo({
+  responsible,
+}: {
+  responsible: ProspectResponsibleDisplay;
+}) {
+  if (!responsible.assigned) {
+    return <span className="font-normal text-slate-400">Aucun responsable actuellement</span>;
+  }
+
+  return (
+    <span>
+      {responsible.name}
+      <span className="ml-2 text-xs font-normal text-slate-400">
+        {getUserRoleLabel(responsible.role)}
+        {!responsible.active && " · Inactif"}
+      </span>
+    </span>
   );
 }
 

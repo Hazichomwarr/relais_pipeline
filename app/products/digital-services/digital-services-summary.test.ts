@@ -71,11 +71,11 @@ test("reuses the shared read-only prospect-detail and activity-timeline building
   assert.match(source, /<ProductDetailSection prospect={prospect} \/>/);
 });
 
-test("shows a clear read-only / 'consultation uniquement' notice naming the assigned commercial", () => {
+test("shows the compact ReadOnlyNotice and 'Responsable du suivi' terminology", () => {
   const source = readFileSync(PAGE, "utf8");
 
-  assert.match(source, /Consultation uniquement/);
-  assert.match(source, /commercialName/);
+  assert.match(source, /<ReadOnlyNotice responsible={responsible} \/>/);
+  assert.match(source, /Responsable du suivi/);
 });
 
 test("resolves a safe returnTo, defaulting back to the directory list, never trusting an unsafe value", () => {

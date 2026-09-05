@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { authorizeAction } from "@/src/actions/authorize-action";
 import { reassignProspectSchema } from "@/src/lib/validations/prospect-assignment-transfer.schema";
 import { reassignProspect } from "@/src/services/prospect-assignment-transfer.service";
+import type { ReassignProspectErrorCode } from "@/src/services/prospect-assignment-transfer.service-core";
 import { requireProspectReassignmentAccess } from "@/src/services/authorization.service";
 
 export type ReassignProspectActionResult =
@@ -12,6 +13,15 @@ export type ReassignProspectActionResult =
   | {
       success: false;
       message: string;
+      /**
+       * Ticket 28C — the domain code behind `message`, when the failure
+       * came from reassignProspectCore itself (never set for an
+       * authorization/validation failure caught earlier in this action).
+       * Lets the UI branch on specific outcomes (e.g. CONCURRENTLY_REASSIGNED
+       * needs a refresh-and-don't-retry treatment, TARGET_INACTIVE needs a
+       * picker refresh) without parsing message text.
+       */
+      code?: ReassignProspectErrorCode;
       fieldErrors?: Record<string, string[] | undefined>;
     };
 
@@ -48,7 +58,7 @@ export async function reassignProspectAction(
   const result = await reassignProspect(authorization.user.id, parsed.data);
 
   if (!result.success) {
-    return { success: false, message: result.message };
+    return { success: false, message: result.message, code: result.code };
   }
 
   revalidatePath("/admin");

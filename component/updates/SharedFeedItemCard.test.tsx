@@ -259,7 +259,7 @@ test("COMMERCIAL viewer on another commercial's KARMDA school receives the read-
   assert.match(html, /href="\/schools\/prospect-1"/);
 });
 
-test("COMMERCIAL viewer on another commercial's non-KARMDA prospect gets no link at all", () => {
+test("COMMERCIAL viewer on another commercial's DIGITAL_SERVICES prospect gets the shared read-only summary link (Ticket 28C consolidated this through the canonical resolveProspectAccess)", () => {
   const html = renderToStaticMarkup(
     <SharedFeedItemCard
       item={{ ...interactionItem, prospectProduct: "DIGITAL_SERVICES" }}
@@ -268,9 +268,22 @@ test("COMMERCIAL viewer on another commercial's non-KARMDA prospect gets no link
     />,
   );
 
-  assert.doesNotMatch(html, /Voir le prospect/);
-  assert.doesNotMatch(html, /<a /);
+  assert.match(html, /href="\/products\/digital-services\/prospect-1"/);
 });
+
+for (const product of ["LOKARI", "NIA"] as const) {
+  test(`COMMERCIAL viewer on another commercial's ${product} prospect gets that product's read-only summary link (Ticket 28C closed this gap)`, () => {
+    const html = renderToStaticMarkup(
+      <SharedFeedItemCard
+        item={{ ...interactionItem, prospectProduct: product }}
+        viewer={{ id: "commercial-99", role: "COMMERCIAL" }}
+        referenceDate={referenceDate}
+      />,
+    );
+
+    assert.match(html, new RegExp(`href="/products/${product.toLowerCase()}/prospect-1"`));
+  });
+}
 
 test("user lifecycle items never render a prospect or user detail link", () => {
   const activatedHtml = renderToStaticMarkup(

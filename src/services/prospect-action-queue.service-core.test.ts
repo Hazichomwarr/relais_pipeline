@@ -294,14 +294,19 @@ test("a COMMERCIAL viewing a foreign DIGITAL_SERVICES prospect gets the shared d
   );
 });
 
+const readOnlyRouteByProduct = {
+  LOKARI: "/products/lokari/prospect-1",
+  NIA: "/products/nia/prospect-1",
+} as const;
+
 for (const product of ["LOKARI", "NIA"] as const) {
-  test(`a COMMERCIAL viewing a foreign ${product} prospect gets no link — no shared read-only route exists, and none is fabricated`, () => {
+  test(`a COMMERCIAL viewing a foreign ${product} prospect gets the product's read-only summary route (Ticket 28C closed this gap) — a task assigned to them still leads somewhere, never a dead end`, () => {
     assert.equal(
       resolveProspectActionQueueProspectHref(
         { id: "commercial-1", role: "COMMERCIAL" },
         { id: "prospect-1", product, assignedUserId: "someone-else" },
       ),
-      null,
+      readOnlyRouteByProduct[product],
     );
   });
 }

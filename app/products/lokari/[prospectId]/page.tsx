@@ -27,31 +27,34 @@ import { resolveSafeReturnTo } from "@/src/lib/callback-url";
 import { getResponsibleUserDisplay } from "@/src/lib/prospect-responsible-display";
 import { requireRole } from "@/src/services/authorization.service";
 import { getProspectActivities } from "@/src/services/prospect-activity.service";
-import { getDigitalServicesProspectById } from "@/src/services/digital-services-directory.service";
+import { getLokariProspectById } from "@/src/services/generic-product-directory.service";
 
-type DigitalServicesSummaryPageProps = {
+type LokariSummaryPageProps = {
   params: Promise<{ prospectId: string }>;
   searchParams: Promise<{ returnTo?: string }>;
 };
 
 /**
- * Shared, read-only Digital Services summary (Ticket 15G.2) — the Digital
- * Services equivalent of /schools/[prospectId]. Exists so a foreign
- * COMMERCIAL can check whether a business was already prospected without
- * being sent to another commercial's editable detail route. ADMIN/MANAGER
- * and an owning COMMERCIAL are still routed to their own detail pages by
- * resolveGenericProductDetailHref — reaching this route directly is
- * harmless (same read-only render), never a mutation surface.
+ * Ticket 28C — the LOKARI equivalent of /products/digital-services/[id]
+ * and /schools/[id]: closes the read-only parity gap the 28A audit found
+ * (LOKARI previously had no safe route for a non-owner Commercial at
+ * all — the directory row simply had no link). Consultation only; no
+ * mutation form of any kind. Reachable directly by any authorized
+ * Commercial regardless of how they arrived (directory link, updates
+ * feed, action queue, or a pasted URL) — ADMIN/MANAGER and an owning
+ * COMMERCIAL are still routed to their own detail pages by
+ * resolveProspectAccess; landing here directly is harmless, never a
+ * mutation surface.
  */
-export default async function DigitalServicesSummaryPage({
+export default async function LokariSummaryPage({
   params,
   searchParams,
-}: DigitalServicesSummaryPageProps) {
+}: LokariSummaryPageProps) {
   await requireRole("ADMIN", "MANAGER", "COMMERCIAL");
   const { prospectId } = await params;
   const { returnTo } = await searchParams;
 
-  const prospect = await getDigitalServicesProspectById(prospectId);
+  const prospect = await getLokariProspectById(prospectId);
 
   if (!prospect) {
     notFound();
@@ -63,7 +66,7 @@ export default async function DigitalServicesSummaryPage({
     notFound();
   }
 
-  const safeReturnTo = resolveSafeReturnTo(returnTo, "/products/digital-services");
+  const safeReturnTo = resolveSafeReturnTo(returnTo, "/products/lokari");
   const responsible = getResponsibleUserDisplay(prospect);
 
   return (

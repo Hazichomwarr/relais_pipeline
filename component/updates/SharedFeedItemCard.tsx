@@ -12,7 +12,7 @@ import Link from "next/link";
 
 import { getUserRoleLabel } from "@/src/lib/constants/user-options";
 import { getInitialsFromName } from "@/src/lib/initials";
-import { resolveSharedFeedProspectHref } from "@/src/lib/shared-feed-prospect-navigation";
+import { resolveProspectAccess } from "@/src/lib/prospect-access";
 import { formatSharedFeedTimestamp } from "@/src/lib/shared-feed-timestamp";
 import type { SharedFeedItem } from "@/src/services/shared-feed.service-core";
 
@@ -81,11 +81,11 @@ export default function SharedFeedItemCard({
     item.type === "PROSPECT_INTERACTION" ||
     item.type === "FOLLOW_UP_COMPLETED" ||
     item.type === "PROSPECT_WON"
-      ? resolveSharedFeedProspectHref(viewer, {
+      ? resolveProspectAccess(viewer, {
           id: item.prospectId,
           product: item.prospectProduct,
           assignedUserId: item.prospectAssignedUserId,
-        })
+        }).detailHref
       : null;
 
   return (

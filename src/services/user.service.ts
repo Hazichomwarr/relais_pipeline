@@ -21,6 +21,7 @@ import {
 import { createUserWithCreationHistory } from "@/src/services/user-creation-history.service";
 import { resolveRelaisOrganizationId } from "@/src/services/organization-bootstrap.service";
 import { PROSPECT_ACTION_ASSIGNEE_ROLES } from "@/src/services/prospect-action.service-core";
+import { PROSPECT_OWNER_ROLES } from "@/src/services/prospect-creation.service-core";
 import { COMMERCIAL_PERFORMANCE_TARGET_ELIGIBLE_ROLES } from "@/src/services/commercial-performance-target.service-core";
 
 const dependencies = {
@@ -166,6 +167,32 @@ export async function listDashboardUserOptions() {
 export async function listActiveUsersForTaskAssignment() {
   return prisma.user.findMany({
     where: { active: true, role: { in: [...PROSPECT_ACTION_ASSIGNEE_ROLES] } },
+    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+    },
+  });
+}
+
+/**
+ * Ticket 28C — populates the reassignment target picker. Deliberately its
+ * own query filtered by PROSPECT_OWNER_ROLES (the same constant
+ * canReceiveProspectAssignment/28B composes with `active`), not reused
+ * from listActiveUsersForTaskAssignment above even though the value set
+ * is identical today — ProspectAction-assignee eligibility and
+ * prospect-reassignment-target eligibility are different domain
+ * decisions that only coincide by value right now (same reasoning
+ * documented on listCommercialResultsTargetEligibleUsers below). This is
+ * presentation only — reassignProspectCore remains the sole
+ * authoritative eligibility check; a stale/crafted client value is
+ * rejected there regardless of what this list ever returned.
+ */
+export async function listProspectReassignmentEligibleUsers() {
+  return prisma.user.findMany({
+    where: { active: true, role: { in: [...PROSPECT_OWNER_ROLES] } },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
     select: {
       id: true,

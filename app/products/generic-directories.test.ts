@@ -8,9 +8,11 @@ import test from "node:test";
  *
  * DIGITAL_SERVICES is deliberately excluded here (Ticket 15G.2 gave it a
  * real directory — search, dedicated cards, a shared detail route — see
- * digital-services-directory.test.ts). LOKARI/NIA remain untouched
- * foundation directories, so they keep the original 15G.1 behavior this
- * file asserts.
+ * digital-services-directory.test.ts). LOKARI/NIA still keep the original
+ * 15G.1 foundation list page this file asserts (no search/filter UI) —
+ * Ticket 28C only added their [prospectId] read-only summary route
+ * (tested in products-lokari-nia-summary.test.ts), not a redesign of this
+ * list page.
  */
 const genericDirectoryPages = [
   { file: "app/products/lokari/page.tsx", product: "LOKARI" },
@@ -45,9 +47,9 @@ for (const { file, product } of genericDirectoryPages) {
     assert.doesNotMatch(source, /Filters/);
   });
 
-  test(`${file} resolves detail links via resolveGenericProductDetailHref, never a raw/unconditional prospect link`, () => {
+  test(`${file} resolves detail links via the canonical resolveProspectAccess, never a raw/unconditional prospect link`, () => {
     const source = readFileSync(file, "utf8");
 
-    assert.match(source, /resolveGenericProductDetailHref\(user, prospect\)/);
+    assert.match(source, /resolveProspectAccess\(user, prospect\)\.detailHref/);
   });
 }

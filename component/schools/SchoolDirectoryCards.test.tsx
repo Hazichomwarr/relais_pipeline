@@ -12,6 +12,13 @@ function baseSchool() {
     interest: "READY_TO_DISCUSS" as const,
     assignedUserId: "commercial-1",
     commercialName: "Awa Traoré",
+    responsible: {
+      assigned: true as const,
+      userId: "commercial-1",
+      name: "Awa Traoré",
+      role: "COMMERCIAL" as const,
+      active: true,
+    },
     lastActivityAt: null as Date | null,
   };
 }

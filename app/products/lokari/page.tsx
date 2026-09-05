@@ -2,7 +2,7 @@ import AdminShell from "@/component/dashboard/AdminShell";
 import CommercialShell from "@/component/commercial/CommercialShell";
 import GenericProductDirectoryList from "@/component/products/GenericProductDirectoryList";
 import { getProductDirectoryConfig } from "@/src/lib/product-directory";
-import { resolveGenericProductDetailHref } from "@/src/lib/generic-product-directory-navigation";
+import { resolveProspectAccess } from "@/src/lib/prospect-access";
 import { getAssignedUserName } from "@/src/lib/prospect-ownership";
 import { requireRole } from "@/src/services/authorization.service";
 import { getProspects } from "@/src/services/prospect.service";
@@ -23,7 +23,7 @@ export default async function LokariDirectoryPage() {
     status: prospect.status,
     interest: prospect.interest,
     commercialName: getAssignedUserName(prospect),
-    detailHref: resolveGenericProductDetailHref(user, prospect),
+    detailHref: resolveProspectAccess(user, prospect).detailHref,
   }));
 
   const content = (

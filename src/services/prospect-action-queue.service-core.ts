@@ -1,9 +1,6 @@
 import type { InterestLevel, ProspectStatus, RelaisProduct, UserRole } from "@prisma/client";
 
-import {
-  resolveGenericProductDetailHref,
-} from "@/src/lib/generic-product-directory-navigation";
-import { resolveSchoolDetailHref } from "@/src/lib/school-directory-navigation";
+import { resolveProspectAccess } from "@/src/lib/prospect-access";
 import {
   addBusinessDays,
   startOfBusinessDay,
@@ -191,21 +188,20 @@ export type ProspectActionQueueNavigationTarget = {
   assignedUserId: string | null;
 };
 
+/**
+ * Ticket 28C — delegates entirely to the canonical resolveProspectAccess;
+ * no product-specific branching remains here. This matters especially for
+ * this queue: a ProspectAction's assignee is independent of the
+ * prospect's own owner (Ticket 20B/28A §19), so a Commercial can
+ * legitimately keep an actionable queue entry for a prospect they no
+ * longer own — the link must still resolve (to the read-only summary),
+ * never disappear just because they're not the current owner.
+ */
 export function resolveProspectActionQueueProspectHref(
   viewer: ProspectActionQueueNavigationViewer,
   prospect: ProspectActionQueueNavigationTarget,
 ): string | null {
-  if (prospect.product === "KARMDA") {
-    return resolveSchoolDetailHref(viewer, prospect);
-  }
-
-  if (prospect.product === "DIGITAL_SERVICES") {
-    return resolveGenericProductDetailHref(viewer, prospect, {
-      foreignHref: (id) => `/products/digital-services/${id}`,
-    });
-  }
-
-  return resolveGenericProductDetailHref(viewer, prospect);
+  return resolveProspectAccess(viewer, prospect).detailHref;
 }
 
 // ---------------------------------------------------------------------------

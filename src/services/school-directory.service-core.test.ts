@@ -69,11 +69,50 @@ test("presentation prefers the live assigned user's name", () => {
   const item = presentSchoolDirectoryItem(
     baseRow({
       assignedUserId: "user-1",
-      assignedUser: { firstName: "Aïcha", lastName: "Sawadogo" },
+      assignedUser: {
+        firstName: "Aïcha",
+        lastName: "Sawadogo",
+        role: "COMMERCIAL",
+        active: true,
+      },
     }),
   );
 
   assert.equal(item.commercialName, "Aïcha Sawadogo");
+});
+
+// ---------------------------------------------------------------------------
+// Ticket 28C — the truthful "responsible" representation, distinct from
+// commercialName's agentName fallback
+// ---------------------------------------------------------------------------
+
+test("responsible is unassigned (never falling back to agentName) for a genuinely unassigned school", () => {
+  const item = presentSchoolDirectoryItem(baseRow());
+
+  assert.deepEqual(item.responsible, { assigned: false });
+  assert.equal(item.commercialName, "Fallback Agent", "commercialName's fallback is untouched");
+});
+
+test("responsible reflects the live assigned user's name, role, and active state", () => {
+  const item = presentSchoolDirectoryItem(
+    baseRow({
+      assignedUserId: "user-1",
+      assignedUser: {
+        firstName: "Aïcha",
+        lastName: "Sawadogo",
+        role: "MANAGER",
+        active: false,
+      },
+    }),
+  );
+
+  assert.deepEqual(item.responsible, {
+    assigned: true,
+    userId: "user-1",
+    name: "Aïcha Sawadogo",
+    role: "MANAGER",
+    active: false,
+  });
 });
 
 test("presentation reports no last activity when none were logged", () => {
